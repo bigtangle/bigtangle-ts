@@ -12,9 +12,9 @@ export class TradePair implements Comparable<TradePair> {
     public hashCode(): number {
         const prime = 31;
         let result = 1;
-        result = prime * result + (this.orderBaseToken == null ? 0 : this.orderBaseToken.hashCode());
-        result = prime * result + (this.orderToken == null ? 0 : this.orderToken.hashCode());
-        result = prime * result + (this.paar == null ? 0 : this.paar.hashCode());
+        result = prime * result + (this.orderBaseToken == null ? 0 : this.stringHashCode(this.orderBaseToken));
+        result = prime * result + (this.orderToken == null ? 0 : this.stringHashCode(this.orderToken));
+        result = prime * result + (this.paar == null ? 0 : this.stringHashCode(this.paar));
         return result;
     }
 
@@ -60,6 +60,16 @@ export class TradePair implements Comparable<TradePair> {
 
     public compareTo(other: TradePair): number {
         return this.getPaar().localeCompare(other.getPaar());
+    }
+
+    private stringHashCode(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
     }
 
     public toString(): string {

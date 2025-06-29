@@ -1,12 +1,12 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Token } from '../core/Token';
-import { BigInteger } from '../core/BigInteger';
+import bigInt from 'big-integer';
 
 export class GetTokensResponse extends AbstractResponse {
     private tokens: Token[] | null = null;
-    private amountMap: Map<string, BigInteger> | null = null;
+    private amountMap: Map<string, any> | null = null;
 
-    public static create(tokens: Token[], amountMap?: Map<string, BigInteger>): GetTokensResponse {
+    public static create(tokens: Token[], amountMap?: Map<string, any>): GetTokensResponse {
         const res = new GetTokensResponse();
         res.tokens = tokens;
         if (amountMap) {

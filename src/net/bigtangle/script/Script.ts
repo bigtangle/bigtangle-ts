@@ -1,4 +1,4 @@
-import { NetworkParameters } from '../core/NetworkParameters.js';
+import { NetworkParameters } from '../params/NetworkParameters.js';
 import { Sha256Hash } from '../core/Sha256Hash.js';
 import { Address } from '../core/Address.js';
 import { ECKey } from '../core/ECKey.js';
@@ -7,7 +7,8 @@ import { TransactionSignature } from '../crypto/TransactionSignature.js';
 import { ScriptException } from '../exception/ScriptException.js';
 import { Utils } from '../utils/Utils.js';
 import { ScriptChunk } from './ScriptChunk.js';
-import { BigInteger } from '../core/BigInteger.js';
+import BigInteger from 'big-integer';
+import { ECDSASignature } from '../core/ECDSASignature.js'; // Added ECDSASignature import
 import {
     OP_0, OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4, OP_1NEGATE, OP_1, OP_2, OP_3, OP_4, OP_5, OP_6, OP_7, OP_8, OP_9, OP_10, OP_11, OP_12, OP_13, OP_14, OP_15, OP_16,
     OP_NOP, OP_IF, OP_NOTIF, OP_VERIF, OP_VERNOTIF, OP_ELSE, OP_ENDIF, OP_VERIFY, OP_RETURN,
@@ -285,9 +286,9 @@ export class Script {
         return this.chunks[1].data;
     }
 
-    getCLTVPaymentChannelExpiry(): BigInteger {
+    getCLTVPaymentChannelExpiry(): any {
         if (!this.isSentToCLTVPaymentChannel()) {
-            throw new ScriptException("Script not a standard CHECKLOCKTIMEVERIFY transaction: " + this.toString());
+            throw new ScriptException("Script not a standard CHECKLOCKTIMVERIFY transaction: " + this.toString());
         }
         if (!this.chunks[4].data) throw new ScriptException("No data in chunk 4 for CLTV expiry");
         return Script.castToBigInteger(this.chunks[4].data, 5);
@@ -360,11 +361,11 @@ export class Script {
         // }
 
         const dos = new DataOutputStream();
-        Script.writeBytes(dos, new Uint8Array([Script.encodeToOpN(threshold)]));
+        dos.writeByte(Script.encodeToOpN(threshold));
         for (const key of pubkeys) {
             Script.writeBytes(dos, key.getPubKey());
         }
-        Script.writeBytes(dos, new Uint8Array([Script.encodeToOpN(pubkeys.length)]));
+        dos.writeByte(Script.encodeToOpN(pubkeys.length));
         dos.writeByte(OP_CHECKMULTISIG);
         return new Script(dos.toByteArray()); // Return a Script object
     }
@@ -491,8 +492,7 @@ export class Script {
         const signature = TransactionSignature.decodeFromBitcoin(signatureBytes, true, false); // TransactionSignature extends ECDSASignature
 
         // Import the correct ECDSASignature class from core
-        const { ECDSASignature } = require('../core/ECDSASignature');
-        const sigForVerify = new ECDSASignature(signature.r, signature.s);
+        const sigForVerify = new ECDSASignature(BigInt(signature.r.toString()), BigInt(signature.s.toString()));
 
         for (let i = 0 ; i < numKeys ; i++) {
             if (!this.chunks[i + 1].data) throw new Error("Pubkey chunk has no data");
@@ -765,16 +765,16 @@ export class Script {
      * sizes.
      * @throws ScriptException if the chunk is longer than 4 bytes.
      */
-    private static castToBigInteger(chunk: Uint8Array): BigInteger;
-    private static castToBigInteger(chunk: Uint8Array, maxLength: number): BigInteger;
-    private static castToBigInteger(chunk: Uint8Array, maxLength?: number): BigInteger {
+    private static castToBigInteger(chunk: Uint8Array): any;
+    private static castToBigInteger(chunk: Uint8Array, maxLength: number): any;
+    private static castToBigInteger(chunk: Uint8Array, maxLength?: number): any {
         if (maxLength !== undefined && chunk.length > maxLength) {
             throw new ScriptException(`Script attempted to use an integer larger than ${maxLength} bytes`);
         }
         if (maxLength === undefined && chunk.length > 4) {
             throw new ScriptException("Script attempted to use an integer larger than 4 bytes");
         }
-        return Utils.decodeMPI(Utils.reverseBytes(chunk), false);
+        return Utils.decodeMPI(Utils.reverseBytes(chunk), false) as any;
     }
 
     isOpReturn(): boolean {
@@ -874,7 +874,7 @@ export class Script {
                 switch (opcode) {
                 // OP_0 is no opcode
                 case OP_1NEGATE:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInteger.ONE.negate(), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).one.negate(), false)));
                     break;
                 case OP_1:
                 case OP_2:
@@ -892,7 +892,7 @@ export class Script {
                 case OP_14:
                 case OP_15:
                 case OP_16:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new BigInteger(String(Script.decodeFromOpN(opcode))), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInteger(String(Script.decodeFromOpN(opcode))) as any, false)));
                     break;
                 case OP_NOP:
                     break;
@@ -990,7 +990,7 @@ export class Script {
                     }
                     break;
                 case OP_DEPTH:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new BigInteger(String(stack.length)), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new (BigInteger as any)(String(stack.length)), false)));
                     break;
                 case OP_DROP:
                     if (stack.length < 1) {
@@ -1023,11 +1023,11 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_PICK/OP_ROLL on an empty stack");
                     }
-                    const val = Script.castToBigInteger(stack.pop()!).intValue();
-                    if (val < 0 || val >= stack.length) {
+                    const val = Script.castToBigInteger(stack.pop()!) as any;
+                    if (val.lt(0) || val.gte(stack.length)) { // Using big-integer methods for comparison
                         throw new ScriptException("OP_PICK/OP_ROLL attempted to get data deeper than stack size");
                     }
-                    const OPROLLtmpChunk = stack.splice(stack.length - 1 - val, 1)[0];
+                    const OPROLLtmpChunk = stack.splice(stack.length - 1 - val.toJSNumber(), 1)[0];
                     stack.push(OPROLLtmpChunk);
                     break;
                 case OP_ROT:
@@ -1063,7 +1063,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SIZE on an empty stack");
                     }
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new BigInteger(String(stack[stack.length - 1].length)), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new (BigInteger as any)(String(stack[stack.length - 1].length)), false)));
                     break;
                 case OP_INVERT:
                 case OP_AND:
@@ -1093,14 +1093,14 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted a numeric op on an empty stack");
                     }
-                    let numericOPnum = Script.castToBigInteger(stack.pop()!);
+                    let numericOPnum = Script.castToBigInteger(stack.pop()!) as any;
 
                     switch (opcode) {
                     case OP_1ADD:
-                        numericOPnum = numericOPnum.add(BigInteger.ONE);
+                        numericOPnum = numericOPnum.add((BigInteger as any).one);
                         break;
                     case OP_1SUB:
-                        numericOPnum = numericOPnum.subtract(BigInteger.ONE);
+                        numericOPnum = numericOPnum.subtract((BigInteger as any).one);
                         break;
                     case OP_NEGATE:
                         numericOPnum = numericOPnum.negate();
@@ -1111,17 +1111,17 @@ export class Script {
                         }
                         break;
                     case OP_NOT:
-                        if (numericOPnum.equals(BigInteger.ZERO)) {
-                            numericOPnum = BigInteger.ONE;
+                        if (numericOPnum.equals((BigInteger as any).zero)) {
+                            numericOPnum = (BigInteger as any).one;
                         } else {
-                            numericOPnum = BigInteger.ZERO;
+                            numericOPnum = (BigInteger as any).zero;
                         }
                         break;
                     case OP_0NOTEQUAL:
-                        if (numericOPnum.equals(BigInteger.ZERO)) {
-                            numericOPnum = BigInteger.ZERO;
+                        if (numericOPnum.equals((BigInteger as any).zero)) {
+                            numericOPnum = (BigInteger as any).zero;
                         } else {
-                            numericOPnum = BigInteger.ONE;
+                            numericOPnum = (BigInteger as any).one;
                         }
                         break;
                     default:
@@ -1129,6 +1129,7 @@ export class Script {
                     }
 
                     stack.push(Utils.reverseBytes(Utils.encodeMPI(numericOPnum, false)));
+                    break;
                     break;
                 case OP_2MUL:
                 case OP_2DIV:
@@ -1148,10 +1149,10 @@ export class Script {
                     if (stack.length < 2) {
                         throw new ScriptException("Attempted a numeric op on a stack with size < 2");
                     }
-                    const numericOPnum2 = Script.castToBigInteger(stack.pop()!);
-                    const numericOPnum1 = Script.castToBigInteger(stack.pop()!);
+                    const numericOPnum2 = Script.castToBigInteger(stack.pop()!) as any;
+                    const numericOPnum1 = Script.castToBigInteger(stack.pop()!) as any;
 
-                    let numericOPresult: BigInteger;
+                    let numericOPresult: any;
                     switch (opcode) {
                     case OP_ADD:
                         numericOPresult = numericOPnum1.add(numericOPnum2);
@@ -1160,59 +1161,59 @@ export class Script {
                         numericOPresult = numericOPnum1.subtract(numericOPnum2);
                         break;
                     case OP_BOOLAND:
-                        if (!numericOPnum1.equals(BigInteger.ZERO) && !numericOPnum2.equals(BigInteger.ZERO)) {
-                            numericOPresult = BigInteger.ONE;
+                        if (!numericOPnum1.equals((BigInteger as any).zero) && !numericOPnum2.equals((BigInteger as any).zero)) {
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_BOOLOR:
-                        if (!numericOPnum1.equals(BigInteger.ZERO) || !numericOPnum2.equals(BigInteger.ZERO)) {
-                            numericOPresult = BigInteger.ONE;
+                        if (!numericOPnum1.equals((BigInteger as any).zero) || !numericOPnum2.equals((BigInteger as any).zero)) {
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_NUMEQUAL:
                         if (numericOPnum1.equals(numericOPnum2)) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_NUMNOTEQUAL:
                         if (!numericOPnum1.equals(numericOPnum2)) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_LESSTHAN:
                         if (numericOPnum1.compareTo(numericOPnum2) < 0) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_GREATERTHAN:
                         if (numericOPnum1.compareTo(numericOPnum2) > 0) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_LESSTHANOREQUAL:
                         if (numericOPnum1.compareTo(numericOPnum2) <= 0) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_GREATERTHANOREQUAL:
                         if (numericOPnum1.compareTo(numericOPnum2) >= 0) {
-                            numericOPresult = BigInteger.ONE;
+                            numericOPresult = (BigInteger as any).one;
                         } else {
-                            numericOPresult = BigInteger.ZERO;
+                            numericOPresult = (BigInteger as any).zero;
                         }
                         break;
                     case OP_MIN:
@@ -1245,8 +1246,8 @@ export class Script {
                     if (stack.length < 2) {
                         throw new ScriptException("Attempted OP_NUMEQUALVERIFY on a stack with size < 2");
                     }
-                    const OPNUMEQUALVERIFYnum2 = Script.castToBigInteger(stack.pop()!);
-                    const OPNUMEQUALVERIFYnum1 = Script.castToBigInteger(stack.pop()!);
+                    const OPNUMEQUALVERIFYnum2 = Script.castToBigInteger(stack.pop()!) as any;
+                    const OPNUMEQUALVERIFYnum1 = Script.castToBigInteger(stack.pop()!) as any;
 
                     if (!OPNUMEQUALVERIFYnum1.equals(OPNUMEQUALVERIFYnum2)) {
                         throw new ScriptException("OP_NUMEQUALVERIFY failed");
@@ -1256,13 +1257,13 @@ export class Script {
                     if (stack.length < 3) {
                         throw new ScriptException("Attempted OP_WITHIN on a stack with size < 3");
                     }
-                    const OPWITHINnum3 = Script.castToBigInteger(stack.pop()!);
-                    const OPWITHINnum2 = Script.castToBigInteger(stack.pop()!);
-                    const OPWITHINnum1 = Script.castToBigInteger(stack.pop()!);
+                    const OPWITHINnum3 = Script.castToBigInteger(stack.pop()!) as any;
+                    const OPWITHINnum2 = Script.castToBigInteger(stack.pop()!) as any;
+                    const OPWITHINnum1 = Script.castToBigInteger(stack.pop()!) as any;
                     if (OPWITHINnum2.compareTo(OPWITHINnum1) <= 0 && OPWITHINnum1.compareTo(OPWITHINnum3) < 0) {
-                        stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInteger.ONE, false)));
+                        stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).one, false)));
                     } else {
-                        stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInteger.ZERO, false)));
+                        stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).zero, false)));
                     }
                     break;
                 case OP_RIPEMD160:
@@ -1372,23 +1373,23 @@ export class Script {
 
         // Thus as a special case we tell CScriptNum to accept up
         // to 5-byte bignums to avoid year 2038 issue.
-        const nLockTime = Script.castToBigInteger(stack[stack.length - 1], 5);
+        const nLockTime = Script.castToBigInteger(stack[stack.length - 1], 5) as any;
 
-        if (nLockTime.compareTo(BigInteger.ZERO) < 0) {
+        if (nLockTime.compareTo((BigInteger as any).zero) < 0) {
             throw new ScriptException("Negative locktime");
         }
 
         // There are two kinds of nLockTime, need to ensure we're comparing apples-to-apples
         if (!(
-            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new BigInteger(Transaction.LOCKTIME_THRESHOLD_BIG.toString()))) < 0) ||
-            ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new BigInteger(Transaction.LOCKTIME_THRESHOLD.toString()))) >= 0))
+            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD_BIG)))) < 0) ||
+            ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD)))) >= 0))
         ) {
             throw new ScriptException("Locktime requirement type mismatch");
         }
 
         // Now that we know we're comparing apples-to-apples, the
         // comparison is a simple numeric one.
-        if (nLockTime.compareTo(new BigInteger(String(txContainingThis.getLockTime()))) > 0) {
+        if (nLockTime.compareTo(new (BigInteger as any)(String(txContainingThis.getLockTime()))) > 0) {
             throw new ScriptException("Locktime requirement not satisfied");
         }
 
@@ -1408,11 +1409,11 @@ export class Script {
     }
 
     private static executeCheckSig(txContainingThis: Transaction, index: number, script: Script, stack: Uint8Array[],
-                                        lastCodeSepLocation: number, opcode: number,
-                                        verifyFlags: Set<Script.VerifyFlag>): void {
+        lastCodeSepLocation: number, opcode: number,
+        verifyFlags: Set<Script.VerifyFlag>): void {
         const requireCanonical = verifyFlags.has(Script.VerifyFlag.STRICTENC) ||
-                                 verifyFlags.has(Script.VerifyFlag.DERSIG) ||
-                                 verifyFlags.has(Script.VerifyFlag.LOW_S);
+            verifyFlags.has(Script.VerifyFlag.DERSIG) ||
+            verifyFlags.has(Script.VerifyFlag.LOW_S);
         if (stack.length < 2) {
             throw new ScriptException("Attempted OP_CHECKSIG(VERIFY) on a stack with size < 2");
         }
@@ -1435,8 +1436,7 @@ export class Script {
             // TODO: Should check hash type is known
             const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
             // Convert to core ECDSASignature for verification
-            const { ECDSASignature } = require('../core/ECDSASignature');
-            const sigForVerify = new ECDSASignature(sig.r, sig.s);
+            const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
             sigValid = ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify);
         } catch (e: any) {
             // There is (at least) one exception that could be hit here (EOFException, if the sig is too short)
@@ -1459,42 +1459,42 @@ export class Script {
     }
 
     private static executeMultiSig(txContainingThis: Transaction, index: number, script: Script, stack: Uint8Array[],
-                                       opCount: number, lastCodeSepLocation: number, opcode: number,
-                                       verifyFlags: Set<Script.VerifyFlag>): number {
+        opCount: number, lastCodeSepLocation: number, opcode: number,
+        verifyFlags: Set<Script.VerifyFlag>): number {
         const requireCanonical = verifyFlags.has(Script.VerifyFlag.STRICTENC) ||
-                                 verifyFlags.has(Script.VerifyFlag.DERSIG) ||
-                                 verifyFlags.has(Script.VerifyFlag.LOW_S);
+            verifyFlags.has(Script.VerifyFlag.DERSIG) ||
+            verifyFlags.has(Script.VerifyFlag.LOW_S);
         if (stack.length < 2) {
             throw new ScriptException("Attempted OP_CHECKMULTISIG(VERIFY) on a stack with size < 2");
         }
-        const pubKeyCount = Script.castToBigInteger(stack.pop()!).intValue();
-        if (pubKeyCount < 0 || pubKeyCount > 20) {
+        const pubKeyCount = Script.castToBigInteger(stack.pop()!) as any;
+        if (pubKeyCount.lt(0) || pubKeyCount.gt(20)) { // Using big-integer methods for comparison
             throw new ScriptException("OP_CHECKMULTISIG(VERIFY) with pubkey count out of range");
         }
-        opCount += pubKeyCount;
+        opCount += pubKeyCount.toJSNumber(); // Convert BigInteger to number for addition
         if (opCount > 201) {
             throw new ScriptException("Total op count > 201 during OP_CHECKMULTISIG(VERIFY)");
         }
-        if (stack.length < pubKeyCount + 1) {
+        if (stack.length < pubKeyCount.toJSNumber() + 1) { // Convert BigInteger to number for addition
             throw new ScriptException("Attempted OP_CHECKMULTISIG(VERIFY) on a stack with size < num_of_pubkeys + 2");
         }
 
         const pubkeys: Uint8Array[] = [];
-        for (let i = 0; i < pubKeyCount; i++) {
+        for (let i = 0; i < pubKeyCount.toJSNumber(); i++) { // Convert BigInteger to number for loop
             const pubKey = stack.pop()!;
             pubkeys.push(pubKey);
         }
 
-        const sigCount = Script.castToBigInteger(stack.pop()!).intValue();
-        if (sigCount < 0 || sigCount > pubKeyCount) {
+        const sigCount = Script.castToBigInteger(stack.pop()!) as any;
+        if (sigCount.lt(0) || sigCount.gt(pubKeyCount)) { // Using big-integer methods for comparison
             throw new ScriptException("OP_CHECKMULTISIG(VERIFY) with sig count out of range");
         }
-        if (stack.length < sigCount + 1) {
+        if (stack.length < sigCount.toJSNumber() + 1) { // Convert BigInteger to number for addition
             throw new ScriptException("Attempted OP_CHECKMULTISIG(VERIFY) on a stack with size < num_of_pubkeys + num_of_signatures + 3");
         }
 
         const sigs: Uint8Array[] = [];
-        for (let i = 0; i < sigCount; i++) {
+        for (let i = 0; i < sigCount.toJSNumber(); i++) { // Convert BigInteger to number for loop
             const sig = stack.pop()!;
             sigs.push(sig);
         }
@@ -1517,8 +1517,7 @@ export class Script {
                 const sig = TransactionSignature.decodeFromBitcoin(sigs[0], requireCanonical, false);
                 const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
                 // Convert to core ECDSASignature for verification
-                const { ECDSASignature } = require('../core/ECDSASignature');
-                const sigForVerify = new ECDSASignature(sig.r, sig.s);
+                const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
                 if (ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify)) {
                     sigs.shift(); // Remove the used signature
                 }
@@ -1566,7 +1565,8 @@ export class Script {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
-            txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(txContainingThis.bitcoinSerialize());
+            const payloadBytes = txContainingThis.bitcoinSerialize();
+            txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes), 0, payloadBytes.length, null);
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.
         }

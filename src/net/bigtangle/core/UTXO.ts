@@ -24,8 +24,45 @@ export class UTXO extends SpentBlock {
     private minimumsign: number = 0;
     private memo: string | null = null;
    
-    constructor() {
+    constructor(
+        hash?: Sha256Hash,
+        index?: number,
+        value?: Coin,
+        coinbase?: boolean,
+        script?: Script,
+        address?: string,
+        blockhash?: Sha256Hash,
+        fromaddress?: string,
+        memo?: string,
+        tokenid?: string,
+        spent?: boolean,
+        confirmed?: boolean,
+        spendPending?: boolean,
+        minimumsign?: number,
+        spendPendingTime?: number,
+        time?: number,
+        spenderBlockHash?: Sha256Hash
+    ) {
         super();
+        this.value = value ?? null;
+        this.script = script ?? null;
+        this.hash = hash ?? null;
+        this.index = index ?? 0;
+        this.coinbase = coinbase ?? false;
+        this.address = address ?? null;
+        this.fromaddress = fromaddress ?? null;
+        this.spendPending = spendPending ?? false;
+        this.spendPendingTime = spendPendingTime ?? 0;
+        this.tokenId = tokenid ?? null;
+        this.minimumsign = minimumsign ?? 0;
+        this.memo = memo ?? null;
+
+        // Set properties from superclass if provided
+        if (blockhash) this.setBlockHash(blockhash);
+        if (spent !== undefined) this.setSpent(spent);
+        if (spenderBlockHash) this.setSpenderBlockHash(spenderBlockHash);
+        if (confirmed !== undefined) this.setConfirmed(confirmed);
+        if (time !== undefined) this.setTime(time);
     }
 
     public keyAsString(): string {
@@ -49,7 +86,7 @@ export class UTXO extends SpentBlock {
     }
 
     public setHashHex(hashHex: string): void {
-        this.hash = Sha256Hash.wrap(hashHex);
+        this.hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(hashHex)));
     }
 
     public setValue(value: Coin): void {
@@ -190,44 +227,5 @@ export class UTXO extends SpentBlock {
 
     public setMinimumsign(minimumsign: number): void {
         this.minimumsign = minimumsign;
-    }
-
-    constructor(
-        hash: Sha256Hash,
-        index: number,
-        value: Coin,
-        coinbase: boolean,
-        script: Script,
-        address: string,
-        blockhash: Sha256Hash,
-        fromaddress: string,
-        memo: string,
-        tokenid: string,
-        spent: boolean,
-        confirmed: boolean,
-        spendPending: boolean,
-        minimumsign: number,
-        spendPendingTime: number,
-        time: number,
-        spenderBlockHash: Sha256Hash
-    ) {
-        super();
-        this.hash = hash;
-        this.index = index;
-        this.value = value;
-        this.script = script;
-        this.coinbase = coinbase;
-        this.setBlockHash(blockhash);
-        this.fromaddress = fromaddress;
-        this.memo = memo;
-        this.address = address;
-        this.setSpent(spent);
-        this.setSpenderBlockHash(spenderBlockHash);
-        this.tokenId = tokenid;
-        this.setConfirmed(confirmed);
-        this.spendPending = spendPending;
-        this.minimumsign = minimumsign;
-        this.spendPendingTime = spendPendingTime;
-        this.setTime(time);
     }
 }

@@ -1,4 +1,4 @@
-import { BigInteger } from './BigInteger';
+import { BigInteger } from 'big-integer';
 
 export class PayMultiSign {
     private orderid: string | null = null;

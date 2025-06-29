@@ -44,11 +44,28 @@ export class ServerState {
     public hashCode(): number {
         const prime = 31;
         let result = 1;
-        result = prime * result + (this.chainlength == null ? 0 : this.chainlength.hashCode());
-        result = prime * result + (this.responseTime == null ? 0 : this.responseTime.hashCode());
-        result = prime * result + (this.serverurl == null ? 0 : this.serverurl.hashCode());
-        result = prime * result + (this.status == null ? 0 : this.status.hashCode());
+        result = prime * result + (this.chainlength == null ? 0 : this.numberHashCode(this.chainlength));
+        result = prime * result + (this.responseTime == null ? 0 : this.numberHashCode(this.responseTime));
+        result = prime * result + (this.serverurl == null ? 0 : this.stringHashCode(this.serverurl));
+        result = prime * result + (this.status == null ? 0 : this.stringHashCode(this.status));
         return result;
+    }
+
+    private stringHashCode(str: string): number {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
+    }
+
+    private numberHashCode(num: number): number {
+        // For numbers, a simple way to get a hash is to return the number itself
+        // or a bitwise operation if you need to ensure it's a 32-bit integer.
+        // Given the context, returning the number directly or its integer representation should be fine.
+        return num | 0; // Ensure it's a 32-bit integer
     }
 
     public equals(obj: any): boolean {

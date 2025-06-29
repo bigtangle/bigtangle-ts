@@ -1,10 +1,10 @@
-import { BigInteger } from '../core/BigInteger';
+import bigInt from 'big-integer';
 import { ECDSASignature } from './ECDSASignature';
 import { SigHash } from '../core/Transaction';
 import { VerificationException } from '../exception/VerificationException';
 import { Utils } from '../utils/Utils';
 import { ECKey } from '../core/ECKey';
-import * as secp256k1 from '@noble/secp256k1';
+import { secp256k1 } from '@noble/curves/secp256k1';
 
 /**
  * A TransactionSignature wraps an {@link net.bigtangle.core.ECKey.ECDSASignature} and adds methods for handling
@@ -20,9 +20,9 @@ export class TransactionSignature extends ECDSASignature {
     public readonly sighashFlags: number;
 
     /** Constructs a signature with the given components and SIGHASH_ALL. */
-    constructor(r: BigInteger, s: BigInteger);
+    constructor(r: import('big-integer').BigInteger, s: import('big-integer').BigInteger);
     /** Constructs a signature with the given components and raw sighash flag bytes (needed for rule compatibility). */
-    constructor(r: BigInteger, s: BigInteger, sighashFlags: number);
+    constructor(r: import('big-integer').BigInteger, s: import('big-integer').BigInteger, sighashFlags: number);
     /** Constructs a transaction signature based on the ECDSA signature. */
     constructor(signature: ECDSASignature, mode: SigHash, anyoneCanPay: boolean);
     constructor(...args: any[]) {
@@ -51,7 +51,7 @@ export class TransactionSignature extends ECDSASignature {
     public static dummy(): TransactionSignature {
         // In the original Java code, HALF_CURVE_ORDER is used. We need to find an equivalent in noble-curves.
         // secp256k1.CURVE.n is the order of the curve.
-        const halfCurveOrder = new BigInteger(secp256k1.CURVE.n.toString()).divide(new BigInteger("2"));
+        const halfCurveOrder = bigInt(secp256k1.CURVE.n.toString()).divide(bigInt("2"));
         return new TransactionSignature(halfCurveOrder, halfCurveOrder);
     }
 

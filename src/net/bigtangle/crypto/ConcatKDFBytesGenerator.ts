@@ -9,14 +9,14 @@ import { sha512 } from '@noble/hashes/sha512';
 // Mimic SpongyCastle's Digest interface
 export interface Digest {
     update(data: Uint8Array): void;
-    doFinal(): Uint8Array;
+    digest(): Uint8Array;
     reset(): void;
     getDigestSize(): number;
 }
 
 // A simple SHA256 Digest implementation using @noble/hashes
 export class SHA256Digest implements Digest {
-    private hash: ReturnType<typeof sha256>;
+    private hash: ReturnType<typeof sha256.create>;
     private _digestSize: number;
 
     constructor() {
@@ -28,7 +28,7 @@ export class SHA256Digest implements Digest {
         this.hash.update(data);
     }
 
-    doFinal(): Uint8Array {
+    digest(): Uint8Array { // Changed from doFinal()
         const result = this.hash.digest();
         this.reset(); // Reset the hash after finalization
         return result;
@@ -45,7 +45,7 @@ export class SHA256Digest implements Digest {
 
 // A simple SHA512 Digest implementation using @noble/hashes
 export class SHA512Digest implements Digest {
-    private hash: ReturnType<typeof sha512>;
+    private hash: ReturnType<typeof sha512.create>;
     private _digestSize: number;
 
     constructor() {
@@ -57,7 +57,7 @@ export class SHA512Digest implements Digest {
         this.hash.update(data);
     }
 
-    doFinal(): Uint8Array {
+    digest(): Uint8Array { // Changed from doFinal()
         const result = this.hash.digest();
         this.reset(); // Reset the hash after finalization
         return result;
@@ -182,11 +182,11 @@ export class ConcatKDFBytesGenerator implements DigestDerivationFunction {
             this.digest.update(this.shared);
 
             if (this.iv !== null) {
-                this.digest.update(this.iv);
-            }
+            this.digest.update(this.iv);
+        }
 
-            const currentDig = this.digest.doFinal();
-            dig.set(currentDig);
+        const currentDig = this.digest.digest(); // Changed from doFinal()
+        dig.set(currentDig);
 
             if (len > outLen) {
                 out.set(dig.slice(0, outLen), outOff);

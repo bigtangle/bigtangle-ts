@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "module": "CommonJS",
+    "module": "esnext",
     "moduleResolution": "node",
     "lib": ["es2020", "dom"],
-    "types": ["node" ],
+    "types": ["node", "vitest/globals" ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,10 +16,10 @@
       "net/bigtangle/*": ["src/net/bigtangle/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-//    "test/**/*.ts"
-  ],
+    "include": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+    ],
   "exclude": [
     "node_modules",
     "dist"

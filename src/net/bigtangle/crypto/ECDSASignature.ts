@@ -1,4 +1,4 @@
-import { BigInteger } from '../core/BigInteger';
+import bigInt, { BigInteger } from 'big-integer';
 import { secp256k1 } from '@noble/curves/secp256k1';
 
 /**
@@ -38,7 +38,7 @@ export class ECDSASignature {
      * This is a Bitcoin-specific rule to prevent signature malleability.
      */
     public isCanonical(): boolean {
-        const halfCurveOrder = new BigInteger(secp256k1.CURVE.n.toString()).divide(new BigInteger("2"));
+        const halfCurveOrder: BigInteger = bigInt(secp256k1.CURVE.n.toString()).divide(bigInt("2"));
         return this.s.compareTo(halfCurveOrder) <= 0;
     }
 
@@ -48,7 +48,7 @@ export class ECDSASignature {
      */
     public toCanonicalised(): ECDSASignature {
         if (!this.isCanonical()) {
-            const canonicalS = new BigInteger(secp256k1.CURVE.n.toString()).subtract(this.s);
+            const canonicalS: BigInteger = bigInt(secp256k1.CURVE.n.toString()).subtract(this.s);
             return new ECDSASignature(this.r, canonicalS);
         }
         return this;
@@ -93,13 +93,13 @@ export class ECDSASignature {
             throw new Error("Bad signature: R tag not found");
         }
         const rLen = bytes[offset++];
-        const r = new BigInteger(ECDSASignature.bufferToHex(bytes.slice(offset, offset + rLen)), 16);
+        const r: BigInteger = bigInt(ECDSASignature.bufferToHex(bytes.slice(offset, offset + rLen)), 16);
         offset += rLen;
         if (bytes[offset++] !== 0x02) {
             throw new Error("Bad signature: S tag not found");
         }
         const sLen = bytes[offset++];
-        const s = new BigInteger(ECDSASignature.bufferToHex(bytes.slice(offset, offset + sLen)), 16);
+        const s: BigInteger = bigInt(ECDSASignature.bufferToHex(bytes.slice(offset, offset + sLen)), 16);
         return new ECDSASignature(r, s);
     }
 }

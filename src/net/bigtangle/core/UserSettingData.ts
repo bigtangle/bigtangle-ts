@@ -9,8 +9,7 @@ export class UserSettingData {
     private domain: string | null = null;
 
     public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
             dos.writeNBytesString(this.key || "");
             dos.writeNBytesString(this.value || "");
@@ -19,7 +18,7 @@ export class UserSettingData {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
     
     public parseDIS(dis: DataInputStream): UserSettingData {
@@ -30,7 +29,7 @@ export class UserSettingData {
     }
 
     public parse(buf: Uint8Array): UserSettingData {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();

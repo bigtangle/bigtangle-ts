@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import { KeyChainGroup } from '../../src/net/bigtangle/wallet/KeyChainGroup';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
-import { KeyChain } from '../../src/net/bigtangle/wallet/KeyChain';
+import { KeyChain, KeyPurpose } from '../../src/net/bigtangle/wallet/KeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { DeterministicSeed } from '../../src/net/bigtangle/wallet/DeterministicSeed';
@@ -13,7 +13,7 @@ import { RedeemData } from '../../src/net/bigtangle/wallet/RedeemData';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
 import { BloomFilter } from '../../src/net/bigtangle/core/BloomFilter';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
-import { BigInteger } from '../../src/net/bigtangle/core/BigInteger';
+import BigInteger from 'big-integer';
 
 describe('KeyChainGroupTest', () => {
     const LOOKAHEAD_SIZE = 5;
@@ -32,29 +32,26 @@ describe('KeyChainGroupTest', () => {
         watchingAccountKey = DeterministicKey.deserializeB58(null, XPUB, PARAMS);
     });
 
-    function createMarriedKeyChainGroup(): KeyChainGroup {
+    async function createMarriedKeyChainGroup(): Promise<KeyChainGroup> {
         const group = new KeyChainGroup(PARAMS);
-        const chain = createMarriedKeyChain();
+        const chain = await createMarriedKeyChain();
         group.addAndActivateHDChain(chain);
         group.setLookaheadSize(LOOKAHEAD_SIZE);
         group.getActiveKeyChain();
         return group;
     }
 
-    function createMarriedKeyChain(): MarriedKeyChain {
+    async function createMarriedKeyChain(): Promise<MarriedKeyChain> {
         const entropy = Sha256Hash.hash(
             Buffer.from("don't use a seed like this in real life"),
         );
-        const seed = new DeterministicSeed(
-            entropy,
+        const seed = await DeterministicSeed.fromEntropy(
+            entropy.getBytes(),
             '',
             MnemonicCode.BIP39_STANDARDISATION_TIME_SECS,
         );
-        const chain = MarriedKeyChain.builder()
-            .seed(seed)
-            .followingKeys(watchingAccountKey)
-            .threshold(2)
-            .build();
+        const chain = new MarriedKeyChain(PARAMS, seed);
+        chain.addFollowingAccountKeys([watchingAccountKey], 2);
         return chain;
     }
 
@@ -62,51 +59,51 @@ describe('KeyChainGroupTest', () => {
         let numKeys =
             (group.getLookaheadSize() + group.getLookaheadThreshold()) * 2 +
             1 +
-            group.getActiveKeyChain().getAccountPath().length +
+            (group.getActiveKeyChain() as any).getAccountPath().length +
             2;
         expect(group.numKeys()).toBe(numKeys);
         expect(group.getBloomFilterElementCount()).toBe(2 * numKeys);
-        const r1 = group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const r1 = group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         expect(group.numKeys()).toBe(numKeys);
         expect(group.getBloomFilterElementCount()).toBe(2 * numKeys);
 
-        const i1 = new ECKey();
-        group.importKeys(i1);
+        const i1 = new ECKey(null, null);
+        group.importKeys([i1]);
         numKeys++;
         expect(group.numKeys()).toBe(numKeys);
         expect(group.getBloomFilterElementCount()).toBe(2 * numKeys);
 
-        const r2 = group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const r2 = group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         expect(r1).toEqual(r2);
-        const c1 = group.currentKey(KeyChain.KeyPurpose.CHANGE);
+        const c1 = group.currentKey(KeyPurpose.CHANGE);
         expect(r1).not.toEqual(c1);
-        const r3 = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const r3 = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         expect(r1).not.toEqual(r3);
-        const c2 = group.freshKey(KeyChain.KeyPurpose.CHANGE);
+        const c2 = group.freshKey(KeyPurpose.CHANGE);
         expect(r3).not.toEqual(c2);
-        const r4 = group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const r4 = group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         expect(r2).toEqual(r4);
-        const c3 = group.currentKey(KeyChain.KeyPurpose.CHANGE);
+        const c3 = group.currentKey(KeyPurpose.CHANGE);
         expect(c1).toEqual(c3);
         group.markPubKeyAsUsed(r4.getPubKey());
-        const r5 = group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const r5 = group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         expect(r4).not.toEqual(r5);
     });
 
-    test('freshCurrentKeysForMarriedKeychain', () => {
-        group = createMarriedKeyChainGroup();
+    test('freshCurrentKeysForMarriedKeychain', async () => {
+        group = await createMarriedKeyChainGroup();
 
         expect(() => {
-            group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+            group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         }).toThrow();
 
         expect(() => {
-            group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+            group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         }).toThrow();
     });
 
     test('imports', () => {
-        const key1 = new ECKey();
+        const key1 = new ECKey(null, null);
         const numKeys = group.numKeys();
         expect(group.removeImportedKey(key1)).toBe(false);
         expect(group.importKeys([key1])).toBe(1);
@@ -116,11 +113,11 @@ describe('KeyChainGroupTest', () => {
     });
 
     test('findKey', () => {
-        const a = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
-        const b = group.freshKey(KeyChain.KeyPurpose.CHANGE);
-        const c = new ECKey();
-        const d = new ECKey();
-        group.importKeys(c);
+        const a = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
+        const b = group.freshKey(KeyPurpose.CHANGE);
+        const c = new ECKey(null, null);
+        const d = new ECKey(null, null);
+        group.importKeys([c]);
         expect(group.hasKey(a)).toBe(true);
         expect(group.hasKey(b)).toBe(true);
         expect(group.hasKey(c)).toBe(true);
@@ -141,44 +138,44 @@ describe('KeyChainGroupTest', () => {
         expect(group.findKeyFromPubHash(d.getPubKeyHash())).toBeNull();
     });
 
-    test('currentP2SHAddress', () => {
-        group = createMarriedKeyChainGroup();
-        const a1 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+    test('currentP2SHAddress', async () => {
+        group = await createMarriedKeyChainGroup();
+        const a1 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(a1.isP2SHAddress()).toBe(true);
-        const a2 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const a2 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(a1).toEqual(a2);
-        const a3 = group.currentAddress(KeyChain.KeyPurpose.CHANGE);
+        const a3 = group.currentAddress(KeyPurpose.CHANGE);
         expect(a2).not.toEqual(a3);
     });
 
-    test('freshAddress', () => {
-        group = createMarriedKeyChainGroup();
-        const a1 = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
-        const a2 = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+    test('freshAddress', async () => {
+        group = await createMarriedKeyChainGroup();
+        const a1 = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
+        const a2 = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(a1.isP2SHAddress()).toBe(true);
         expect(a1).not.toEqual(a2);
         group.getBloomFilterElementCount();
         expect(group.numKeys()).toBe(
             (group.getLookaheadSize() + group.getLookaheadThreshold()) * 2 +
                 (2 - group.getLookaheadThreshold()) +
-                group.getActiveKeyChain().getAccountPath().length +
+                (group.getActiveKeyChain() as any).getAccountPath().length +
                 3,
         );
 
-        const a3 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const a3 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(a2).toEqual(a3);
     });
 
-    test('findRedeemData', () => {
-        group = createMarriedKeyChainGroup();
+    test('findRedeemData', async () => {
+        group = await createMarriedKeyChainGroup();
 
-        expect(group.findRedeemDataFromScriptHash(new ECKey().getPubKey())).toBeNull();
+        expect(group.findRedeemDataFromScriptHash(new ECKey(null, null).getPubKey())).toBeNull();
 
-        const address = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const address = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         const redeemData = group.findRedeemDataFromScriptHash(address.getHash160());
         expect(redeemData).not.toBeNull();
-        expect(redeemData.redeemScript).not.toBeNull();
-        expect(redeemData.keys.length).toBe(2);
+        expect(redeemData!.redeemScript).not.toBeNull();
+        expect(redeemData!.keys.length).toBe(2);
     });
 
     test('encryptionWithoutImported', () => {
@@ -192,11 +189,11 @@ describe('KeyChainGroupTest', () => {
     function encryption(withImported: boolean) {
         Utils.rollMockClock(0);
         const now = Utils.currentTimeSeconds();
-        const a = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const a = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         expect(group.getEarliestKeyCreationTime()).toBe(now);
         Utils.rollMockClock(-86400);
         const yesterday = Utils.currentTimeSeconds();
-        const b = new ECKey();
+        const b = new ECKey(null, null);
 
         expect(group.isEncrypted()).toBe(false);
         expect(() => {
@@ -204,7 +201,7 @@ describe('KeyChainGroupTest', () => {
         }).toThrow();
         if (withImported) {
             expect(group.getEarliestKeyCreationTime()).toBe(now);
-            group.importKeys(b);
+            group.importKeys([b]);
             expect(group.getEarliestKeyCreationTime()).toBe(yesterday);
         }
         const scrypt = new KeyCrypterScrypt(2);
@@ -214,25 +211,29 @@ describe('KeyChainGroupTest', () => {
         expect(group.checkPassword('password')).toBe(true);
         expect(group.checkPassword('wrong password')).toBe(false);
         const ea = group.findKeyFromPubKey(a.getPubKey());
-        expect(ea.isEncrypted()).toBe(true);
+        expect(ea).not.toBeNull();
+        expect(ea!.isEncrypted()).toBe(true);
         if (withImported) {
-            expect(group.findKeyFromPubKey(b.getPubKey()).isEncrypted()).toBe(true);
+            const eb = group.findKeyFromPubKey(b.getPubKey());
+            expect(eb).not.toBeNull();
+            expect(eb!.isEncrypted()).toBe(true);
             expect(group.getEarliestKeyCreationTime()).toBe(yesterday);
         } else {
             expect(group.getEarliestKeyCreationTime()).toBe(now);
         }
         expect(() => {
-            ea.sign(Sha256Hash.ZERO_HASH);
+            ea!.sign(Sha256Hash.ZERO_HASH.getBytes());
         }).toThrow();
         if (withImported) {
-            const c = new ECKey();
+            const c = new ECKey(null, null);
             expect(() => {
-                group.importKeys(c);
+                group.importKeys([c]);
             }).toThrow();
             group.importKeysAndEncrypt([c], aesKey);
             const ec = group.findKeyFromPubKey(c.getPubKey());
+            expect(ec).not.toBeNull();
             expect(() => {
-                group.importKeysAndEncrypt([ec], aesKey);
+                group.importKeysAndEncrypt([ec!], aesKey);
             }).toThrow();
         }
 
@@ -242,9 +243,13 @@ describe('KeyChainGroupTest', () => {
 
         group.decrypt(aesKey);
         expect(group.isEncrypted()).toBe(false);
-        expect(group.findKeyFromPubKey(a.getPubKey()).isEncrypted()).toBe(false);
+        const da = group.findKeyFromPubKey(a.getPubKey());
+        expect(da).not.toBeNull();
+        expect(da!.isEncrypted()).toBe(false);
         if (withImported) {
-            expect(group.findKeyFromPubKey(b.getPubKey()).isEncrypted()).toBe(false);
+            const db = group.findKeyFromPubKey(b.getPubKey());
+            expect(db).not.toBeNull();
+            expect(db!.isEncrypted()).toBe(false);
             expect(group.getEarliestKeyCreationTime()).toBe(yesterday);
         } else {
             expect(group.getEarliestKeyCreationTime()).toBe(now);
@@ -257,17 +262,19 @@ describe('KeyChainGroupTest', () => {
         const scrypt = new KeyCrypterScrypt(2);
         const aesKey = scrypt.deriveKey('password');
         group.encrypt(scrypt, aesKey);
-        expect(group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS).isEncrypted()).toBe(
+        expect(group.freshKey(KeyPurpose.RECEIVE_FUNDS).isEncrypted()).toBe(
             true,
         );
-        const key = group.currentKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const key = group.currentKey(KeyPurpose.RECEIVE_FUNDS);
         group.decrypt(aesKey);
-        expect(group.findKeyFromPubKey(key.getPubKey()).isEncrypted()).toBe(false);
+        const dkey = group.findKeyFromPubKey(key.getPubKey());
+        expect(dkey).not.toBeNull();
+        expect(dkey!.isEncrypted()).toBe(false);
     });
 
     test('bloom', () => {
-        const key1 = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
-        const key2 = new ECKey();
+        const key1 = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
+        const key2 = new ECKey(null, null);
         let filter = group.getBloomFilter(
             group.getBloomFilterElementCount(),
             0.001,
@@ -277,15 +284,15 @@ describe('KeyChainGroupTest', () => {
         expect(filter.contains(key1.getPubKey())).toBe(true);
         expect(filter.contains(key2.getPubKey())).toBe(false);
         for (let i = 0; i < LOOKAHEAD_SIZE + group.getLookaheadThreshold(); i++) {
-            const k = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+            const k = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
             expect(filter.contains(k.getPubKeyHash())).toBe(true);
         }
         expect(
             filter.contains(
-                group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS).getPubKey(),
+                group.freshKey(KeyPurpose.RECEIVE_FUNDS).getPubKey(),
             ),
         ).toBe(false);
-        group.importKeys(key2);
+        group.importKeys([key2]);
         filter = group.getBloomFilter(
             group.getBloomFilterElementCount(),
             0.001,
@@ -296,37 +303,37 @@ describe('KeyChainGroupTest', () => {
         expect(filter.contains(key2.getPubKey())).toBe(true);
     });
 
-    test('findRedeemScriptFromPubHash', () => {
-        group = createMarriedKeyChainGroup();
-        let address = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+    test('findRedeemScriptFromPubHash', async () => {
+        group = await createMarriedKeyChainGroup();
+        let address = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(group.findRedeemDataFromScriptHash(address.getHash160())).not.toBeNull();
         group.getBloomFilterElementCount();
-        const group2 = createMarriedKeyChainGroup();
-        group2.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const group2 = await createMarriedKeyChainGroup();
+        group2.freshAddress(KeyPurpose.RECEIVE_FUNDS);
         group2.getBloomFilterElementCount();
         for (
             let i = 0;
             i < group.getLookaheadSize() + group.getLookaheadThreshold();
             i++
         ) {
-            address = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+            address = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
             expect(
                 group2.findRedeemDataFromScriptHash(address.getHash160()),
             ).not.toBeNull();
         }
         expect(
             group2.findRedeemDataFromScriptHash(
-                group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS).getHash160(),
+                group.freshAddress(KeyPurpose.RECEIVE_FUNDS).getHash160(),
             ),
         ).toBeNull();
     });
 
-    test('bloomFilterForMarriedChains', () => {
-        group = createMarriedKeyChainGroup();
+    test('bloomFilterForMarriedChains', async () => {
+        group = await createMarriedKeyChainGroup();
         const bufferSize = group.getLookaheadSize() + group.getLookaheadThreshold();
         const expected = bufferSize * 2 * 2;
         expect(group.getBloomFilterElementCount()).toBe(expected);
-        const address1 = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const address1 = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(group.getBloomFilterElementCount()).toBe(expected);
         const filter = group.getBloomFilter(
             expected + 2,
@@ -335,16 +342,16 @@ describe('KeyChainGroupTest', () => {
         );
         expect(filter.contains(address1.getHash160())).toBe(true);
 
-        const address2 = group.freshAddress(KeyChain.KeyPurpose.CHANGE);
+        const address2 = group.freshAddress(KeyPurpose.CHANGE);
         expect(filter.contains(address2.getHash160())).toBe(true);
 
         for (let i = 0; i < bufferSize - 1; i++) {
-            const address = group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+            const address = group.freshAddress(KeyPurpose.RECEIVE_FUNDS);
             expect(filter.contains(address.getHash160())).toBe(true);
         }
         expect(
             filter.contains(
-                group.freshAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS).getHash160(),
+                group.freshAddress(KeyPurpose.RECEIVE_FUNDS).getHash160(),
             ),
         ).toBe(false);
     });
@@ -354,38 +361,39 @@ describe('KeyChainGroupTest', () => {
         const yesterday = now - 86400;
         expect(group.getEarliestKeyCreationTime()).toBe(now);
         Utils.rollMockClock(10000);
-        group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         Utils.rollMockClock(10000);
-        group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         expect(group.getEarliestKeyCreationTime()).toBe(now);
-        const key = new ECKey();
+        const key = new ECKey(null, null);
         key.setCreationTimeSeconds(yesterday);
-        group.importKeys(key);
+        group.importKeys([key]);
         expect(group.getEarliestKeyCreationTime()).toBe(yesterday);
     });
 
     test('constructFromSeed', () => {
-        const key1 = group.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const key1 = group.freshKey(KeyPurpose.RECEIVE_FUNDS);
         const seed = group.getActiveKeyChain().getSeed();
-        const group2 = new KeyChainGroup(PARAMS, seed);
+        expect(seed).not.toBeNull();
+        const group2 = new KeyChainGroup(PARAMS, seed! as any);
         group2.setLookaheadSize(5);
-        const key2 = group2.freshKey(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const key2 = group2.freshKey(KeyPurpose.RECEIVE_FUNDS);
         expect(key1).toEqual(key2);
     });
 
     test('markAsUsed', () => {
-        const addr1 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
-        const addr2 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const addr1 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
+        const addr2 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(addr1).toEqual(addr2);
         group.markPubKeyHashAsUsed(addr1.getHash160());
-        const addr3 = group.currentAddress(KeyChain.KeyPurpose.RECEIVE_FUNDS);
+        const addr3 = group.currentAddress(KeyPurpose.RECEIVE_FUNDS);
         expect(addr2).not.toEqual(addr3);
     });
 
     test('isNotWatching', () => {
         group = new KeyChainGroup(PARAMS);
-        const key = ECKey.fromPrivate(BigInt(10));
-        group.importKeys(key);
+        const key = ECKey.fromPrivate(BigInteger('10'));
+        group.importKeys([key]);
         expect(group.isWatching()).toBe(false);
     });
 
@@ -393,12 +401,13 @@ describe('KeyChainGroupTest', () => {
         group = new KeyChainGroup(
             PARAMS,
             DeterministicKey.deserializeB58(
+                null,
                 'xpub69bjfJ91ikC5ghsqsVDHNq2dRGaV2HHVx7Y9LXi27LN9BWWAXPTQr4u8U3wAtap8bLdHdkqPpAcZmhMS5SnrMQC4ccaoBccFhh315P4UYzo',
                 PARAMS,
-            ),
+            ) as any,
         );
-        const watchingKey = ECKey.fromPublicOnly(new ECKey().getPubKeyPoint());
-        group.importKeys(watchingKey);
+        const watchingKey = ECKey.fromPublic((new ECKey(null, null) as any).getPubKeyPoint());
+        group.importKeys([watchingKey]);
         expect(group.isWatching()).toBe(true);
     });
 
@@ -411,15 +420,16 @@ describe('KeyChainGroupTest', () => {
 
     test('isWatchingMixedKeys', () => {
         expect(() => {
-            group = new KeyChainGroup(
+        group = new KeyChainGroup(
+            PARAMS,
+            DeterministicKey.deserializeB58(
+                null,
+                'xpub69bjfJ91ikC5ghsqsVDHNq2dRGaV2HHVx7Y9LXi27LN9BWWAXPTQr4u8U3wAtap8bLdHdkqPpAcZmhMS5SnrMQC4ccaoBccFhh315P4UYzo',
                 PARAMS,
-                DeterministicKey.deserializeB58(
-                    'xpub69bjfJ91ikC5ghsqsVDHNq2dRGaV2HHVx7Y9LXi27LN9BWWAXPTQr4u8U3wAtap8bLdHdkqPpAcZmhMS5SnrMQC4ccaoBccFhh315P4UYzo',
-                    PARAMS,
-                ),
-            );
-            const key = ECKey.fromPrivate(BigInt(10));
-            group.importKeys(key);
+            ) as any,
+        );
+            const key = ECKey.fromPrivate(new (BigInteger as any)('10'));
+            group.importKeys([key]);
             group.isWatching();
         }).toThrow();
     });

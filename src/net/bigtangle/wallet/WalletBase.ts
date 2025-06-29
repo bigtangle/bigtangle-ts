@@ -1,5 +1,5 @@
 import { KeyChainGroup } from './KeyChainGroup';
-import { NetworkParameters } from '../core/NetworkParameters';
+import { NetworkParameters } from '../params/NetworkParameters';
 import { ServerPool } from '../pool/server/ServerPool';
 import { ECKey } from '../core/ECKey';
 import { KeyCrypter, KeyCrypterException, KeyParameter } from '../crypto/KeyCrypter';

@@ -1,12 +1,12 @@
 import { SpentBlock } from './SpentBlock';
 import { Sha256Hash } from './Sha256Hash';
-import { BigInteger } from 'jsbn';
+import bigInt from 'big-integer';
 import { TokenType } from './TokenType';
 import { TokenKeyValues } from './TokenKeyValues';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { KeyValue } from './KeyValue';
-import { ECKey } from './ECKey';
+import { UtilGeneseBlock } from './../utils/UtilGeneseBlock';
 
 export class Token extends SpentBlock {
     public static readonly TOKEN_MAX_NAME_LENGTH = 100;
@@ -26,7 +26,7 @@ export class Token extends SpentBlock {
     private tokentype: number = 0;
     private tokenstop: boolean = false;
     private prevblockhash: Sha256Hash | null = null;
-    private amount: BigInteger | null = null;
+    private amount: bigInt.BigInteger | null = null;
     private decimals: number = 0;
     private classification: string | null = null;
     private language: string | null = null;
@@ -56,11 +56,11 @@ export class Token extends SpentBlock {
         this.tokenindex = tokenindex;
     }
 
-    public getAmount(): BigInteger | null {
+    public getAmount(): bigInt.BigInteger | null {
         return this.amount;
     }
 
-    public setAmount(amount: BigInteger | null): void {
+    public setAmount(amount: bigInt.BigInteger | null): void {
         this.amount = amount;
     }
 
@@ -211,7 +211,7 @@ export class Token extends SpentBlock {
         description: string,
         signnumber: number,
         tokenindex: number,
-        amount: BigInteger,
+        amount: bigInt.BigInteger,
         tokenstop: boolean,
         tokenKeyValues: TokenKeyValues | null,
         revoked: boolean,
@@ -245,9 +245,9 @@ export class Token extends SpentBlock {
 
     public static genesisToken(params: NetworkParameters): Token {
         const genesisToken = Token.buildSimpleTokenInfo(true, null, NetworkParameters.BIGTANGLE_TOKENID_STRING,
-            NetworkParameters.BIGTANGLE_TOKENNAME, "BigTangle Currency", 1, 0, new BigInteger(NetworkParameters.BigtangleCoinTotal),
+            NetworkParameters.BIGTANGLE_TOKENNAME, "BigTangle Currency", 1, 0, bigInt(NetworkParameters.BigtangleCoinTotal),
             true, null, false, null, null, TokenType.currency, NetworkParameters.BIGTANGLE_DECIMAL, null, null);
-        const genesisBlock = params.getGenesisBlock();
+        const genesisBlock =UtilGeneseBlock.createGenesis( params);
         if (genesisBlock !== null && genesisBlock !== undefined) {
             genesisToken.setBlockHash(genesisBlock.getHash());
         }
@@ -263,7 +263,7 @@ export class Token extends SpentBlock {
         description: string,
         signnumber: number,
         tokenindex: number,
-        amount: BigInteger,
+        amount: bigInt.BigInteger,
         tokenstop: boolean,
         decimals: number,
         predecessingDomainBlockHash: string | null
@@ -286,7 +286,7 @@ export class Token extends SpentBlock {
         predecessingDomainBlockHash: string | null
     ): Token {
         return Token.buildSimpleTokenInfo(confirmed, prevblockhash, tokenid, tokenname, description, signnumber,
-            tokenindex, BigInteger.ONE, tokenstop, null, false, null, null, TokenType.domainname, 0,
+            tokenindex, bigInt.one, tokenstop, null, false, null, null, TokenType.domainname, 0,
             domainname, predecessingDomainBlockHash);
     }
 
@@ -312,7 +312,7 @@ export class Token extends SpentBlock {
         tokens.tokenstop = true;
         tokens.tokentype = TokenType.subtangle;
         tokens.signnumber = 1;
-        tokens.amount = BigInteger.ZERO;
+        tokens.amount = bigInt.zero;
         tokens.tokenindex = 1;
         tokens.setConfirmed(confirmed);
         tokens.prevblockhash = prevblockhash;

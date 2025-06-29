@@ -36,7 +36,7 @@ export class PermissionDomainname {
 
     public getOutKey(): ECKey {
         const pubKey = this.getPubKeyBuf();
-        const outKey = ECKey.fromPublicOnly(pubKey);
+        const outKey = ECKey.fromPublic(pubKey);
         return outKey;
     }
 }

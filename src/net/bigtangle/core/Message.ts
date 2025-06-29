@@ -4,8 +4,8 @@ import { ProtocolException } from '../exception/Exceptions';
 import { MessageSerializer } from './MessageSerializer';
 import { Sha256Hash } from './Sha256Hash';
 import { VarInt } from './VarInt';
-import { BigInteger } from './BigInteger';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
+import { DataOutputStream } from '../utils/DataOutputStream'; // Use DataOutputStream
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 
@@ -35,6 +35,7 @@ export abstract class Message {
     protected serializer: MessageSerializer;
 
     protected protocolVersion: number;
+    protected parent: Message | null = null;
 
     protected params: NetworkParameters;
 
@@ -145,7 +146,7 @@ export abstract class Message {
         }
 
         // No cached array available so serialize parts by stream.
-        const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length + 32);
+        const stream = new DataOutputStream(); // Use DataOutputStream
         this.bitcoinSerializeToStream(stream);
 
         if (this.serializer.isParseRetainMode()) {
@@ -165,7 +166,7 @@ export abstract class Message {
     /**
      * Serializes this message to the provided stream. If you just want the raw bytes use bitcoinSerialize().
      */
-    protected bitcoinSerializeToStream(stream: any): void {
+    protected bitcoinSerializeToStream(stream: DataOutputStream): void { // Type stream as DataOutputStream
         console.error(`Error: ${this.constructor.name} class has not implemented bitcoinSerializeToStream method.  Generating message with no payload`);
     }
 
@@ -217,7 +218,7 @@ export abstract class Message {
         // In TypeScript, we can use BigInt directly.
         const bytes = this.readBytes(8);
         // Assuming little-endian for readUint64 based on common Bitcoin protocol practices
-        const value = new BigInteger(Utils.HEX.encode(bytes.reverse()), 16); // Read as hex, then convert to BigInteger
+        const value = bigInt(Utils.HEX.encode(bytes.reverse()), 16); // Read as hex, then convert to BigInteger
         return value;
     }
 

@@ -9,10 +9,6 @@ import { BloomFilter } from './BloomFilter';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from './Utils';
 import { Buffer } from 'buffer';
-// We'll use a simple writeable stream interface
-interface WriteableStream {
-    write(chunk: Buffer): void;
-}
 
 // Define BitcoinPacketHeader locally since we removed the separate file
 class BitcoinPacketHeader {
@@ -129,9 +125,9 @@ export class BitcoinSerializer extends MessageSerializer {
     public makeBlock(payloadBytes: Buffer, offset: number, length: number): Block;
     public makeBlock(payloadBytes: Buffer, offset?: number, length?: number): Block {
         if (offset === undefined) {
-            return new Block(this.params, payloadBytes, 0, this, payloadBytes.length);
+            return Block.fromPayload(this.params, payloadBytes, this, payloadBytes.length);
         }
-        return new Block(this.params, payloadBytes, offset, this, length ?? payloadBytes.length);
+        return Block.fromPayloadWithOffsetAndParent(this.params, payloadBytes, offset, null, this, length ?? payloadBytes.length);
     }
 
     public makeTransaction(payloadBytes: Buffer, offset: number, length: number, hash: Buffer | null): Transaction {

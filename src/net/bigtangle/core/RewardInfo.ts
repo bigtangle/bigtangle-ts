@@ -1,12 +1,9 @@
 import { DataClass } from './DataClass.js';
 import { Sha256Hash } from './Sha256Hash.js';
-// If you have jsbn installed and available as an ES module, use the following import:
-import { BigInteger } from 'jsbn';
-// Otherwise, if jsbn is not available, consider using another BigInteger library such as 'big-integer' or 'bn.js'
+import bigInt, { BigInteger } from 'big-integer';
 import { Utils } from '../utils/Utils.js';
 import { DataInputStream } from '../utils/DataInputStream.js';
 import { DataOutputStream } from '../utils/DataOutputStream.js';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream.js';
 
 export class RewardInfo extends DataClass {
     private chainlength: number = 0;
@@ -29,14 +26,14 @@ export class RewardInfo extends DataClass {
         if (chainlength !== undefined) this.chainlength = chainlength;
     }
 
-    private static readonly LARGEST_HASH = new BigInteger("1").shiftLeft(256);
+    private static readonly LARGEST_HASH = bigInt(1).shiftLeft(256);
 
-    public getWork(): BigInteger {
+    public getWork(): BigInteger { // Use BigInteger for type
         const target = this.getDifficultyTargetAsInteger();
-        return RewardInfo.LARGEST_HASH.divide(target.add(BigInteger.ONE));
+        return RewardInfo.LARGEST_HASH.divide(bigInt(target).add(bigInt(1)));
     }
 
-    public getDifficultyTargetAsInteger(): BigInteger {
+    public getDifficultyTargetAsInteger(): BigInteger { // Use BigInteger for type
         return Utils.decodeCompactBits(this.difficultyTargetReward);
     }
     
@@ -89,8 +86,7 @@ export class RewardInfo extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
             dos.writeLong(this.chainlength);
             dos.writeBytes(this.prevRewardHash ? this.prevRewardHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
@@ -112,7 +108,7 @@ export class RewardInfo extends DataClass {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
 
     public parseChecked(buf: Uint8Array): RewardInfo {
@@ -124,7 +120,7 @@ export class RewardInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): RewardInfo {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         const r = new RewardInfo();
         try {
             r.chainlength = bain.readLong();

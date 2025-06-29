@@ -4,6 +4,7 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { Buffer } from 'buffer';
 
 export class TXReward extends SpentBlock {
     private prevBlockHash: Sha256Hash | null = null;
@@ -29,9 +30,8 @@ export class TXReward extends SpentBlock {
         if (chainLength !== undefined) this.chainLength = chainLength;
     }
 
-    public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+    public toByteArray(): Buffer {
+        const dos = new DataOutputStream();
         try {
             dos.write(super.toByteArray());
             dos.writeBytes(this.prevBlockHash ? this.prevBlockHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
@@ -41,18 +41,18 @@ export class TXReward extends SpentBlock {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): TXReward {
+    public parseDIS(dis: DataInputStream): SpentBlock {
         super.parseDIS(dis);
-        this.prevBlockHash = Sha256Hash.wrap(dis.readBytes());
+        this.prevBlockHash = Sha256Hash.wrap(dis.readBytes(32));
         this.difficulty = dis.readLong();
         this.chainLength = dis.readLong();
         return this;
     }
 
-    public parse(buf: Uint8Array): TXReward {
+    public parse(buf: Buffer): SpentBlock {
         const bain = new DataInputStream(buf);
         try {
             this.parseDIS(bain);

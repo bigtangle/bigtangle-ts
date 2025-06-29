@@ -57,37 +57,36 @@ export class OrderOpenInfo extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
-            dos.write(super.toByteArray());
+            dos.write(Buffer.from(super.toByteArray()));
 
             dos.writeLong(this.targetValue);
             dos.writeLong(this.validToTime || 0);
             dos.writeLong(this.validFromTime || 0);
             dos.writeInt(this.beneficiaryPubKey ? this.beneficiaryPubKey.length : 0);
             if (this.beneficiaryPubKey) {
-                dos.write(this.beneficiaryPubKey);
+                dos.write(Buffer.from(this.beneficiaryPubKey));
             }
 
             dos.writeBoolean(this.targetTokenid !== null);
             if (this.targetTokenid !== null) {
                 const bytes = new TextEncoder().encode(this.targetTokenid);
                 dos.writeInt(bytes.length);
-                dos.write(bytes);
+                dos.write(Buffer.from(bytes));
             }
 
             dos.writeBoolean(this.beneficiaryAddress !== null);
             if (this.beneficiaryAddress !== null) {
                 const bytes = new TextEncoder().encode(this.beneficiaryAddress);
                 dos.writeInt(bytes.length);
-                dos.write(bytes);
+                dos.write(Buffer.from(bytes));
             }
             dos.writeBoolean(this.orderBaseToken !== null);
             if (this.orderBaseToken !== null) {
                 const bytes = new TextEncoder().encode(this.orderBaseToken);
                 dos.writeInt(bytes.length);
-                dos.write(bytes);
+                dos.write(Buffer.from(bytes));
             }
             dos.writeLong(this.price || 0);
             dos.writeLong(this.offerValue);
@@ -95,15 +94,15 @@ export class OrderOpenInfo extends DataClass {
             if (this.offerTokenid !== null) {
                 const bytes = new TextEncoder().encode(this.offerTokenid);
                 dos.writeInt(bytes.length);
-                dos.write(bytes);
+                dos.write(Buffer.from(bytes));
             }
+            dos.close();
             dos.close();
         } catch (e: any) {
            throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
-
     public parseDIS(dis: DataInputStream): OrderOpenInfo {
         super.parseDIS(dis); 
         this.targetValue = dis.readLong();
@@ -124,8 +123,8 @@ export class OrderOpenInfo extends DataClass {
         return this;
     }
 
-    public parse(buf: Uint8Array): OrderOpenInfo {
-        const bain = new DataInputStream(buf);
+    public parse(buf: Uint8Array): this {
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();
@@ -136,7 +135,7 @@ export class OrderOpenInfo extends DataClass {
     }
 
     public buy(): boolean {
-        return  this.targetTokenid !== null && this.orderBaseToken !== null && !this.targetTokenid.equals(this.getOrderBaseToken());
+        return  this.targetTokenid !== null && this.orderBaseToken !== null && this.targetTokenid !== this.getOrderBaseToken();
     }
 
     public toString(): string {

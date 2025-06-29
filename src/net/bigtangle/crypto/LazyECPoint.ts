@@ -1,6 +1,6 @@
 import { ECPoint } from '../core/ECPoint';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { BigInteger } from '../core/BigInteger';
+import bigInt from 'big-integer';
 
 /**
  * A wrapper around ECPoint that delays decoding of the point for as long as possible. This is useful because point
@@ -48,11 +48,11 @@ export class LazyECPoint {
 
     public timesPow2(e: number): ECPoint {
         // Ensure exponentiation uses BigInteger for compatibility with ECPoint.multiply
-        // BigInteger.fromString handles string conversion from bigint
+        // bigInt handles string conversion from bigint
         const exp = BigInt(2) ** BigInt(e);
         // If ECPoint.multiply expects BigInteger, convert
-        // @ts-ignore: BigInteger may be required by multiply
-        return this.get().multiply(typeof BigInteger !== 'undefined' ? BigInteger.fromString(exp.toString()) : exp);
+        // @ts-ignore: bigInt may be required by multiply
+        return this.get().multiply(bigInt(exp.toString()));
     }
 
     // Assuming ECFieldElement and related methods are handled within ECPoint or a separate utility
@@ -73,8 +73,8 @@ export class LazyECPoint {
 
     public multiply(k: bigint): ECPoint {
         // Convert bigint to BigInteger before passing to multiply if required
-        // @ts-ignore: BigInteger may be required by multiply
-        return this.get().multiply(typeof BigInteger !== 'undefined' ? BigInteger.fromString(k.toString()) : k);
+        // @ts-ignore: bigInt may be required by multiply
+        return this.get().multiply(bigInt(k.toString()));
     }
 
     public subtract(b: ECPoint): ECPoint {

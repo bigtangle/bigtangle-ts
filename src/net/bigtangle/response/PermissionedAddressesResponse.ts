@@ -22,7 +22,7 @@ export class PermissionedAddressesResponse extends AbstractResponse {
         this.multiSignAddresses = multiSignAddresses;
     }
 
-    public isRootPermissioned(): boolean {
+    public getIsRootPermissioned(): boolean {
         return this.isRootPermissioned;
     }
 

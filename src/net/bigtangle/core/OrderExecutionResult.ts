@@ -48,9 +48,9 @@ export class OrderExecutionResult extends Spent {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
-            dos.write(super.toByteArray());
+            dos.write(Buffer.from(super.toByteArray()));
 
             dos.writeBytes(this.outputTxHash ? this.outputTxHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
             dos.writeBytes(this.prevblockhash ? this.prevblockhash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
@@ -79,24 +79,24 @@ export class OrderExecutionResult extends Spent {
     public parseDIS(dis: DataInputStream): OrderExecutionResult {
         super.parseDIS(dis);
 
-        this.outputTxHash = Sha256Hash.wrap(dis.readBytes());
-        this.prevblockhash = Sha256Hash.wrap(dis.readBytes());
+        this.outputTxHash = Sha256Hash.wrap(dis.readBytes(32));
+        this.prevblockhash = Sha256Hash.wrap(dis.readBytes(32));
         this.chainlength = dis.readLong();
 
         this.cancelRecords = new Set();
         let cancelRecordsSize = dis.readInt();
         for (let i = 0; i < cancelRecordsSize; i++) {
-            this.cancelRecords.add(Sha256Hash.wrap(dis.readBytes()));
+            this.cancelRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
         }
         this.remainderRecords = new Set();
         let remainderRecordsSize = dis.readInt();
         for (let i = 0; i < remainderRecordsSize; i++) {
-            this.remainderRecords.add(Sha256Hash.wrap(dis.readBytes()));
+            this.remainderRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
         }
         let blocksSize = dis.readInt();
         this.referencedBlocks = new Set();
         for (let i = 0; i < blocksSize; i++) {
-            this.referencedBlocks.add(Sha256Hash.wrap(dis.readBytes()));
+            this.referencedBlocks.add(Sha256Hash.wrap(dis.readBytes(32)));
         }
 
         return this;
@@ -111,7 +111,7 @@ export class OrderExecutionResult extends Spent {
     }
 
     public parse(buf: Uint8Array): OrderExecutionResult {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();

@@ -1,24 +1,25 @@
-import {  TransactionOutput } from './TransactionOutput';
-import { Message} from './Message';
-import {   TransactionInput  } from './TransactionInput';
+import { TransactionOutput } from './TransactionOutput';
+import { Message } from './Message';
+import { TransactionInput } from './TransactionInput';
 import { NetworkParameters } from '../params/NetworkParameters';
-import {  VerificationException } from '../exception/VerificationException';
+import { VerificationException } from '../exception/VerificationException';
 
 import { MessageSerializer } from './MessageSerializer';
 import { Sha256Hash } from './Sha256Hash';
 import { Transaction } from './Transaction';
 import { VarInt } from './VarInt';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
-import { BigInteger } from 'jsbn';
+import bigInt, { BigInteger } from 'big-integer';
 import { ScriptBuilder } from '../script/ScriptBuilder';
 import { ECKey } from './ECKey';
 import { Coin } from './Coin';
 import { TokenInfo } from './TokenInfo';
 import { MemoInfo } from './MemoInfo';
 import { DataClassName } from './DataClassName';
-import { BlockType,   allowCoinbaseTransaction as blockTypeAllowCoinbaseTransaction, getMaxBlockSize as blockTypeGetMaxBlockSize } from './BlockType';
+import { BlockType, allowCoinbaseTransaction as blockTypeAllowCoinbaseTransaction, getMaxBlockSize as blockTypeGetMaxBlockSize } from './BlockType';
+import { DataOutputStream } from '../utils/DataOutputStream';
+
 export class Block extends Message {
     private static readonly log = console;
 
@@ -42,64 +43,86 @@ export class Block extends Message {
     protected transactionBytesValid!: boolean;
     protected optimalEncodingMessageSize!: number;
 
-    public constructor(params: NetworkParameters, setVersion: number);
-    public constructor(params: NetworkParameters, prevBlockHash: Sha256Hash, prevBranchBlockHash: Sha256Hash, blocktype: number, minTime: number, lastMiningRewardBlock: number, difficultyTarget: number);
-    public constructor(params: NetworkParameters, payloadBytes: Buffer, serializer: MessageSerializer, length: number);
-    public constructor(params: NetworkParameters, payloadBytes: Buffer, offset: number, serializer: MessageSerializer, length: number);
-    public constructor(params: NetworkParameters, payloadBytes: Buffer, offset: number, parent: Message | null, serializer: MessageSerializer, length: number);
-    public constructor(params: NetworkParameters, ...args: any[]) {
+    // Private constructor to be used by static factory methods
+    private constructor(params: NetworkParameters) {
         super(params);
-        if (args.length === 1) {
-            const setVersion = args[0];
-            this.version = setVersion;
-            this.difficultyTarget = Utils.encodeCompactBits(new BigInteger(params.getMaxTarget().toString()));
-            this.lastMiningRewardBlock = 0;
-            this.time = Math.floor(Date.now() / 1000);
-            this.prevBlockHash = Sha256Hash.ZERO_HASH;
-            this.prevBranchBlockHash = Sha256Hash.ZERO_HASH;
-            this.blockType = BlockType.BLOCKTYPE_TRANSFER;
-            this.minerAddress = Buffer.alloc(20);
-            this.length = NetworkParameters.HEADER_SIZE;
-            this.transactions = [];
-        } else if (args.length === 6) {
-            const [prevBlockHash, prevBranchBlockHash, blocktype, minTime, lastMiningRewardBlock, difficultyTarget] = args;
-            this.version = NetworkParameters.BLOCK_VERSION_GENESIS;
-            this.difficultyTarget = difficultyTarget;
-            this.lastMiningRewardBlock = lastMiningRewardBlock;
-            this.time = Math.floor(Date.now() / 1000);
-            if (this.time < minTime)
-                this.time = minTime;
-            this.prevBlockHash = prevBlockHash;
-            this.prevBranchBlockHash = prevBranchBlockHash;
-            this.blockType = blocktype;
-            this.minerAddress = Buffer.alloc(20);
-            this.length = NetworkParameters.HEADER_SIZE;
-            this.transactions = [];
-        } else if (args.length === 3) {
-            const [payloadBytes, serializer, length] = args;
-            this.serializer = serializer;
-            this.payload = payloadBytes;
-            this.offset = 0;
-            this.cursor = this.offset;
-            this.length = length;
-            this.parse();
-        } else if (args.length === 4) {
-            const [payloadBytes, offset, serializer, length] = args;
-            this.serializer = serializer;
-            this.payload = payloadBytes;
-            this.offset = offset;
-            this.cursor = this.offset;
-            this.length = length;
-            this.parse();
-        } else if (args.length === 5) {
-            const [payloadBytes, offset, parent, serializer, length] = args;
-            this.serializer = serializer;
-            this.payload = payloadBytes;
-            this.offset = offset;
-            this.cursor = this.offset;
-            this.length = length;
-            this.parse();
-        }
+        this.headerBytesValid = false;
+        this.transactionBytesValid = false;
+        this.optimalEncodingMessageSize = 0;
+    }
+
+    public static fromVersion(params: NetworkParameters, setVersion: number): Block {
+        const block = new Block(params);
+        block.version = setVersion;
+        block.difficultyTarget = Utils.encodeCompactBits(bigInt(params.getMaxTarget().toString()));
+        block.lastMiningRewardBlock = 0;
+        block.time = Math.floor(Date.now() / 1000);
+        block.prevBlockHash = Sha256Hash.ZERO_HASH;
+        block.prevBranchBlockHash = Sha256Hash.ZERO_HASH;
+        block.blockType = BlockType.BLOCKTYPE_TRANSFER;
+        block.minerAddress = Buffer.alloc(20);
+        block.length = NetworkParameters.HEADER_SIZE;
+        block.transactions = [];
+        return block;
+    }
+
+    public static fromGenesis(
+        params: NetworkParameters,
+        prevBlockHash: Sha256Hash,
+        prevBranchBlockHash: Sha256Hash,
+        blocktype: number,
+        minTime: number,
+        lastMiningRewardBlock: number,
+        difficultyTarget: number
+    ): Block {
+        const block = new Block(params);
+        block.version = NetworkParameters.BLOCK_VERSION_GENESIS;
+        block.difficultyTarget = difficultyTarget;
+        block.lastMiningRewardBlock = lastMiningRewardBlock;
+        block.time = Math.floor(Date.now() / 1000);
+        if (block.time < minTime)
+            block.time = minTime;
+        block.prevBlockHash = prevBlockHash;
+        block.prevBranchBlockHash = prevBranchBlockHash;
+        block.blockType = blocktype;
+        block.minerAddress = Buffer.alloc(20);
+        block.length = NetworkParameters.HEADER_SIZE;
+        block.transactions = [];
+        return block;
+    }
+
+    public static fromPayload(params: NetworkParameters, payloadBytes: Buffer, serializer: MessageSerializer, length: number): Block {
+        const block = new Block(params);
+        block.serializer = serializer;
+        block.payload = payloadBytes;
+        block.offset = 0;
+        block.cursor = block.offset;
+        block.length = length;
+        block.parse();
+        return block;
+    }
+
+    public static fromPayloadWithOffset(params: NetworkParameters, payloadBytes: Buffer, offset: number, serializer: MessageSerializer, length: number): Block {
+        const block = new Block(params);
+        block.serializer = serializer;
+        block.payload = payloadBytes;
+        block.offset = offset;
+        block.cursor = block.offset;
+        block.length = length;
+        block.parse();
+        return block;
+    }
+
+    public static fromPayloadWithOffsetAndParent(params: NetworkParameters, payloadBytes: Buffer, offset: number, parent: Message | null, serializer: MessageSerializer, length: number): Block {
+        const block = new Block(params);
+        block.serializer = serializer;
+        block.payload = payloadBytes;
+        block.offset = offset;
+        block.cursor = block.offset;
+        block.length = length;
+        block.parent = parent;
+        block.parse();
+        return block;
     }
 
     public isBLOCKTYPE_INITIAL(): boolean {
@@ -139,7 +162,7 @@ export class Block extends Message {
         this.minerAddress = this.readBytes(20);
         this.blockType = this.readUint32();
         this.height = this.readInt64();
-        this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(this.payload.slice(this.offset, this.cursor)).getBytes());
+        this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(this.payload.slice(this.offset, this.cursor))).toBuffer());
         this.headerBytesValid = this.serializer.isParseRetainMode();
         this.parseTransactions(this.cursor);
         this.length = this.cursor - this.offset;
@@ -152,7 +175,7 @@ export class Block extends Message {
         return this.optimalEncodingMessageSize;
     }
 
-    private writeHeader(stream: UnsafeByteArrayOutputStream): void {
+    private writeHeader(stream: DataOutputStream): void {
         if (this.headerBytesValid && this.payload !== null && this.payload.length >= this.offset + NetworkParameters.HEADER_SIZE) {
             stream.write(this.payload.slice(this.offset, this.offset + NetworkParameters.HEADER_SIZE));
             return;
@@ -174,7 +197,7 @@ export class Block extends Message {
         stream.write(buf);
     }
 
-    private writeTransactions(stream: UnsafeByteArrayOutputStream): void {
+    private writeTransactions(stream: DataOutputStream): void {
         if (this.transactions === null) {
             return;
         }
@@ -201,13 +224,13 @@ export class Block extends Message {
             }
         }
 
-        const stream = new UnsafeByteArrayOutputStream(this.length === Message.UNKNOWN_LENGTH ? NetworkParameters.HEADER_SIZE + this.guessTransactionsLength() : this.length);
+        const stream = new DataOutputStream();
         this.writeHeader(stream);
         this.writeTransactions(stream);
-        return stream.toByteArray();
+        return Buffer.from(stream.toByteArray());
     }
 
-    protected bitcoinSerializeToStream(stream: UnsafeByteArrayOutputStream): void {
+    protected bitcoinSerializeToStream(stream: DataOutputStream): void {
         this.writeHeader(stream);
         this.writeTransactions(stream);
     }
@@ -244,15 +267,15 @@ export class Block extends Message {
     }
 
     private calculateHash(): Sha256Hash {
-        const stream = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
+        const stream = new DataOutputStream();
         this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()).getBytes());
+        return Sha256Hash.wrapReversed(Buffer.from(stream.toByteArray()));
     }
 
     private calculatePoWHash(): Sha256Hash {
-        const stream = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
+        const stream = new DataOutputStream();
         this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()).getBytes());
+        return Sha256Hash.wrapReversed(Buffer.from(stream.toByteArray()));
     }
 
     public getHashAsString(): string {
@@ -264,29 +287,28 @@ export class Block extends Message {
         return this.hash;
     }
 
-    private static readonly LARGEST_HASH = new BigInteger("1").shiftLeft(256);
+    private static readonly LARGEST_HASH = bigInt(1).shiftLeft(256);
 
     public getWork(): BigInteger {
         const target = this.getDifficultyTargetAsInteger();
-        return Block.LARGEST_HASH.divide(target.add(BigInteger.ONE));
+        return Block.LARGEST_HASH.divide((target as any).add(bigInt(1)));
     }
 
     public getDifficultyTargetAsInteger(): BigInteger {
         const target = Utils.decodeCompactBits(this.difficultyTarget);
-        if (target.signum() < 0 || target.compareTo(new BigInteger(this.params.getMaxTarget().toString())) > 0)
+        if ((target as any).isNegative() || (target as any).compareTo(bigInt(this.params.getMaxTarget())) > 0)
             throw new VerificationException.DifficultyTargetException();
         return target;
     }
 
-    public checkProofOfWork(throwException: boolean, target?: BigInteger): boolean {
+    public checkProofOfWork(throwException: boolean, target: BigInteger): boolean {
         if (this.getBlockType() === BlockType.BLOCKTYPE_INITIAL) {
             return true;
         }
 
         const powHash = this.calculatePoWHash();
-        const hashHex = powHash.getBytes().toString('hex');
-        const h = new BigInteger(hashHex, 16);
-        if (!target) throw new Error("Difficulty target is required for PoW check");
+        const hashHex = powHash.toString();
+        const h = bigInt(hashHex, 16);
         if (h.compareTo(target) > 0) {
             if (throwException)
                 throw new VerificationException.ProofOfWorkException();
@@ -333,7 +355,7 @@ export class Block extends Message {
         if (this.transactions === null)
             this.transactions = [];
         for (const t of this.transactions) {
-            tree.push(t.getHash().getBytes());
+            tree.push(t.getHash().toBuffer());
         }
         let levelOffset = 0;
         for (let levelSize = this.transactions.length; levelSize > 1; levelSize = Math.floor((levelSize + 1) / 2)) {
@@ -343,7 +365,7 @@ export class Block extends Message {
                 const rightBytes = Utils.reverseBytes(tree[levelOffset + right]);
                 const concat = Buffer.concat([leftBytes, rightBytes]);
                 const hash = Sha256Hash.hashTwice(concat);
-                tree.push(Buffer.from(Utils.reverseBytes(Buffer.from(hash.getBytes()))));
+                tree.push(Buffer.from(Utils.reverseBytes(hash.toBuffer())));
             }
             levelOffset += levelSize;
         }
@@ -384,12 +406,11 @@ export class Block extends Message {
     }
 
     public hashCode(): number {
-        // Compute a simple hash code from the bytes of the hash
-        const bytes = this.getHash().getBytes();
+        const bytes = this.getHash().bytes;
         let hash = 0;
         for (let i = 0; i < bytes.length; i++) {
             hash = ((hash << 5) - hash) + bytes[i];
-            hash |= 0; // Convert to 32bit integer
+            hash |= 0;
         }
         return hash;
     }
@@ -530,7 +551,6 @@ export class Block extends Message {
     }
 
     private static txCounter = 0;
-    private static gen = { nextLong: () => Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) };
 
     public hasTransactions(): boolean {
         return this.transactions !== null && this.transactions.length > 0;
@@ -607,7 +627,7 @@ export class Block extends Message {
                 this.setNonce(this.getNonce() + 1);
             } catch (e) {
                 if (e instanceof VerificationException) {
-                    throw new Error(e.message); // Cannot happen.
+                    throw new Error(e.message);
                 } else {
                     throw e;
                 }

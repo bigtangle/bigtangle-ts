@@ -1,5 +1,5 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { BigInteger } from './BigInteger';
+import bigInt from 'big-integer';
 import { Utils } from '../utils/Utils';
 
 export class ECPoint {
@@ -16,19 +16,19 @@ export class ECPoint {
         return this.point.toRawBytes(compressed);
     }
 
-    public getX(): BigInteger {
-        return new BigInteger(this.point.x.toString());
+    public getX(): bigInt.BigInteger {
+        return bigInt(this.point.x.toString());
     }
 
-    public getY(): BigInteger {
-        return new BigInteger(this.point.y.toString());
+    public getY(): bigInt.BigInteger {
+        return bigInt(this.point.y.toString());
     }
 
     public add(other: ECPoint): ECPoint {
         return new ECPoint(this.point.add(other.point));
     }
 
-    public multiply(k: BigInteger): ECPoint {
+    public multiply(k: bigInt.BigInteger): ECPoint {
         return new ECPoint(this.point.multiply(BigInt(k.toString())));
     }
 

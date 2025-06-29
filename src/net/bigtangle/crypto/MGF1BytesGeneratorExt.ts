@@ -61,7 +61,7 @@ export class MGF1BytesGeneratorExt implements DerivationFunction {
                 this.ItoOSP(hashCounter++, C);
                 this.digest.update(this.seed);
                 this.digest.update(C);
-                const result = this.digest.doFinal();
+                const result = this.digest.digest();
                 hashBuf.set(result);
                 out.set(hashBuf, outOff + counter * this.hLen);
                 counter++;
@@ -72,7 +72,7 @@ export class MGF1BytesGeneratorExt implements DerivationFunction {
             this.ItoOSP(hashCounter, C);
             this.digest.update(this.seed);
             this.digest.update(C);
-            const result = this.digest.doFinal();
+            const result = this.digest.digest();
             hashBuf.set(result);
             out.set(hashBuf.slice(0, len - counter * this.hLen), outOff + counter * this.hLen);
         }

@@ -23,11 +23,10 @@ export class SpentBlock extends DataClass {
         return this.blockHash !== null ? Utils.HEX.encode(this.blockHash.getBytes()) : "";
     }
 
-    public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+    public toByteArray(): Buffer {
+        const dos = new DataOutputStream();
         try {
-            dos.write(super.toByteArray());
+            dos.write(Buffer.from(super.toByteArray()));
             dos.writeBytes(this.blockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.blockHash.getBytes());
             dos.writeBoolean(this.confirmed);
             dos.writeBoolean(this.spent);
@@ -37,15 +36,15 @@ export class SpentBlock extends DataClass {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
 
     public parseDIS(dis: DataInputStream): SpentBlock {
         super.parseDIS(dis);
-        this.blockHash = Sha256Hash.wrap(dis.readBytes());
+        this.blockHash = Sha256Hash.wrap(dis.readBytes(32));
         this.confirmed = dis.readBoolean();
         this.spent = dis.readBoolean();
-        this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes());
+        this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
         if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
             this.spenderBlockHash = null;
         }
@@ -54,7 +53,7 @@ export class SpentBlock extends DataClass {
     }
 
     public parse(buf: Uint8Array): SpentBlock {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();

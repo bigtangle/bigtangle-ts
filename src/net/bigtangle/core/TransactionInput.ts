@@ -104,7 +104,7 @@ export class TransactionInput extends ChildMessage {
         // }
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         stream.write(this.outpoint.bitcoinSerialize());
         VarInt.write(this.scriptBytes.length, stream);
         stream.write(this.scriptBytes);

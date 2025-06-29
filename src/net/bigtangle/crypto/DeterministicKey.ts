@@ -1,17 +1,17 @@
 import { ECKey } from '../core/ECKey';
 import { ChildNumber } from './ChildNumber';
 import { ECPoint } from '../core/ECPoint';
-import { ECDSASignature } from './ECDSASignature';
-import { Sha256Hash } from '../core/Sha256Hash'; // Corrected import path
+import { ECDSASignature } from '../core/ECDSASignature'; // Use the core ECDSASignature
+import { Sha256Hash } from '../core/Sha256Hash';
 import { HDKeyDerivation } from './HDKeyDerivation';
-import { NetworkParameters } from '../params/NetworkParameters'; // Assuming this will be implemented or replaced
+import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { Base58 } from '../utils/Base58';
 import { HDUtils } from './HDUtils';
 import { MissingPrivateKeyException } from './MissingPrivateKeyException';
 import { KeyCrypter, KeyParameter } from './KeyCrypter';
 import { EncryptedData } from './EncryptedData';
-import { BigInteger } from '../core/BigInteger';
+import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 
 /**
  * A deterministic key is a node in a {@link DeterministicHierarchy}. As per
@@ -35,14 +35,6 @@ export class DeterministicKey extends ECKey {
     protected encryptedPrivateKey: EncryptedData | null = null;
     protected keyCrypter: KeyCrypter | null = null;
 
-    // Helper to convert bigint to BigInteger
-    private static bigIntToBigInteger(bi: bigint): BigInteger {
-        return new BigInteger(bi.toString(16), 16);
-    }
-    // Helper to convert Uint8Array to hex string (public static, renamed)
-    public static detBufferToHex(buf: Uint8Array): string {
-        return Buffer.from(buf).toString('hex');
-    }
     // Helper to compare two Uint8Arrays
     private static bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
         if (a.length !== b.length) return false;
@@ -53,14 +45,17 @@ export class DeterministicKey extends ECKey {
     }
     // Helper to convert BigInteger to Uint8Array (32 bytes)
     private static bigIntegerToBytes(bi: BigInteger, length: number = 32): Uint8Array {
-        let hex = bi.toString(16);
-        if (hex.length % 2 !== 0) hex = '0' + hex;
-        let bytes = Buffer.from(hex, 'hex');
+        // big-integer's toArray(256) returns { value: number[], isNegative: boolean }
+        const biArrayResult = bi.toArray(256);
+        let bytes = new Uint8Array(biArrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+
         if (bytes.length < length) {
-            const pad = Buffer.alloc(length - bytes.length, 0);
-            bytes = Buffer.concat([pad, bytes]);
+            const pad = new Uint8Array(length - bytes.length).fill(0);
+            bytes = new Uint8Array([...pad, ...bytes]);
+        } else if (bytes.length > length) {
+            bytes = bytes.slice(bytes.length - length); // Truncate from left (MSB)
         }
-        return new Uint8Array(bytes);
+        return bytes;
     }
 
     // Constructor for creating a new DeterministicKey
@@ -338,7 +333,7 @@ export class DeterministicKey extends ECKey {
     private findOrDeriveEncryptedPrivateKey(keyCrypter: KeyCrypter, aesKey: KeyParameter): BigInteger {
         if (this.encryptedPrivateKey !== null) {
             const decrypted = keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
-            return new BigInteger(DeterministicKey.detBufferToHex(decrypted), 16);
+            return bigInt(Utils.HEX.encode(decrypted), 16); // Use bigInt()
         }
         let cursor: DeterministicKey | null = this.parent;
         while (cursor !== null) {
@@ -370,7 +365,7 @@ export class DeterministicKey extends ECKey {
     }
 
     private derivePrivateKeyDownwards(cursor: DeterministicKey, parentalPrivateKeyBytes: Uint8Array): BigInteger {
-        const parentalPrivateKey = new BigInteger(DeterministicKey.detBufferToHex(parentalPrivateKeyBytes), 16);
+        const parentalPrivateKey = bigInt(Utils.HEX.encode(parentalPrivateKeyBytes), 16); // Use bigInt()
         const downCursor = new DeterministicKey(
             cursor.childNumberPath,
             cursor.chainCode,
@@ -398,7 +393,7 @@ export class DeterministicKey extends ECKey {
 
     /**
      * Returns the private key of this deterministic key. Even if this object isn't storing the private key,
-     * it can be re-derived by walking up to the parents if necessary and this is what will happen.
+     * it can be re-derived by walking up to the parents if necessary and this will happen.
      * @throws java.lang.IllegalStateException if the parents are encrypted or a watching chain.
      */
     public getPrivKey(): BigInteger {
@@ -563,7 +558,7 @@ export class DeterministicKey extends ECKey {
             return new DeterministicKey(path, chainCode, ECPoint.decodePoint(keyData), null, parent, depth, parentFingerprint);
         } else {
             // Convert keyData to BigInteger
-            const privBI = new BigInteger(Buffer.from(keyData).toString('hex'), 16);
+            const privBI = bigInt(Utils.HEX.encode(keyData), 16); // Use bigInt()
             return new DeterministicKey(path, chainCode, null, privBI, parent, depth, parentFingerprint);
         }
     }
@@ -613,8 +608,8 @@ export class DeterministicKey extends ECKey {
     }
 
     public toString(): string {
-        let s = `DeterministicKey{pub=${DeterministicKey.detBufferToHex(this.getPubKeyBytes())}, ` +
-                `chainCode=${DeterministicKey.detBufferToHex(this.chainCode)}, path=${this.getPathAsString()}`;
+        let s = `DeterministicKey{pub=${Utils.HEX.encode(this.getPubKeyBytes())}, ` + // Use Utils.HEX.encode
+                `chainCode=${Utils.HEX.encode(this.chainCode)}, path=${this.getPathAsString()}`; // Use Utils.HEX.encode
         if (this.creationTimeSeconds > 0) {
             s += `, creationTimeSeconds=${this.creationTimeSeconds}`;
         }

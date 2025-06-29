@@ -1,6 +1,5 @@
 import { DataClass } from './DataClass';
 import { Sha256Hash } from './Sha256Hash';
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
@@ -13,9 +12,9 @@ export class Spent extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
-            dos.write(super.toByteArray());
+            dos.write(Buffer.from(super.toByteArray()));
             dos.writeBoolean(this.confirmed);
             dos.writeBoolean(this.spent);
             dos.writeBytes(this.spenderBlockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.spenderBlockHash.getBytes());
@@ -31,7 +30,7 @@ export class Spent extends DataClass {
         super.parseDIS(dis);
         this.confirmed = dis.readBoolean();
         this.spent = dis.readBoolean(); // This line appears twice in Java, replicating for now
-        this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes());
+        this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
         if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
             this.spenderBlockHash = null;
         }
@@ -40,7 +39,7 @@ export class Spent extends DataClass {
     }
 
     public parse(buf: Uint8Array): Spent {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();
@@ -86,7 +85,7 @@ export class Spent extends DataClass {
         let result = 17;
         result = 31 * result + (this.confirmed ? 1 : 0);
         result = 31 * result + (this.spent ? 1 : 0);
-        result = 31 * result + (this.spenderBlockHash ? this.spenderBlockHash.hashCode() : 0);
+        result = 31 * result + (this.spenderBlockHash ? Spent.hashBytesToInt(this.spenderBlockHash.getBytes()) : 0);
         result = 31 * result + this.time;
         return result;
     }
@@ -104,5 +103,15 @@ export class Spent extends DataClass {
     public toString(): string {
         return `Spent [confirmed=${this.confirmed}, spent=${this.spent}` +
                `, spenderBlockHash=${this.spenderBlockHash}, time=${this.time}]`;
+    }
+
+    // Utility method to hash bytes to int (simple implementation)
+    private static hashBytesToInt(bytes: Uint8Array): number {
+        let hash = 0;
+        for (let i = 0; i < bytes.length; i++) {
+            hash = ((hash << 5) - hash) + bytes[i];
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
     }
 }

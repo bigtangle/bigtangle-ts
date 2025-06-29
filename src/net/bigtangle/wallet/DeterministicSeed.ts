@@ -1,9 +1,7 @@
 import { MnemonicCode } from '../crypto/MnemonicCode';
-import { MnemonicException } from '../crypto/MnemonicException';
 import { KeyCrypter, KeyParameter } from '../crypto/KeyCrypter';
 import { EncryptedData } from '../crypto/EncryptedData';
 import { EncryptionType, EncryptableItem } from '../crypto/EncryptableItem';
-import { UnreadableWalletException } from './UnreadableWalletException';
 import { Utils } from '../utils/Utils';
 
 /**
@@ -15,76 +13,96 @@ export class DeterministicSeed implements EncryptableItem {
     public static readonly DEFAULT_SEED_ENTROPY_BITS = 128;
     public static readonly MAX_SEED_ENTROPY_BITS = 512;
 
-    private seedBytes: Uint8Array | null = null;
-    private mnemonicCode: string[] | null = null;
-    private encryptedMnemonicCode: EncryptedData | null = null;
-    private encryptedSeed: EncryptedData | null = null;
+    private readonly seedBytes: Uint8Array | null = null;
+    private readonly mnemonicCode: string[] | null = null;
+    private readonly encryptedMnemonicCode: EncryptedData | null = null;
+    private readonly encryptedSeed: EncryptedData | null = null;
     private creationTimeSeconds: number = 0;
 
-    constructor(mnemonicCode: string, seed: Uint8Array, passphrase: string, creationTimeSeconds: number);
-    constructor(seed: Uint8Array, mnemonic: string[], creationTimeSeconds: number);
-    constructor(encryptedMnemonic: EncryptedData, encryptedSeed: EncryptedData | null, creationTimeSeconds: number);
-    constructor(mnemonicCode: string[], seed: Uint8Array | null, passphrase: string, creationTimeSeconds: number);
-    constructor(random: any, bits: number, passphrase: string, creationTimeSeconds: number);
-    constructor(entropy: Uint8Array, passphrase: string, creationTimeSeconds: number);
-    constructor(...args: any[]) {
-        if (typeof args[0] === 'string') {
-            // mnemonicCode: string, seed: Uint8Array, passphrase: string, creationTimeSeconds: number
-            this.mnemonicCode = DeterministicSeed.decodeMnemonicCode(args[0]);
-            this.seedBytes = args[1];
-            this.creationTimeSeconds = args[3];
-        } else if (args[0] instanceof Uint8Array && Array.isArray(args[1])) {
-            // seed: Uint8Array, mnemonic: string[], creationTimeSeconds: number
-            this.seedBytes = args[0];
-            this.mnemonicCode = args[1];
-            this.creationTimeSeconds = args[2];
-        } else if (args[0] instanceof EncryptedData) {
-            // encryptedMnemonic: EncryptedData, encryptedSeed: EncryptedData | null, creationTimeSeconds: number
-            this.encryptedMnemonicCode = args[0];
-            this.encryptedSeed = args[1];
-            this.creationTimeSeconds = args[2];
-        } else if (Array.isArray(args[0])) {
-            // mnemonicCode: string[], seed: Uint8Array | null, passphrase: string, creationTimeSeconds: number
-            const mnemonicCodeList = args[0];
-            const seedBytesArg = args[1];
-            const passphrase = args[2];
-            const creationTimeSeconds = args[3];
+    // Remove all overloads and keep only the private constructor
+    private constructor(
+        mnemonicCode: string[] | null,
+        seedBytes: Uint8Array | null,
+        encryptedMnemonicCode: EncryptedData | null,
+        encryptedSeed: EncryptedData | null,
+        creationTimeSeconds: number
+    ) {
+        this.mnemonicCode = mnemonicCode;
+        this.seedBytes = seedBytes;
+        this.encryptedMnemonicCode = encryptedMnemonicCode;
+        this.encryptedSeed = encryptedSeed;
+        this.creationTimeSeconds = creationTimeSeconds;
+    }
 
-            this.mnemonicCode = mnemonicCodeList;
-            this.seedBytes = seedBytesArg || MnemonicCode.toSeed(mnemonicCodeList, passphrase);
-            this.creationTimeSeconds = creationTimeSeconds;
-        } else if (typeof args[0] === 'object' && args[0].constructor.name === 'SecureRandom') { // SecureRandom
-            // random: any, bits: number, passphrase: string, creationTimeSeconds: number
-            const random = args[0];
-            const bits = args[1];
-            const passphrase = args[2];
-            const creationTimeSeconds = args[3];
-            const entropy = DeterministicSeed.getEntropy(random, bits);
-            this.mnemonicCode = MnemonicCode.INSTANCE.toMnemonic(entropy);
-            this.seedBytes = MnemonicCode.toSeed(this.mnemonicCode, passphrase);
-            this.creationTimeSeconds = creationTimeSeconds;
-        } else if (args[0] instanceof Uint8Array) { // entropy
-            // entropy: Uint8Array, passphrase: string, creationTimeSeconds: number
-            const entropy = args[0];
-            const passphrase = args[1];
-            const creationTimeSeconds = args[2];
-            if (entropy.length % 4 !== 0) throw new Error("entropy size in bits not divisible by 32");
-            if (entropy.length * 8 < DeterministicSeed.DEFAULT_SEED_ENTROPY_BITS) throw new Error("entropy size too small");
+    public static async fromMnemonicAndPassphrase(
+        mnemonicCode: string[],
+        passphrase: string,
+        creationTimeSeconds: number
+    ): Promise<DeterministicSeed> {
+        const seedBytes = await MnemonicCode.toSeed(mnemonicCode, passphrase);
+        return new DeterministicSeed(mnemonicCode, seedBytes, null, null, creationTimeSeconds);
+    }
 
-            this.mnemonicCode = MnemonicCode.INSTANCE.toMnemonic(entropy);
-            this.seedBytes = MnemonicCode.toSeed(this.mnemonicCode, passphrase);
-            this.creationTimeSeconds = creationTimeSeconds;
-        } else {
-            throw new Error("Invalid constructor arguments");
-        }
+    public static fromMnemonicAndSeed(
+        mnemonicCode: string[],
+        seedBytes: Uint8Array,
+        creationTimeSeconds: number
+    ): DeterministicSeed {
+        return new DeterministicSeed(mnemonicCode, seedBytes, null, null, creationTimeSeconds);
+    }
+
+    public static fromEncrypted(
+        encryptedMnemonic: EncryptedData,
+        encryptedSeed: EncryptedData | null,
+        creationTimeSeconds: number
+    ): DeterministicSeed {
+        return new DeterministicSeed(null, null, encryptedMnemonic, encryptedSeed, creationTimeSeconds);
+    }
+
+    public static async fromEntropy(
+        entropy: Uint8Array,
+        passphrase: string,
+        creationTimeSeconds: number
+    ): Promise<DeterministicSeed> {
+        if (entropy.length % 4 !== 0) throw new Error("entropy size in bits not divisible by 32");
+        if (entropy.length * 8 < DeterministicSeed.DEFAULT_SEED_ENTROPY_BITS) throw new Error("entropy size too small");
+        const mnemonicCode = MnemonicCode.INSTANCE.toMnemonic(entropy);
+        const seedBytes = await MnemonicCode.toSeed(mnemonicCode, passphrase);
+        return new DeterministicSeed(mnemonicCode, seedBytes, null, null, creationTimeSeconds);
+    }
+
+    public static async fromRandom(
+        random: any,
+        bits: number,
+        passphrase: string,
+        creationTimeSeconds: number
+    ): Promise<DeterministicSeed> {
+        const entropy = DeterministicSeed.getEntropy(random, bits);
+        const mnemonicCode = MnemonicCode.INSTANCE.toMnemonic(entropy);
+        const seedBytes = await MnemonicCode.toSeed(mnemonicCode, passphrase);
+        return new DeterministicSeed(mnemonicCode, seedBytes, null, null, creationTimeSeconds);
+    }
+
+    public static fromMnemonicStringAndSeed(
+        mnemonicString: string,
+        seedBytes: Uint8Array,
+        creationTimeSeconds: number
+    ): DeterministicSeed {
+        const mnemonicCode = DeterministicSeed.decodeMnemonicCode(mnemonicString);
+        return new DeterministicSeed(mnemonicCode, seedBytes, null, null, creationTimeSeconds);
     }
 
     private static getEntropy(random: any, bits: number): Uint8Array {
         if (bits > DeterministicSeed.MAX_SEED_ENTROPY_BITS) throw new Error("requested entropy size too large");
         const seed = new Uint8Array(bits / 8);
-        // Assuming random.nextBytes fills the array with random bytes
-        // For browser/Node.js, use crypto.getRandomValues or similar
-        Utils.randomBytes(bits / 8).forEach((byte, i) => seed[i] = byte);
+        // Use crypto.getRandomValues if available, otherwise fallback to Math.random
+        if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+            crypto.getRandomValues(seed);
+        } else {
+            for (let i = 0; i < seed.length; i++) {
+                seed[i] = Math.floor(Math.random() * 256);
+            }
+        }
         return seed;
     }
 
@@ -96,9 +114,13 @@ export class DeterministicSeed implements EncryptableItem {
     }
 
     public toString(): string {
-        return this.isEncrypted()
-            ? "DeterministicSeed [encrypted]"
-            : `DeterministicSeed ${this.toHexString()} ${this.mnemonicCode ? this.mnemonicCode.join(" ") : ""}`;
+        let mnemonicStr = this.mnemonicCode ? this.mnemonicCode.join(" ") : "";
+        let hexStr = this.toHexString();
+        if (this.isEncrypted()) {
+            return "DeterministicSeed [encrypted]";
+        } else {
+            return `DeterministicSeed ${hexStr} ${mnemonicStr}`;
+        }
     }
 
     public toHexString(): string | null {
@@ -138,7 +160,7 @@ export class DeterministicSeed implements EncryptableItem {
         if (this.mnemonicCode === null) throw new Error("Mnemonic missing so cannot encrypt");
         const encryptedMnemonic = keyCrypter.encrypt(this.getMnemonicAsBytes()!, aesKey);
         const encryptedSeed = keyCrypter.encrypt(this.seedBytes!, aesKey);
-        return new DeterministicSeed(encryptedMnemonic, encryptedSeed, this.creationTimeSeconds);
+        return new DeterministicSeed(null, null, encryptedMnemonic, encryptedSeed, this.creationTimeSeconds);
     }
 
     private getMnemonicAsBytes(): Uint8Array | null {
@@ -150,16 +172,15 @@ export class DeterministicSeed implements EncryptableItem {
         if (this.encryptedMnemonicCode === null) throw new Error("Encrypted mnemonic code is null");
         const mnemonic = DeterministicSeed.decodeMnemonicCode(crypter.decrypt(this.encryptedMnemonicCode, aesKey));
         const seed = this.encryptedSeed === null ? null : crypter.decrypt(this.encryptedSeed, aesKey);
-        return new DeterministicSeed(mnemonic, seed, passphrase, this.creationTimeSeconds);
+        return new DeterministicSeed(mnemonic, seed, null, null, this.creationTimeSeconds);
     }
 
     public equals(o: any): boolean {
         if (this === o) return true;
         if (o === null || !(o instanceof DeterministicSeed)) return false;
-        const other = o as DeterministicSeed;
-        return this.creationTimeSeconds === other.creationTimeSeconds &&
-               (this.encryptedMnemonicCode === other.encryptedMnemonicCode || (this.encryptedMnemonicCode !== null && other.encryptedMnemonicCode !== null && this.encryptedMnemonicCode.equals(other.encryptedMnemonicCode))) &&
-               (this.mnemonicCode === other.mnemonicCode || (this.mnemonicCode !== null && other.mnemonicCode !== null && this.mnemonicCode.every((val, i) => val === other.mnemonicCode![i])));
+        return this.creationTimeSeconds === o.creationTimeSeconds &&
+               (this.encryptedMnemonicCode === o.encryptedMnemonicCode || (this.encryptedMnemonicCode !== null && o.encryptedMnemonicCode !== null && this.encryptedMnemonicCode.equals(o.encryptedMnemonicCode))) &&
+               (this.mnemonicCode === o.mnemonicCode || (this.mnemonicCode !== null && o.mnemonicCode !== null && this.mnemonicCode.every((val, i) => val === o.mnemonicCode![i])));
     }
 
     public hashCode(): number {

@@ -1,7 +1,8 @@
-import { AddressFormatException } from '../exception/Exceptions';
+import { AddressFormatException } from '../exception/AddressFormatException';
 import { Base58 } from '../utils/Base58';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
+import { Buffer } from 'buffer';
 
 export class VersionedChecksummedBytes {
     protected version: number;
@@ -32,7 +33,7 @@ export class VersionedChecksummedBytes {
         const addressBytes = new Uint8Array(1 + this.bytes.length + 4);
         addressBytes[0] = this.version;
         addressBytes.set(this.bytes, 1);
-        const checksum = Sha256Hash.hashTwice(addressBytes.subarray(0, this.bytes.length + 1)).getBytes();
+        const checksum = Sha256Hash.hashTwice(Buffer.from(addressBytes.subarray(0, this.bytes.length + 1))).getBytes();
         addressBytes.set(checksum.subarray(0, 4), this.bytes.length + 1);
         return Base58.encode(addressBytes);
     }
@@ -54,7 +55,7 @@ export class VersionedChecksummedBytes {
         if (this === o) return true;
         if (o === null || !(o instanceof VersionedChecksummedBytes)) return false;
         const other = o as VersionedChecksummedBytes;
-        return this.version === other.version && Utils.bytesEqual(this.bytes, other.bytes);
+        return this.version === other.version && Utils.bytesEqual(Buffer.from(this.bytes), Buffer.from(other.bytes));
     }
 
     public clone(): VersionedChecksummedBytes {

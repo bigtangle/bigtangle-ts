@@ -15,7 +15,11 @@ export class Gzip {
     return gunzip(contentBytes);
   }
 
-  public static async compress(data: Uint8Array): Promise<Uint8Array> {
-    return gzip(data);
-  }
+public static async compress(data: Uint8Array): Promise<Uint8Array> {
+  return gzip(data);
+}
+
+public static async decompress(data: Uint8Array): Promise<Uint8Array> {
+  return gunzip(data);
+}
 }

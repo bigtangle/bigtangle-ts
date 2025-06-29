@@ -9,12 +9,12 @@ export class UserSettingDataInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
-            dos.write(super.toByteArray());
+            dos.write(Buffer.from(super.toByteArray()));
             dos.writeInt(this.userSettingDatas.length);
             for (const c of this.userSettingDatas) {
-                dos.write(c.toByteArray());
+                dos.write(Buffer.from(c.toByteArray()));
             }
             dos.close();
         } catch (e: any) {
@@ -34,7 +34,7 @@ export class UserSettingDataInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): UserSettingDataInfo {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();

@@ -24,7 +24,7 @@ import { ECKey } from '../core/ECKey';
 import { ECPoint } from '../core/ECPoint';
 import { HDDerivationException } from './HDDerivationException';
 import { HDUtils } from './HDUtils';
-import { BigInteger } from '../core/BigInteger';
+import bigInt, { BigInteger } from 'big-integer';
 import { randomBytes } from 'crypto';
 
 /**
@@ -37,11 +37,11 @@ export class HDKeyDerivation {
         return Buffer.from(buf).toString('hex');
     }
     // Helper: BigInt to BigInteger
-    private static bigIntToBigInteger(bi: bigint): BigInteger {
-        return new BigInteger(bi.toString(16), 16);
+    private static bigIntToBigInteger(bi: bigint): bigInt.BigInteger {
+        return bigInt(bi.toString(16), 16);
     }
     // Helper: BigInteger to Uint8Array (32 bytes)
-    private static bigIntegerToBytes(bi: BigInteger, length: number = 32): Uint8Array {
+    private static bigIntegerToBytes(bi: bigInt.BigInteger, length: number = 32): Uint8Array {
         let hex = bi.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
         let bytes = Buffer.from(hex, 'hex');
@@ -53,7 +53,7 @@ export class HDKeyDerivation {
     }
 
     // Some arbitrary random number. Doesn't matter what it is.
-    private static readonly RAND_INT: BigInteger = HDKeyDerivation.bigIntToBigInteger(BigInt('0x' + HDKeyDerivation.bufferToHex(randomBytes(32))));
+    private static readonly RAND_INT: bigInt.BigInteger = HDKeyDerivation.bigIntToBigInteger(BigInt('0x' + HDKeyDerivation.bufferToHex(randomBytes(32))));
 
     private constructor() { }
 
@@ -193,7 +193,7 @@ export class HDKeyDerivation {
         HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
         const priv = parent.getPrivKey();
         const N = ECKey.CURVE.n;
-        const kiBigInt = (BigInt(priv.toString(10)) + ilInt) % N;
+        const kiBigInt = (BigInt(bigInt(priv.toString()).add(HDKeyDerivation.bigIntToBigInteger(ilInt)).toString()) % N);
         HDKeyDerivation.assertNonZero(kiBigInt, 'Illegal derived key: derived private key equals 0.');
         const ki = HDKeyDerivation.bigIntToBigInteger(kiBigInt);
         const kiBytes = HDKeyDerivation.bigIntegerToBytes(ki, 32);
@@ -235,7 +235,7 @@ export class HDKeyDerivation {
                 Ki = ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger(ilInt)).add(parentPubPoint);
                 break;
             case PublicDeriveMode.WITH_INVERSION: {
-                const randIntBig = BigInt(HDKeyDerivation.RAND_INT.toString(10));
+                const randIntBig = BigInt(HDKeyDerivation.RAND_INT.toString()); // Keep as bigint for modulo with N (which is bigint)
                 const Ki1 = ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger((ilInt + randIntBig) % N));
                 const additiveInverse = (N - (randIntBig % N)) % N;
                 const Ki2 = Ki1.add(ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger(additiveInverse)));
@@ -250,7 +250,7 @@ export class HDKeyDerivation {
     }
 
     private static assertNonZero(integer: BigInteger | bigint, errorMessage: string): void {
-        if ((typeof integer === 'bigint' && integer === BigInt(0)) || (integer instanceof BigInteger && integer.compareTo(BigInteger.ZERO) === 0)) {
+        if ((typeof integer === 'bigint' && integer === BigInt(0)) || (integer instanceof bigInt && integer.compareTo(bigInt(0)) === 0)) {
             throw new HDDerivationException(errorMessage);
         }
     }
@@ -263,7 +263,7 @@ export class HDKeyDerivation {
 
     private static assertLessThanN(integer: BigInteger | bigint, errorMessage: string): void {
         const n = ECKey.CURVE.n;
-        if ((typeof integer === 'bigint' && integer >= n) || (integer instanceof BigInteger && integer.compareTo(new BigInteger(n.toString())) >= 0)) {
+        if ((typeof integer === 'bigint' && integer >= n) || (integer instanceof bigInt && integer.compareTo(bigInt(n.toString())) >= 0)) {
             throw new HDDerivationException(errorMessage);
         }
     }

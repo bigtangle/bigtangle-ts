@@ -1,4 +1,4 @@
-import { BigInteger } from './BigInteger';
+import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
 import { ripemd160 } from '@noble/hashes/ripemd160';
@@ -14,15 +14,13 @@ export class ECKey {
 
     // Helper to convert BigInteger to 32-byte Uint8Array
     private static bigIntToBytes(bi: BigInteger, length: number = 32): Uint8Array {
-        let hex = bi.toString(16);
-        if (hex.length % 2 !== 0) hex = '0' + hex;
-        let bytes = Buffer.from(hex, 'hex');
-        if (bytes.length < length) {
-            // Pad with zeros
-            const pad = Buffer.alloc(length - bytes.length, 0);
-            bytes = Buffer.concat([pad, bytes]);
-        }
-        return new Uint8Array(bytes);
+        // Convert big-integer BigInteger to native BigInt, then to hex string
+        let hex = BigInt(bi.toString()).toString(16);
+        // Pad with leading zeros if necessary to match the desired byte length
+        // Each byte is 2 hex characters, so length * 2
+        hex = hex.padStart(length * 2, '0');
+        // Convert hex string to Uint8Array
+        return Uint8Array.from(Buffer.from(hex, 'hex'));
     }
 
     // Helper to convert Buffer or Uint8Array to hex string
@@ -110,7 +108,7 @@ export class ECKey {
             }
             const decryptedPrivKey = this.keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
             const hex = ECKey.bufferToHex(decryptedPrivKey);
-            return this.doSign(messageHash, new BigInteger(hex, 16));
+            return this.doSign(messageHash, bigInt(hex, 16)); // Use bigInt()
         } else {
             if (!this.priv) {
                 throw new Error("Private key is not available for signing");
@@ -175,7 +173,7 @@ export class ECKey {
         }
         const decryptedPrivKeyBytes = keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
         const hex = ECKey.bufferToHex(decryptedPrivKeyBytes);
-        const decryptedPrivKey = new BigInteger(hex, 16);
+        const decryptedPrivKey = bigInt(hex, 16); // Use bigInt()
         const decryptedKey = new ECKey(decryptedPrivKey, this.pub);
         decryptedKey.creationTimeSeconds = this.creationTimeSeconds;
         return decryptedKey;
@@ -183,15 +181,14 @@ export class ECKey {
 
     public equals(other: any): boolean {
         if (!(other instanceof ECKey)) return false;
-        return (this.priv === null || other.priv === null || this.priv.equals(other.priv)) &&
+        return (this.priv === null || other.priv === null || this.priv.toString() === other.priv.toString()) &&
                (this.pub === null || other.pub === null || this.pub.equals(other.pub));
     }
 
     public hashCode(): number {
         let result = 17;
         if (this.priv) {
-            // Use hex string and hash it simply
-            const hex = this.priv.toString(16);
+            const hex = BigInt(this.priv.toString()).toString(16); // Use native BigInt's toString(16)
             for (let i = 0; i < hex.length; i++) {
                 result = 31 * result + hex.charCodeAt(i);
             }

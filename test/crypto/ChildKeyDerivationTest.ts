@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { HDKeyDerivation } from '../../src/net/bigtangle/crypto/HDKeyDerivation';
+import { HDKeyDerivation, PublicDeriveMode } from '../../src/net/bigtangle/crypto/HDKeyDerivation';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { HDUtils } from '../../src/net/bigtangle/crypto/HDUtils';
@@ -141,12 +141,12 @@ describe('ChildKeyDerivationTest', () => {
         const key2 = HDKeyDerivation.deriveChildKeyBytesFromPublic(
             key1.dropPrivateBytes().dropParent(),
             ChildNumber.ZERO,
-            HDKeyDerivation.PublicDeriveMode.NORMAL,
+            PublicDeriveMode.NORMAL,
         );
         const key3 = HDKeyDerivation.deriveChildKeyBytesFromPublic(
             key1.dropPrivateBytes().dropParent(),
             ChildNumber.ZERO,
-            HDKeyDerivation.PublicDeriveMode.WITH_INVERSION,
+            PublicDeriveMode.WITH_INVERSION,
         );
         expect(Buffer.compare(key2.keyBytes, key3.keyBytes)).toBe(0);
         expect(Buffer.compare(key2.chainCode, key3.chainCode)).toBe(0);
@@ -177,13 +177,13 @@ describe('ChildKeyDerivationTest', () => {
             Buffer.from('the mainstream media won\'t cover it. why is that?'),
         );
         try {
-            derivedKey2.sign(hash);
+            derivedKey2.sign(hash.getBytes()); // Pass bytes
             fail();
         } catch (e) {
             // Ignored.
         }
-        const signature = derivedKey2.sign(hash, aesKey);
-        expect(derivedKey2.verify(hash, signature)).toBe(true);
+        const signature = derivedKey2.sign(hash.getBytes(), aesKey); // Pass bytes
+        expect(derivedKey2.verify(hash.getBytes(), signature)).toBe(true); // Pass bytes
     });
 
     test('pubOnlyDerivation', () => {

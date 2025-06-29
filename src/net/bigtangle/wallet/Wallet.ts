@@ -12,7 +12,7 @@ import { MemoInfo } from '../core/MemoInfo';
 import { MultiSign } from '../core/MultiSign';
 import { MultiSignAddress } from '../core/MultiSignAddress';
 import { MultiSignBy } from '../core/MultiSignBy';
-import { NetworkParameters } from '../core/NetworkParameters';
+import { NetworkParameters } from '../params/NetworkParameters';
 import { OrderCancelInfo } from '../core/OrderCancelInfo';
 import { OrderOpenInfo } from '../core/OrderOpenInfo';
 import { Sha256Hash } from '../core/Sha256Hash';
@@ -1063,5 +1063,4 @@ export class Wallet extends WalletBase {
         }
         return tokens[0];
     }
-}   
-   
+}

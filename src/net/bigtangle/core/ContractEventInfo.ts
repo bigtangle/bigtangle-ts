@@ -1,9 +1,8 @@
 import { DataClass } from './DataClass';
-import { BigInteger } from './BigInteger';
+import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class ContractEventInfo extends DataClass {
     private beneficiaryAddress: string | null = null;
@@ -30,10 +29,9 @@ export class ContractEventInfo extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
         const dos = new DataOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
+            dos.writeBytes(Buffer.from(super.toByteArray()));
             dos.writeNBytesString(this.beneficiaryAddress || "");
             dos.writeNBytesString(this.offerTokenid || "");
             dos.writeNBytesString(this.contractTokenid || "");
@@ -45,7 +43,7 @@ export class ContractEventInfo extends DataClass {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
 
     public parseDIS(dis: DataInputStream): ContractEventInfo {
@@ -54,7 +52,7 @@ export class ContractEventInfo extends DataClass {
         this.offerTokenid = dis.readNBytesString();
         this.contractTokenid = dis.readNBytesString();
         this.offerSystem = dis.readNBytesString();
-        this.offerValue = new BigInteger(Utils.HEX.encode(dis.readBytes(32)), 16);
+        this.offerValue = bigInt(Utils.HEX.encode(dis.readBytes(32)), 16); // Use bigInt()
         return this;
     }
 

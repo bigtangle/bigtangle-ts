@@ -1,6 +1,6 @@
 import { Sha256Hash } from './Sha256Hash';
 import { SpentBlock } from './SpentBlock';
-import { BigInteger } from './BigInteger';
+import { BigInteger } from 'big-integer';
 
 export class ContractEventRecord extends SpentBlock {
     private collectinghash: Sha256Hash | null = null;

@@ -13,14 +13,14 @@ export class MyHomeAddress {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
             const writeOptionalString = (str: string | null) => {
                 dos.writeBoolean(str !== null);
                 if (str !== null) {
                     const bytes = new TextEncoder().encode(str);
                     dos.writeInt(bytes.length);
-                    dos.write(bytes);
+                    dos.write(Buffer.from(bytes));
                 }
             };
 
@@ -39,7 +39,7 @@ export class MyHomeAddress {
     }
 
     public parse(buf: Uint8Array): MyHomeAddress {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             const readOptionalString = (): string | null => {
                 const hasValue = bain.readBoolean();

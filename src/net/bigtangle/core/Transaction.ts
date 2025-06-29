@@ -7,29 +7,7 @@ import { MessageSerializer } from './MessageSerializer';
 import { Coin } from './Coin';
 import { Buffer } from 'buffer';
 import { VerificationException } from '../exception/VerificationException';
-
-
-// Implement ByteArrayOutputStream outside the class
-class ByteArrayOutputStream {
-    private buffer: Buffer = Buffer.alloc(0);
-    
-    public write(data: Buffer | number): void {
-        if (typeof data === 'number') {
-            this.buffer = Buffer.concat([this.buffer, Buffer.from([data])]);
-        } else {
-            this.buffer = Buffer.concat([this.buffer, data]);
-        }
-    }
-    
-    public toByteArray(): Buffer {
-        return this.buffer;
-    }
-}
-
-// Define OutputStream type
-type OutputStream = {
-    write: (data: Buffer | number) => void;
-};
+import { DataOutputStream } from '../utils/DataOutputStream'; // Ensure DataOutputStream is used
 
 export enum SigHash {
     ALL = 1,
@@ -127,17 +105,10 @@ export class Transaction extends ChildMessage {
     private toAddressInSubtangle: Buffer | null = null;
 
     public bitcoinSerialize(): Uint8Array {
-        try {
-            const output = new ByteArrayOutputStream();
-            // Placeholder: call the serialization method
-            this.bitcoinSerializeToStream(output);
-            return output.toByteArray();
-        } catch (e) {
-            return new Uint8Array(0);
-        }
+        const stream = new DataOutputStream();
+        this.bitcoinSerializeToStream(stream);
+        return stream.toByteArray();
     }
-    
-   
     
     public getMessageSize(): number {
         return this.length;
@@ -184,9 +155,41 @@ export class Transaction extends ChildMessage {
         return false;
     }
 
-    // Placeholder for missing bitcoinSerializeToStream method
-    bitcoinSerializeToStream(stream: OutputStream): void {
-        // Implementation would go here
+    public bitcoinSerializeToStream(stream: DataOutputStream): void {
+        stream.writeInt(this.version);
+
+        stream.write(this.writeVarInt(this.inputs.length));
+        for (const input of this.inputs) {
+            input.bitcoinSerializeToStream(stream);
+        }
+
+        stream.write(this.writeVarInt(this.outputs.length));
+        for (const output of this.outputs) {
+            output.bitcoinSerializeToStream(stream);
+        }
+
+        stream.writeUInt32LE(this.lockTime); // Assuming writeUInt32LE is available or needs to be added to DataOutputStream
+    }
+
+    private writeVarInt(value: number): Buffer {
+        if (value < 0xfd) {
+            return Buffer.from([value]);
+        } else if (value <= 0xffff) {
+            const buf = Buffer.alloc(3);
+            buf[0] = 0xfd;
+            buf.writeUInt16LE(value, 1);
+            return buf;
+        } else if (value <= 0xffffffff) {
+            const buf = Buffer.alloc(5);
+            buf[0] = 0xfe;
+            buf.writeUInt32LE(value, 1);
+            return buf;
+        } else {
+            const buf = Buffer.alloc(9);
+            buf[0] = 0xff;
+            buf.writeBigUInt64LE(BigInt(value), 1);
+            return buf;
+        }
     }
 
     getLockTime(): number {

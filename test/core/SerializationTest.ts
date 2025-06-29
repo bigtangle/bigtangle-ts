@@ -1,4 +1,6 @@
 import { Buffer } from 'buffer';
+import { BigInteger } from 'big-integer';
+import { describe, test, expect } from 'vitest';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ContactInfo } from '../../src/net/bigtangle/core/ContactInfo';
 import { Contact } from '../../src/net/bigtangle/core/Contact';
@@ -14,8 +16,8 @@ import { Token } from '../../src/net/bigtangle/core/Token';
 import { MultiSignAddress } from '../../src/net/bigtangle/core/MultiSignAddress';
 import { KeyValue } from '../../src/net/bigtangle/core/KeyValue';
 import { KeyValueList } from '../../src/net/bigtangle/core/KeyValueList';
-import { IdentityCore } from '../../src/net/bigtangle/apps/data/IdentityCore';
-import { IdentityData } from '../../src/net/bigtangle/apps/data/IdentityData';
+import { IdentityCoreClass as IdentityCore } from '../../src/net/bigtangle/apps/data/IdentityCore';
+import { IdentityDataClass as IdentityData } from '../../src/net/bigtangle/apps/data/IdentityData';
 import { SignedData } from '../../src/net/bigtangle/apps/data/SignedData';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { TokenKeyValues } from '../../src/net/bigtangle/core/TokenKeyValues';
@@ -54,7 +56,7 @@ describe('SerializationTest', () => {
         info1.setVersion(3);
         const e = new Contact();
         e.setAddress('test1');
-        e.setName(null);
+        e.setName('');
         info1.getContactList().push(e);
         const info2 = new ContactInfo().parse(info1.toByteArray());
 
@@ -70,15 +72,15 @@ describe('SerializationTest', () => {
 
     test('testOrderOpenInfoSerialization', () => {
         const info1 = new OrderOpenInfo(
-            BigInt(2),
+            new BigInteger('2') as any,
             'test1',
             Buffer.from([2]),
-            BigInt(3),
-            BigInt(4),
+            new BigInteger('3') as any,
+            new BigInteger('4') as any,
             Side.SELL,
             'test2',
             NetworkParameters.BIGTANGLE_TOKENID_STRING,
-            BigInt(1),
+            new BigInteger('1') as any,
             3,
             NetworkParameters.BIGTANGLE_TOKENID_STRING,
         );
@@ -88,8 +90,8 @@ describe('SerializationTest', () => {
         expect(info1.getBeneficiaryAddress()).toBe(info2.getBeneficiaryAddress());
         expect(
             Buffer.compare(
-                info1.getBeneficiaryPubKey(),
-                info2.getBeneficiaryPubKey(),
+                info1.getBeneficiaryPubKey()!,
+                info2.getBeneficiaryPubKey()!,
             ),
         ).toBe(0);
         expect(info1.getTargetTokenid()).toBe(info2.getTargetTokenid());
@@ -102,11 +104,11 @@ describe('SerializationTest', () => {
     test('testContractEventInfoSerialization', () => {
         const info1 = new ContractEventInfo(
             'contracttokenid',
-            BigInt(1),
+            new BigInteger('1') as any,
             'tokenid',
             'address',
-            BigInt(3),
-            BigInt(4),
+            new BigInteger('3') as any,
+            new BigInteger('4') as any,
             '',
         );
         const info2 = new ContractEventInfo().parse(info1.toByteArray());
@@ -151,7 +153,7 @@ describe('SerializationTest', () => {
         const randomHash = getRandomSha256Hash();
         const blocks = new Set<Sha256Hash>();
         blocks.add(randomHash);
-        const info1 = new RewardInfo(randomHash, 2, blocks, BigInt(2));
+        const info1 = new RewardInfo(randomHash, 2, blocks, new BigInteger('2') as any);
         const bytes1 = info1.toByteArray();
         const info2 = new RewardInfo().parse(bytes1);
         const bytes2 = info2.toByteArray();
@@ -168,16 +170,22 @@ describe('SerializationTest', () => {
         const addresses: MultiSignAddress[] = [];
         const tokens = Token.buildSimpleTokenInfo(
             true,
-            null,
+            null, // Changed from new ECKey() to null
             '2',
             '3',
             '4',
             2,
             3,
-            BigInt(4),
+            new BigInteger('4') as any,
             true,
+            null,
+            false,
+            null,
+            null,
             0,
-            'de',
+            0,
+            null,
+            null
         );
         const info1 = new TokenInfo();
         info1.setToken(tokens);
@@ -190,37 +198,37 @@ describe('SerializationTest', () => {
         expect(info1.getMultiSignAddresses().length).toBe(
             info2.getMultiSignAddresses().length,
         );
-        expect(info1.getToken().getAmount()).toBe(info2.getToken().getAmount());
-        expect(info1.getToken().getBlockHash()).toBe(
-            info2.getToken().getBlockHash(),
+        expect(info1.getToken()!.getAmount()).toBe(info2.getToken()!.getAmount());
+        expect(info1.getToken()!.getBlockHash()).toBe(
+            info2.getToken()!.getBlockHash(),
         );
-        expect(info1.getToken().getDescription()).toBe(
-            info2.getToken().getDescription(),
+        expect(info1.getToken()!.getDescription()).toBe(
+            info2.getToken()!.getDescription(),
         );
-        expect(info1.getToken().getPrevblockhash()).toBe(
-            info2.getToken().getPrevblockhash(),
+        expect(info1.getToken()!.getPrevblockhash()).toBe(
+            info2.getToken()!.getPrevblockhash(),
         );
-        expect(info1.getToken().getSignnumber()).toBe(
-            info2.getToken().getSignnumber(),
+        expect(info1.getToken()!.getSignnumber()).toBe(
+            info2.getToken()!.getSignnumber(),
         );
-        expect(info1.getToken().getTokenid()).toBe(info2.getToken().getTokenid());
-        expect(info1.getToken().getTokenindex()).toBe(
-            info2.getToken().getTokenindex(),
+        expect(info1.getToken()!.getTokenid()).toBe(info2.getToken()!.getTokenid());
+        expect(info1.getToken()!.getTokenindex()).toBe(
+            info2.getToken()!.getTokenindex(),
         );
-        expect(info1.getToken().getTokenname()).toBe(
-            info2.getToken().getTokenname(),
+        expect(info1.getToken()!.getTokenname()).toBe(
+            info2.getToken()!.getTokenname(),
         );
-        expect(info1.getToken().getTokentype()).toBe(
-            info2.getToken().getTokentype(),
+        expect(info1.getToken()!.getTokentype()).toBe(
+            info2.getToken()!.getTokentype(),
         );
-        expect(info1.getToken().getDomainName()).toBe(
-            info2.getToken().getDomainName(),
+        expect(info1.getToken()!.getDomainName()).toBe(
+            info2.getToken()!.getDomainName(),
         );
-        expect(info1.getToken().isConfirmed()).toBe(
-            info2.getToken().isConfirmed(),
+        expect(info1.getToken()!.isConfirmed()).toBe(
+            info2.getToken()!.isConfirmed(),
         );
-        expect(info1.getToken().isTokenstop()).toBe(
-            info2.getToken().isTokenstop(),
+        expect(info1.getToken()!.isTokenstop()).toBe(
+            info2.getToken()!.isTokenstop(),
         );
     });
 
@@ -259,7 +267,7 @@ describe('SerializationTest', () => {
         identityCore.setDateofissue('20200101');
         identityCore.setDateofexpiry('20201231');
 
-        const id = new IdentityCore().parse(identityCore.toByteArray());
+        const id = IdentityCore.parse(identityCore.toByteArray());
         expect(id.getDateofissue()).toBe('20200101');
     });
 
@@ -276,7 +284,7 @@ describe('SerializationTest', () => {
         identityCore.setDateofbirth('20201231');
         identityData.setPhoto(Buffer.from('readFile'));
         identityData.setIdentityCore(identityCore);
-        const id = new IdentityData().parse(identityData.toByteArray());
+        const id = IdentityData.parse(identityData.toByteArray());
         expect(id.getIdentificationnumber()).toBe('120123456789012345');
         expect(identityData.uniqueNameIdentity()).toBe(
             identityData.uniqueNameIdentity(),
@@ -291,7 +299,7 @@ describe('SerializationTest', () => {
             identityData3.uniqueNameIdentity(),
         );
         const identityData4 = new IdentityData();
-        identityData2.setIdentificationnumber(null);
+        identityData2.setIdentificationnumber('');
         expect(identityData4.uniqueNameIdentity()).toBe(
             identityData4.uniqueNameIdentity(),
         );

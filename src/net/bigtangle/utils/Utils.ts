@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { ripemd160 } from '@noble/hashes/ripemd160';
-import { BigInteger } from '../core/BigInteger';
+import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 import { VerificationException } from '../exception/VerificationException';
 import { Base58 } from '../utils/Base58';
 import { Buffer } from 'buffer';
@@ -10,24 +10,6 @@ import { TokenKeyValues } from '../core/TokenKeyValues';
 
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { DataInputStream } from '../utils/DataInputStream';
-
-// Minimal implementation for UnsafeByteArrayOutputStream
-class UnsafeByteArrayOutputStream {
-    private buffers: Uint8Array[] = [];
-    write(data: Uint8Array) {
-        this.buffers.push(data);
-    }
-    toByteArray(): Uint8Array {
-        let totalLength = this.buffers.reduce((sum, b) => sum + b.length, 0);
-        let result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const b of this.buffers) {
-            result.set(b, offset);
-            offset += b.length;
-        }
-        return result;
-    }
-}
 
 /**
  * A collection of various utility methods that are helpful for working with the
@@ -60,19 +42,14 @@ export class Utils {
         if (b === null) {
             return new Uint8Array(0);
         }
-        const biBytes = b.toByteArray();
+        // big-integer's toArray(256) returns { value: number[], isNegative: boolean }
+        const biArrayResult = b.toArray(256);
+        const biBytes = new Uint8Array(biArrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+
         const bytes = new Uint8Array(numBytes);
-        let start = 0;
-        let length = biBytes.length;
-        if (biBytes.length === numBytes + 1 && biBytes[0] === 0) {
-            start = 1;
-            length--;
-        }
-        if (length > numBytes) {
-            length = numBytes;
-        }
-        for (let i = 0; i < length; i++) {
-            bytes[numBytes - length + i] = biBytes[start + i];
+        // Fill from right to left (LSB to MSB)
+        for (let i = 0; i < Math.min(biBytes.length, numBytes); i++) {
+            bytes[numBytes - 1 - i] = biBytes[i];
         }
         return bytes;
     }
@@ -257,57 +234,56 @@ export class Utils {
             buf = mpi;
         }
         if (buf.length === 0) {
-            return BigInteger.ZERO;
+            return bigInt(0); // Use bigInt(0)
         }
         const isNegative = (buf[0] & 0x80) === 0x80;
         if (isNegative) {
             buf[0] &= 0x7f;
         }
-        const result = new BigInteger(Utils.HEX.encode(buf), 16);
+        const result = bigInt(Utils.HEX.encode(buf), 16); // Use bigInt()
         return isNegative ? result.negate() : result;
     }
 
     public static encodeMPI(value: BigInteger, includeLength: boolean): Uint8Array {
-        if (value.equals(BigInteger.ZERO)) {
+        if (value.equals(bigInt(0))) {
             if (!includeLength) {
                 return new Uint8Array(0);
             } else {
                 return new Uint8Array([0x00, 0x00, 0x00, 0x00]);
             }
         }
-        const isNegative = value.signum() < 0;
-        if (isNegative) {
-            value = value.negate();
-        }
-        let array = Utils.bigIntToBytes(value, value.toByteArray().length); // Ensure no leading zero for positive numbers
+        const isNegative = value.isNegative();
+        let absValue = isNegative ? value.abs() : value;
+
+        // Get bytes from big-integer, most significant byte first
+        const arrayResult = absValue.toArray(256);
+        let array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+
+        // Ensure the highest bit is not set if positive, or is set if negative (for MPI format)
         let length = array.length;
-        if ((array[0] & 0x80) === 0x80) {
+        if (array.length > 0 && (array[0] & 0x80) === 0x80) {
             length++;
         }
-        if (includeLength) {
-            const result = new Uint8Array(length + 4);
-            if ((array[0] & 0x80) === 0x80) {
-                result.set(array, 4 + 1); // Shift by 1 if leading bit is set
-            } else {
-                result.set(array, 4); 
-            }
-            Utils.uint32ToByteArrayBE(length, result, 0);
-            if (isNegative) {
-                result[4] |= 0x80;
-            }
-            return result;
+
+        let resultBytes: Uint8Array;
+        if (length !== array.length) {
+            resultBytes = new Uint8Array(length);
+            resultBytes.set(array, 1);
         } else {
-            let result: Uint8Array;
-            if (length !== array.length) {
-                result = new Uint8Array(length);
-                result.set(array, 1);
-            } else {
-                result = array;
-            }
-            if (isNegative) {
-                result[0] |= 0x80;
-            }
-            return result;
+            resultBytes = array;
+        }
+
+        if (isNegative) {
+            resultBytes[0] |= 0x80;
+        }
+
+        if (includeLength) {
+            const finalResult = new Uint8Array(resultBytes.length + 4);
+            Utils.uint32ToByteArrayBE(resultBytes.length, finalResult, 0);
+            finalResult.set(resultBytes, 4);
+            return finalResult;
+        } else {
+            return resultBytes;
         }
     }
 
@@ -323,7 +299,7 @@ export class Utils {
 
     public static encodeCompactBits(value: BigInteger): number {
         let result: number;
-        let size = value.toByteArray().length;
+        let size = new Uint8Array(value.toArray(256).value).length; // Access .value and convert to Uint8Array
         if (size <= 3) {
             result = parseInt(value.toString(), 10) << (8 * (3 - size));
         } else {
@@ -337,7 +313,7 @@ export class Utils {
             size++;
         }
         result |= (size << 24);
-        result |= value.signum() === -1 ? 0x00800000 : 0;
+        result |= value.isNegative() ? 0x00800000 : 0;
         return result;
     }
 
@@ -443,7 +419,7 @@ export class Utils {
                 return false;
             }
         }
-        return true;
+        return false;
     }
 
     public static strLength(cs: string | null | undefined): number {
@@ -467,8 +443,8 @@ export class Utils {
     public checkContractBase(contractEventInfo: ContractEventInfo, contract: Token): void {
         const amountStr = this.findContractValue(contract.getTokenKeyValues(), "amount");
         if (amountStr !== null) {
-            const amount = new BigInteger(amountStr);
-            if (contractEventInfo.getOfferValue() !== null && contractEventInfo.getOfferValue()!.mod(amount).compareTo(BigInteger.ZERO) !== 0) {
+            const amount = bigInt(amountStr); // Use bigInt()
+            if (contractEventInfo.getOfferValue() !== null && contractEventInfo.getOfferValue()!.mod(amount).compareTo(bigInt(0)) !== 0) { // Use bigInt(0)
                 throw new VerificationException(`only module base amount is allowed ${contractEventInfo.getOfferValue()} % ${amount}`);
             }
         }
@@ -497,5 +473,26 @@ export class Utils {
             if (a[i] !== b[i]) return false;
         }
         return true;
+    }
+    
+    /**
+     * Compares two Buffers for byte-wise equality.
+     */
+    public static bytesEqual(a: Buffer, b: Buffer): boolean {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    public static hashCode(data: Uint8Array): number {
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            const char = data[i];
+            hash = (hash << 5) - hash + char;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
     }
 }

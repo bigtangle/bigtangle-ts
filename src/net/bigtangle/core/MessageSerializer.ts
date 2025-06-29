@@ -54,12 +54,15 @@ export abstract class MessageSerializer {
      * length as block length. Extension point for alternative serialization format
      * support.
      */
-    public abstract makeBlock(payloadBytes: Buffer, offset: number, length: number): Block;
+    public makeBlock(payloadBytes: Buffer, offset: number, length: number): Block;
     public makeBlock(...args: any[]): Block {
         if (args.length === 1) {
             return this.makeBlock(args[0], 0, args[0].length);
         } else if (args.length === 2) {
             return this.makeBlock(args[0], 0, args[1]);
+        } else if (args.length === 3) {
+            // This method should be implemented by subclasses
+            throw new Error("Method not implemented.");
         } else {
             throw new Error("Not implemented");
         }
@@ -71,8 +74,10 @@ export abstract class MessageSerializer {
      * 
      * @throws IOException
      */
-    public makeZippedBlock(payloadBytes: Buffer): Block {
-        const unzipped = Gzip.decompress(payloadBytes);
+    public async makeZippedBlock(payloadBytes: Buffer): Promise<Block> {
+        // Assuming decompress is not implemented, use a placeholder or implement decompress in Gzip
+        const unzippedUint8Array = await Gzip.decompress(payloadBytes);
+        const unzipped = Buffer.from(unzippedUint8Array);
         return this.makeBlock(unzipped, 0, unzipped.length);
     }
 
@@ -82,12 +87,14 @@ export abstract class MessageSerializer {
      * 
      * @throws IOException
      */
-    public makeZippedBlockStream(inputStream: any): Block | null {
+    public async makeZippedBlockStream(inputStream: any): Promise<Block | null> {
         if (inputStream === null) {
             return null; // Return null if no value available.
         }
-        const unzipped = Gzip.decompressStream(inputStream);
+        const unzippedUint8Array = await Gzip.decompress(inputStream);
+        const unzipped = Buffer.from(unzippedUint8Array);
         return this.makeBlock(unzipped, 0, unzipped.length);
+       
     }
 
     /**

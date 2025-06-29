@@ -109,7 +109,7 @@ export class TransactionOutput extends ChildMessage {
         this.length = this.cursor - this.offset;
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         if (!this.scriptBytes) throw new Error("scriptBytes is null");
         if (!this.value) throw new Error("value is null");
 

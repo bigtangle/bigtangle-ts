@@ -1,8 +1,8 @@
 import { Sha256Hash } from './Sha256Hash';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Message } from './Message';
-import { ProtocolException } from '../exception/Exceptions';
-import { VerificationException } from '../exception/Exceptions';
+import { ProtocolException } from '../exception/ProtocolException';
+import { VerificationException } from '../exception/VerificationException';
 import { VarInt } from './VarInt';
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
@@ -76,14 +76,16 @@ export class PartialMerkleTree extends Message {
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
-        stream.write(Utils.uint32ToByteArrayLE(this.transactionCount));
+        const txCountBytes = new Uint8Array(4);
+        Utils.uint32ToByteArrayLE(this.transactionCount, txCountBytes, 0);
+        stream.write(Buffer.from(txCountBytes));
 
-        stream.write(VarInt.write(this.hashes.length));
+        VarInt.write(this.hashes.length, stream);
         for (const hash of this.hashes) {
             stream.write(hash.getReversedBytes());
         }
 
-        stream.write(VarInt.write(this.matchedChildBits.length));
+        VarInt.write(this.matchedChildBits.length, stream);
         stream.write(this.matchedChildBits);
     }
 
@@ -188,9 +190,10 @@ export class PartialMerkleTree extends Message {
     }
 
     private static combineLeftRight(left: Buffer, right: Buffer): Sha256Hash {
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(
-            Utils.reverseBytes(left), 0, 32,
-            Utils.reverseBytes(right), 0, 32));
+        const leftReversed = Buffer.from(Utils.reverseBytes(left));
+        const rightReversed = Buffer.from(Utils.reverseBytes(right));
+        const concat = Buffer.concat([leftReversed, rightReversed]);
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(concat).getBytes());
     }
 
     /**
@@ -255,7 +258,12 @@ export class PartialMerkleTree extends Message {
         let result = 17;
         result = 31 * result + this.transactionCount;
         for (const hash of this.hashes) {
-            result = 31 * result + hash.hashCode();
+            // Use the first 4 bytes of the hash as an integer for hashCode calculation
+            const bytes = hash.getBytes();
+            const hashInt = bytes.length >= 4
+                ? (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]
+                : bytes.reduce((acc, b) => (acc << 8) | b, 0);
+            result = 31 * result + hashInt;
         }
         for (let i = 0; i < this.matchedChildBits.length; i++) {
             result = 31 * result + this.matchedChildBits[i];

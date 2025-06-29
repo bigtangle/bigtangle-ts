@@ -1,4 +1,4 @@
-import { NetworkParameters } from '../../core/NetworkParameters';
+import { NetworkParameters } from '../../params/NetworkParameters';
 import { TXReward } from '../../core/TXReward';
 import { ReqCmd } from '../../params/ReqCmd'; // Placeholder
 import { GetTXRewardResponse } from '../../response/GetTXRewardResponse';
@@ -39,7 +39,7 @@ export class ServerPool {
             try {
                 const requestParam: { [key: string]: string } = {};
                 // Assuming OkHttp3Util.post returns a Promise<Uint8Array>
-                OkHttp3Util.post(params.serverSeeds()[0] + ReqCmd.serverinfolist, Json.jsonmapper().writeValueAsString(requestParam)).then(data => {
+                OkHttp3Util.post([params.serverSeeds()[0] + ReqCmd.serverinfolist], Json.jsonmapper().writeValueAsString(requestParam)).then(data => {
                     const response = Json.jsonmapper().readValue(new TextDecoder().decode(data), ServerinfoResponse);
                     if (response.getServerInfoList() !== null) {
                         for (const serverInfo of response.getServerInfoList()!) {
@@ -120,7 +120,7 @@ export class ServerPool {
 
     public async getChainNumber(s: string): Promise<TXReward | null> {
         const requestParam: { [key: string]: string } = {};
-        const response = await OkHttp3Util.postString(`${s.trim()}/${ReqCmd.getChainNumber}`, Json.jsonmapper().writeValueAsString(requestParam));
+        const response = await OkHttp3Util.postString([`${s.trim()}/${ReqCmd.getChainNumber}`], Json.jsonmapper().writeValueAsString(requestParam));
         const aTXRewardResponse = Json.jsonmapper().readValue(new TextDecoder().decode(response), GetTXRewardResponse);
         return aTXRewardResponse.getTxReward();
     }
@@ -136,10 +136,15 @@ export class ServerPool {
 
 export class SortbyChain implements Comparator<ServerState> {
     public compare(a: ServerState, b: ServerState): number {
-        if (a.getChainlength() - b.getChainlength() <= 1) {
-            return a.getResponseTime() > b.getResponseTime() ? 1 : -1;
+        const aChainLength = a.getChainlength() ?? 0;
+        const bChainLength = b.getChainlength() ?? 0;
+        const aResponseTime = a.getResponseTime() ?? 0;
+        const bResponseTime = b.getResponseTime() ?? 0;
+
+        if (aChainLength - bChainLength <= 1) {
+            return aResponseTime > bResponseTime ? 1 : -1;
         }
-        return a.getChainlength() > b.getChainlength() ? -1 : 1;
+        return aChainLength > bChainLength ? -1 : 1;
     }
 }
 

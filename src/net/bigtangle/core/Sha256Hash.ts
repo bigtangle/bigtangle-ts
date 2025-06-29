@@ -1,9 +1,11 @@
 import { createHash } from 'crypto';
 import { Buffer } from 'buffer';
-import { Utils } from './Utils';
+import { Utils } from '../utils/Utils'; // Corrected path to Utils
 
 export class Sha256Hash {
-        bytes: Buffer;
+ 
+    public static readonly LENGTH = 32; // SHA-256 hash
+    bytes: Buffer;
 
     private constructor(bytes: Buffer) {
         if (bytes.length !== 32) {
@@ -43,21 +45,25 @@ export class Sha256Hash {
     }
 
     public toString(): string {
-        return Utils.toHexString(this.bytes);
+        return Utils.HEX.encode(this.bytes);
     }
 
     public equals(other: Sha256Hash): boolean {
         return this.bytes.equals(other.bytes);
     }
 
+    public hashCode(): number {
+        // Return the last 4 bytes of the hash as an integer.
+        return this.bytes.readInt32BE(this.bytes.length - 4);
+    }
+
     public getBytes(): Buffer {
         return Buffer.from( this.bytes);
     }
 
-        public getReversedBytes(): Buffer {
+    public getReversedBytes(): Buffer {
         return Buffer.from(Utils.reverseBytes(this.bytes));
     }
-
 
     public getHash(): Sha256Hash {
         return this;

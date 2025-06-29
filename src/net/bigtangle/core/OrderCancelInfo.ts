@@ -22,9 +22,10 @@ export class OrderCancelInfo {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
+        const dos = new DataOutputStream();
         try {
             dos.writeBytes(this.blockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.blockHash.getBytes());
+            baos.write(dos.toByteArray());
             dos.close();
         } catch (e: any) {
             throw new Error(e);
@@ -39,7 +40,7 @@ export class OrderCancelInfo {
     }
 
     public parse(buf: Uint8Array): OrderCancelInfo {
-        const bain = new DataInputStream(buf);
+        const bain = new DataInputStream(Buffer.from(buf));
         try {
             this.parseDIS(bain);
             bain.close();

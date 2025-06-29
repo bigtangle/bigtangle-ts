@@ -4,7 +4,7 @@ import { Address } from '../core/Address.js';
 import { ECKey } from '../core/ECKey.js';
 import { Utils } from '../utils/Utils.js';
 import { TransactionSignature } from '../crypto/TransactionSignature.js';
-import { BigInteger } from '../core/BigInteger.js';
+import * as BigInteger from 'big-integer';
 
 // Re-export ScriptOpCodes from Script.ts or define them here if not in Script.ts
 // For now, assuming they will be defined in Script.ts or a separate ScriptOpCodes.ts
@@ -99,19 +99,19 @@ export class ScriptBuilder {
         if (typeof num === 'number' && num === 0) {
             data = new Uint8Array(0);
         } else {
-            let absValue: BigInteger;
+            let absValue: BigInteger.BigInteger;
             let neg = false;
             if (typeof num === 'number') {
                 neg = num < 0;
-                absValue = new BigInteger(String(Math.abs(num)));
+                absValue = BigInteger.default(String(Math.abs(num)));
             } else { // BigInteger
-                neg = num.signum() === -1;
+                neg = num.isNegative();
                 absValue = num.abs();
             }
 
             const result: number[] = [];
-            while (absValue.compareTo(BigInteger.ZERO) !== 0) {
-                result.push(absValue.and(new BigInteger("0xff")).intValue());
+            while (absValue.compare(BigInteger.zero) !== 0) {
+                result.push(absValue.and(BigInteger.default("ff", 16)).toJSNumber());
                 absValue = absValue.shiftRight(8);
             }
 

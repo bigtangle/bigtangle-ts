@@ -43,4 +43,33 @@ export class IdentityDataClass {
         // Placeholder: just base58 encode the utf-8 bytes
         return Base58.encode(new TextEncoder().encode(this.identificationnumber.trim()));
     }
+
+    // --- Serialization and parsing methods translated from Java ---
+    toByteArray(): Uint8Array {
+        // NOTE: This is a simplified version. For full compatibility, use a binary serialization library.
+        const code = this.code ?? '';
+        const identificationnumber = this.identificationnumber ?? '';
+        const signatureofholder = this.signatureofholder ?? new Uint8Array();
+        const photo = this.photo ?? new Uint8Array();
+        const machinereadable = this.machinereadable ?? new Uint8Array();
+        const identityCoreEn = this.identityCoreEn ?? {};
+        const identityCore = this.identityCore ?? {};
+        const obj = { code, identificationnumber, signatureofholder, photo, machinereadable, identityCoreEn, identityCore };
+        return new TextEncoder().encode(JSON.stringify(obj));
+    }
+
+    static parse(buf: Uint8Array): IdentityDataClass {
+        // NOTE: This is a simplified version. For full compatibility, use a binary serialization library.
+        const json = new TextDecoder().decode(buf);
+        const obj = JSON.parse(json);
+        const data = new IdentityDataClass();
+        data.code = obj.code;
+        data.identificationnumber = obj.identificationnumber;
+        data.signatureofholder = obj.signatureofholder;
+        data.photo = obj.photo;
+        data.machinereadable = obj.machinereadable;
+        data.identityCoreEn = obj.identityCoreEn;
+        data.identityCore = obj.identityCore;
+        return data;
+    }
 }

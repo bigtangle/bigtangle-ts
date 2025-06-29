@@ -29,7 +29,7 @@ export class TokenInfo extends DataClass {
     public parse(buf: Uint8Array): TokenInfo {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         const objectMapper = new ObjectMapper();
-      return objectMapper.parse<TokenInfo>(jsonStr, { mainCreator: () => [TokenInfo] });
+      return objectMapper.parse(jsonStr, { mainCreator: () => [TokenInfo] }) as TokenInfo;
        
     }
 
@@ -37,7 +37,7 @@ export class TokenInfo extends DataClass {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         try {
          const objectMapper = new ObjectMapper();
-      return objectMapper.parse<TokenInfo>(jsonStr, { mainCreator: () => [TokenInfo] });
+      return objectMapper.parse(jsonStr, { mainCreator: () => [TokenInfo] }) as TokenInfo;
         } catch (e: any) {
             throw new Error(e);
         }
