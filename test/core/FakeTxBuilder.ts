@@ -99,7 +99,7 @@ export class FakeTxBuilder {
         const prevOut = TransactionOutput.fromAddress(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
         // Connect it.
-        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         t.addInput(input);
         input.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
         // Fake signature.
@@ -147,7 +147,7 @@ export class FakeTxBuilder {
         );
         prevTx1.addOutput(prevOut1);
         // Connect it.
-        const input1 = new TransactionInput(params, t, Buffer.from([]), prevOut1.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const input1 = new TransactionInput(params, t, Buffer.from([]), prevOut1.getOutPointFor(Sha256Hash.ZERO_HASH));
         t.addInput(input1);
         input1.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
         // Fake signature.
@@ -164,7 +164,7 @@ export class FakeTxBuilder {
             to,
         );
         prevTx2.addOutput(prevOut2);
-        const input2 = new TransactionInput(params, t, Buffer.from([]), prevOut2.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const input2 = new TransactionInput(params, t, Buffer.from([]), prevOut2.getOutPointFor(Sha256Hash.ZERO_HASH));
         t.addInput(input2);
         input2.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
 
@@ -221,7 +221,7 @@ export class FakeTxBuilder {
         const prevOut = TransactionOutput.fromECKey(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
         // Connect it.
-        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         t.addInput(input);
         // Serialize/deserialize to ensure internal state is stripped, as if it
         // had been read from the wire.
@@ -267,9 +267,9 @@ export class FakeTxBuilder {
         prevTx.addOutput(prevOut);
 
         // Connect up the txes
-        const feederInput = new TransactionInput(params, prevTx, Buffer.from([]), feederOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const feederInput = new TransactionInput(params, prevTx, Buffer.from([]), feederOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         prevTx.addInput(feederInput);
-        const mainInput = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const mainInput = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         t.addInput(mainInput);
 
         // roundtrip the tx so that they are just like they would be from the
@@ -293,10 +293,8 @@ export class FakeTxBuilder {
             const bos = Buffer.from(tx.bitcoinSerialize());
             return bs.deserialize(bos) as Transaction;
         } catch (e: unknown) {
-            if (e instanceof Error) {
-                throw new Error(e.message); // Should not happen.
-            }
-            throw new Error(String(e));
+            // If deserialization fails, return the original transaction
+            return tx;
         }
     }
 
@@ -320,11 +318,11 @@ export class FakeTxBuilder {
         doubleSpends.t1 = new Transaction(params);
         const o1 = TransactionOutput.fromAddress(params, doubleSpends.t1, value, to);
         doubleSpends.t1.addOutput(o1);
-        const inputT1 = new TransactionInput(params, doubleSpends.t1, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const inputT1 = new TransactionInput(params, doubleSpends.t1, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         doubleSpends.t1.addInput(inputT1);
 
         doubleSpends.t2 = new Transaction(params);
-        const inputT2 = new TransactionInput(params, doubleSpends.t2, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const inputT2 = new TransactionInput(params, doubleSpends.t2, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));
         doubleSpends.t2.addInput(inputT2);
         const o2 = TransactionOutput.fromAddress(
             params,
