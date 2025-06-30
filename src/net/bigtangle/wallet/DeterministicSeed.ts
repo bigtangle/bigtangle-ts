@@ -19,8 +19,8 @@ export class DeterministicSeed implements EncryptableItem {
     private readonly encryptedSeed: EncryptedData | null = null;
     private creationTimeSeconds: number = 0;
 
-    // Remove all overloads and keep only the private constructor
-    private constructor(
+    // Making the constructor public to allow direct instantiation from builders
+    constructor(
         mnemonicCode: string[] | null,
         seedBytes: Uint8Array | null,
         encryptedMnemonicCode: EncryptedData | null,
