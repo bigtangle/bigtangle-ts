@@ -11,6 +11,7 @@ import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 import { TransactionOutput } from './TransactionOutput';
 import { Address } from './Address';
+import { Sha256Hash } from './Sha256Hash';
 
 /**
  * <p>A transfer of coins from one address to another creates a transaction in which the outputs
@@ -355,18 +356,9 @@ export class TransactionInput extends ChildMessage {
     }
 
 
-    static parseFromBuffer(buffer: Buffer, offset: number): [TransactionInput, number] {
-        // Placeholder implementation: parse fields as needed
-        // For now, just return a new TransactionInput and a dummy size (e.g., 40)
-        // Replace this with actual parsing logic
-        // You need to provide actual values for params, parentTransaction, and scriptBytes here
-        // For placeholder purposes, using 'null' for parentTransaction and an empty Buffer for scriptBytes
-        // Replace 'params' with a valid NetworkParameters instance as needed
-        const params: NetworkParameters = {} as NetworkParameters; // TODO: Replace with actual instance
-        const parentTransaction: Transaction | null = null;
-        const scriptBytes: Buffer = Buffer.alloc(0);
-        const input = new TransactionInput(params, parentTransaction, scriptBytes);
-        const size = 40; // Replace with actual parsed size
+    static parseFromBuffer(params: NetworkParameters, buffer: Buffer, offset: number): [TransactionInput, number] {
+        const input = new TransactionInput(params, null, buffer, offset);
+        const size = input.getMessageSize();
         return [input, size];
     }
 }

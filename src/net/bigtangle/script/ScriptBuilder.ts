@@ -75,7 +75,7 @@ export class ScriptBuilder {
         } else {
             throw new Error("Unimplemented: Data length too large for PUSHDATA opcodes.");
         }
-        return this.addChunk(new ScriptChunk(opcode, data));
+        return this.addChunk(new ScriptChunk(opcode, Buffer.from(data)));
     }
 
     number(num: number | bigInt.BigInteger): ScriptBuilder {

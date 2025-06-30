@@ -51,7 +51,7 @@ export class Transaction extends ChildMessage {
         offset += inputCountSize;
         this.inputs = [];
         for (let i = 0; i < inputCount; i++) {
-            const [input, size] = TransactionInput.parseFromBuffer(this.payload, offset);
+            const [input, size] = TransactionInput.parseFromBuffer(this.params, this.payload, offset);
             this.inputs.push(input);
             offset += size;
         }
@@ -61,7 +61,7 @@ export class Transaction extends ChildMessage {
         offset += outputCountSize;
         this.outputs = [];
         for (let i = 0; i < outputCount; i++) {
-            const [output, size] = TransactionOutput.parseFromBuffer(this.payload, offset);
+            const [output, size] = TransactionOutput.parseFromBuffer(this.params, this.payload, offset);
             this.outputs.push(output);
             offset += size;
         }
@@ -297,7 +297,6 @@ export class Transaction extends ChildMessage {
     }
 
     public addOutput(output: TransactionOutput): void {
-        output.setParent(this as any);
         this.outputs.push(output);
         this.length += output.getMessageSize ? output.getMessageSize() : 0;
         this.unCache();

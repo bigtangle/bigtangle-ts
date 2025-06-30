@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { NetworkParameters } from '../../src/net/bigtangle/core/NetworkParameters';
+import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
@@ -12,16 +12,17 @@ import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { Block } from '../../src/net/bigtangle/core/Block';
 import { UtilsTest } from './UtilsTest';
-import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
-import { BigInteger } from '../../src/net/bigtangle/core/BigInteger';
+import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
+import { Constants } from '../../src/net/bigtangle/core/Constants';
+import bigInt from 'big-integer';
 
 export class FakeTxBuilder {
     /** Create a fake transaction, without change. */
-    public static createFakeTx(params: NetworkParameters): Transaction {
+    public static createFakeTxSimple(params: NetworkParameters): Transaction {
         return FakeTxBuilder.createFakeTxWithoutChangeAddress(
             params,
             Coin.COIN,
-            ECKey.fromPrivate(new BigInteger('1')).toAddress(params),
+            ECKey.fromPrivate(bigInt('1')).toAddress(params),
         );
     }
 
@@ -33,11 +34,12 @@ export class FakeTxBuilder {
         const prevTx = FakeTxBuilder.createFakeTx(
             params,
             Coin.COIN,
-            ECKey.fromPrivate(new BigInteger('1')).toAddress(params),
+            ECKey.fromPrivate(bigInt('1')).toAddress(params),
         );
         const tx = new Transaction(params);
         tx.addOutput(output);
-        tx.addInput(params.getGenesisBlock().getHash(), prevTx.getOutput(0));
+        const input1 = new TransactionInput(params, tx, Buffer.from([]), prevTx.getOutput(0).getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        tx.addInput(input1);
         return tx;
     }
 
@@ -52,11 +54,11 @@ export class FakeTxBuilder {
         const input = new TransactionInput(params, null, Buffer.from([]), outpoint);
         const tx = new Transaction(params);
         tx.addInput(input);
-        const outputToMe = new TransactionOutput(
+        const outputToMe = TransactionOutput.fromAddress(
             params,
             tx,
             Coin.COIN.multiply(50),
-            ECKey.fromPrivate(new BigInteger('1')).toAddress(params),
+            ECKey.fromPrivate(bigInt('1')).toAddress(params),
         );
         tx.addOutput(outputToMe);
 
@@ -78,14 +80,14 @@ export class FakeTxBuilder {
         changeOutput: Address,
     ): Transaction {
         const t = new Transaction(params);
-        const outputToMe = new TransactionOutput(params, t, value, to);
+        const outputToMe = TransactionOutput.fromAddress(params, t, value, to);
         t.addOutput(outputToMe);
-        const change = new TransactionOutput(
+        const change = TransactionOutput.fromAddress(
             params,
             t,
             Coin.valueOf(
-                Coin.COIN.getValue() * 1 + 11,
-                NetworkParameters.BIGTANGLE_TOKENID,
+                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
+                Constants.BIGTANGLE_TOKENID,
             ),
             changeOutput,
         );
@@ -94,12 +96,12 @@ export class FakeTxBuilder {
         // is not really valid but it doesn't
         // matter for our purposes.
         const prevTx = new Transaction(params);
-        const prevOut = new TransactionOutput(params, prevTx, value, to);
+        const prevOut = TransactionOutput.fromAddress(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
         // Connect it.
-        t.addInput(params.getGenesisBlock().getHash(), prevOut).setScriptSig(
-            ScriptBuilder.createInputScript(TransactionSignature.dummy()),
-        );
+        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        t.addInput(input);
+        input.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
         // Fake signature.
         // Serialize/deserialize to ensure internal state is stripped, as if it
         // had been read from the wire.
@@ -117,54 +119,54 @@ export class FakeTxBuilder {
         to: Address,
     ): Transaction {
         const t = new Transaction(params);
-        const outputToMe = new TransactionOutput(params, t, value, to);
+        const outputToMe = TransactionOutput.fromAddress(params, t, value, to);
         t.addOutput(outputToMe);
 
         // Make a random split in the output value so we get a distinct hash
         // when we call this multiple times with same args
-        let split = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
-        if (split < 0) {
-            split *= -1;
+        let split = bigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        if (split.isNegative()) {
+            split = split.multiply(-1);
         }
-        if (split === 0) {
-            split = 15;
+        if (split.isZero()) {
+            split = bigInt(15);
         }
-        while (split > value.getValue()) {
-            split /= 2;
+        while (split.greater(value.getValue())) {
+            split = split.divide(2);
         }
 
         // Make a previous tx simply to send us sufficient coins. This prev tx
         // is not really valid but it doesn't
         // matter for our purposes.
         const prevTx1 = new Transaction(params);
-        const prevOut1 = new TransactionOutput(
+        const prevOut1 = TransactionOutput.fromAddress(
             params,
             prevTx1,
-            Coin.valueOf(split, NetworkParameters.BIGTANGLE_TOKENID),
+            Coin.valueOf(BigInt(split.toString()), Constants.BIGTANGLE_TOKENID),
             to,
         );
         prevTx1.addOutput(prevOut1);
         // Connect it.
-        t.addInput(params.getGenesisBlock().getHash(), prevOut1).setScriptSig(
-            ScriptBuilder.createInputScript(TransactionSignature.dummy()),
-        );
+        const input1 = new TransactionInput(params, t, Buffer.from([]), prevOut1.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        t.addInput(input1);
+        input1.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
         // Fake signature.
 
         // Do it again
         const prevTx2 = new Transaction(params);
-        const prevOut2 = new TransactionOutput(
+        const prevOut2 = TransactionOutput.fromAddress(
             params,
             prevTx2,
             Coin.valueOf(
-                value.getValue() - split,
-                NetworkParameters.BIGTANGLE_TOKENID,
+                BigInt(bigInt(value.getValue()).subtract(split).toString()),
+                Constants.BIGTANGLE_TOKENID,
             ),
             to,
         );
         prevTx2.addOutput(prevOut2);
-        t.addInput(params.getGenesisBlock().getHash(), prevOut2).setScriptSig(
-            ScriptBuilder.createInputScript(TransactionSignature.dummy()),
-        );
+        const input2 = new TransactionInput(params, t, Buffer.from([]), prevOut2.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        t.addInput(input2);
+        input2.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
 
         // Serialize/deserialize to ensure internal state is stripped, as if it
         // had been read from the wire.
@@ -185,7 +187,7 @@ export class FakeTxBuilder {
             params,
             value,
             to,
-            ECKey.fromPrivate(new BigInteger('1')).toAddress(params),
+            ECKey.fromPrivate(bigInt('1')).toAddress(params),
         );
     }
 
@@ -200,26 +202,27 @@ export class FakeTxBuilder {
         to: ECKey,
     ): Transaction {
         const t = new Transaction(params);
-        const outputToMe = new TransactionOutput(params, t, value, to.toAddress(params));
+        const outputToMe = TransactionOutput.fromECKey(params, t, value, to);
         t.addOutput(outputToMe);
-        const change = new TransactionOutput(
+        const change = TransactionOutput.fromAddress(
             params,
             t,
             Coin.valueOf(
-                Coin.COIN.getValue() * 1 + 11,
-                NetworkParameters.BIGTANGLE_TOKENID,
+                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
+                Constants.BIGTANGLE_TOKENID,
             ),
-            new ECKey().toAddress(params),
+            ECKey.fromPrivate(bigInt('2')).toAddress(params),
         );
         t.addOutput(change);
         // Make a previous tx simply to send us sufficient coins. This prev tx
         // is not really valid but it doesn't
         // matter for our purposes.
         const prevTx = new Transaction(params);
-        const prevOut = new TransactionOutput(params, prevTx, value, to.toAddress(params));
+        const prevOut = TransactionOutput.fromECKey(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
         // Connect it.
-        t.addInput(params.getGenesisBlock().getHash(), prevOut);
+        const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        t.addInput(input);
         // Serialize/deserialize to ensure internal state is stripped, as if it
         // had been read from the wire.
         return FakeTxBuilder.roundTripTransaction(params, t);
@@ -239,33 +242,35 @@ export class FakeTxBuilder {
         // from address, to the to address with to one to somewhere else to
         // simulate change.
         const t = new Transaction(params);
-        const outputToMe = new TransactionOutput(params, t, value, to);
+        const outputToMe = TransactionOutput.fromAddress(params, t, value, to);
         t.addOutput(outputToMe);
-        const change = new TransactionOutput(
+        const change = TransactionOutput.fromAddress(
             params,
             t,
             Coin.valueOf(
-                Coin.COIN.getValue() * 1 + 11,
-                NetworkParameters.BIGTANGLE_TOKENID,
+                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
+                Constants.BIGTANGLE_TOKENID,
             ),
-            new ECKey().toAddress(params),
+            ECKey.fromPrivate(bigInt('2')).toAddress(params),
         );
         t.addOutput(change);
         // Make a feeder tx that sends to the from address specified. This
         // feeder tx is not really valid but it doesn't
         // matter for our purposes.
         const feederTx = new Transaction(params);
-        const feederOut = new TransactionOutput(params, feederTx, value, from);
+        const feederOut = TransactionOutput.fromAddress(params, feederTx, value, from);
         feederTx.addOutput(feederOut);
 
         // make a previous tx that sends from the feeder to the from address
         const prevTx = new Transaction(params);
-        const prevOut = new TransactionOutput(params, prevTx, value, to);
+        const prevOut = TransactionOutput.fromAddress(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
 
         // Connect up the txes
-        prevTx.addInput(params.getGenesisBlock().getHash(), feederOut);
-        t.addInput(params.getGenesisBlock().getHash(), prevOut);
+        const feederInput = new TransactionInput(params, prevTx, Buffer.from([]), feederOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        prevTx.addInput(feederInput);
+        const mainInput = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        t.addInput(mainInput);
 
         // roundtrip the tx so that they are just like they would be from the
         // wire
@@ -285,10 +290,13 @@ export class FakeTxBuilder {
     ): Transaction {
         try {
             const bs = params.getDefaultSerializer();
-            const bos = tx.bitcoinSerialize();
+            const bos = Buffer.from(tx.bitcoinSerialize());
             return bs.deserialize(bos) as Transaction;
-        } catch (e) {
-            throw new Error(e); // Should not happen.
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                throw new Error(e.message); // Should not happen.
+            }
+            throw new Error(String(e));
         }
     }
 
@@ -298,10 +306,10 @@ export class FakeTxBuilder {
     ): DoubleSpends {
         const doubleSpends = new DoubleSpends();
         const value = Coin.COIN;
-        const someBadGuy = new ECKey().toAddress(params);
+        const someBadGuy = ECKey.fromPrivate(bigInt('3')).toAddress(params);
 
         doubleSpends.prevTx = new Transaction(params);
-        const prevOut = new TransactionOutput(
+        const prevOut = TransactionOutput.fromAddress(
             params,
             doubleSpends.prevTx,
             value,
@@ -310,13 +318,15 @@ export class FakeTxBuilder {
         doubleSpends.prevTx.addOutput(prevOut);
 
         doubleSpends.t1 = new Transaction(params);
-        const o1 = new TransactionOutput(params, doubleSpends.t1, value, to);
+        const o1 = TransactionOutput.fromAddress(params, doubleSpends.t1, value, to);
         doubleSpends.t1.addOutput(o1);
-        doubleSpends.t1.addInput(params.getGenesisBlock().getHash(), prevOut);
+        const inputT1 = new TransactionInput(params, doubleSpends.t1, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        doubleSpends.t1.addInput(inputT1);
 
         doubleSpends.t2 = new Transaction(params);
-        doubleSpends.t2.addInput(params.getGenesisBlock().getHash(), prevOut);
-        const o2 = new TransactionOutput(
+        const inputT2 = new TransactionInput(params, doubleSpends.t2, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        doubleSpends.t2.addInput(inputT2);
+        const o2 = TransactionOutput.fromAddress(
             params,
             doubleSpends.t2,
             value,
@@ -327,12 +337,15 @@ export class FakeTxBuilder {
         try {
             doubleSpends.t1 = params
                 .getDefaultSerializer()
-                .makeTransaction(doubleSpends.t1.bitcoinSerialize());
+                .makeTransaction(Buffer.from(doubleSpends.t1.bitcoinSerialize()));
             doubleSpends.t2 = params
                 .getDefaultSerializer()
-                .makeTransaction(doubleSpends.t2.bitcoinSerialize());
-        } catch (e) {
-            throw new Error(e);
+                .makeTransaction(Buffer.from(doubleSpends.t2.bitcoinSerialize()));
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                throw new Error(e.message);
+            }
+            throw new Error(String(e));
         }
         return doubleSpends;
     }
@@ -341,7 +354,8 @@ export class FakeTxBuilder {
         prev: Block,
         ...transactions: Transaction[]
     ): Block {
-        const b = UtilsTest.createBlock(MainNetParams.get(), prev, prev);
+        const networkParams: NetworkParameters = MainNetParamsClass.get();
+        const b = UtilsTest.createBlock(networkParams, prev, prev);
         // Coinbase tx already exists.
         for (const tx of transactions) {
             b.addTransaction(tx);
@@ -355,7 +369,8 @@ export class FakeTxBuilder {
         to: Address,
         ...transactions: Transaction[]
     ): Block {
-        const b = UtilsTest.createBlock(MainNetParams.get(), prev, prev);
+        const networkParams: NetworkParameters = MainNetParamsClass.get();
+        const b = UtilsTest.createBlock(networkParams, prev, prev);
         // Coinbase tx already exists.
         for (const tx of transactions) {
             b.addTransaction(tx);
@@ -366,11 +381,11 @@ export class FakeTxBuilder {
 }
 
 export class DoubleSpends {
-    public t1: Transaction;
-    public t2: Transaction;
-    public prevTx: Transaction;
+    public t1: Transaction | null = null;
+    public t2: Transaction | null = null;
+    public prevTx: Transaction | null = null;
 }
 
 export class BlockPair {
-    public block: Block;
+    public block: Block | null = null;
 }

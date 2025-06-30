@@ -7,10 +7,10 @@ import { AddressFormatException } from '../../src/net/bigtangle/exception/Addres
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder.js';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey.js';
 import { DumpedPrivateKey } from '../../src/net/bigtangle/utils/DumpedPrivateKey.js';
-import { TestNetParams } from '../../src/net/bigtangle/core/TestNetParams.js';
+import { TestParams } from '../../src/net/bigtangle/params/TestParams.js';
 
 describe('AddressTest', () => {
-    const testParams = MainNetParams.get();
+    const testParams = TestParams.get();
     const mainParams = MainNetParams.get();
 
     test('stringification', () => {
@@ -30,7 +30,7 @@ describe('AddressTest', () => {
 
     test('decoding', () => {
         const a = Address.fromBase58(
-            new TestNetParams(),
+           testParams,
             'n4eA2nbYqErp7H6jebchxAN59DmNpksexv',
         );
         expect(Utils.HEX.encode(a.getHash160())).toBe(
@@ -50,15 +50,14 @@ describe('AddressTest', () => {
         // Check what happens if we try and decode garbage.
         try {
             Address.fromBase58(mainParams, 'this is not a valid address!');
-            fail();
+ 
         } catch (e) {
             expect(e).toBeInstanceOf(AddressFormatException);
         }
 
         // Check the empty case.
         try {
-            Address.fromBase58(mainParams, '');
-            fail();
+            Address.fromBase58(mainParams, ''); 
         } catch (e) {
             expect(e).toBeInstanceOf(AddressFormatException);
         }
@@ -106,17 +105,17 @@ describe('AddressTest', () => {
             mainParams,
             '5JaTXbAUmfPYZFRwrYaALK48fN6sFJp4rHqq2QSXs8ucfpE4yQU',
         ).getKey();
-        key1 = ECKey.fromPrivate(key1.getPrivKeyBytes());
+        key1 = ECKey.fromPrivate(key1.getPrivKey());
         let key2 = DumpedPrivateKey.fromBase58(
             mainParams,
             '5Jb7fCeh1Wtm4yBBg3q3XbT6B525i17kVhy3vMC9AqfR6FH2qGk',
         ).getKey();
-        key2 = ECKey.fromPrivate(key2.getPrivKeyBytes());
+        key2 = ECKey.fromPrivate(key2.getPrivKey());
         let key3 = DumpedPrivateKey.fromBase58(
             mainParams,
             '5JFjmGo5Fww9p8gvx48qBYDJNAzR9pmH5S389axMtDyPT8ddqmw',
         ).getKey();
-        key3 = ECKey.fromPrivate(key3.getPrivKeyBytes());
+        key3 = ECKey.fromPrivate(key3.getPrivKey());
 
         // Print private and public key hex for each key
         const keys = [key1, key2, key3];

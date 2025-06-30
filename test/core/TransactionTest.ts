@@ -1,24 +1,24 @@
 import { Buffer } from 'buffer';
-import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
-import { Address } from '../../src/net/bigtangle/core/Address';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { Transaction } from '../../src/net/bigtangle/core/Transaction';
+import { MainNetParams } from 'net/bigtangle/params/MainNetParams';
+import { Address } from 'net/bigtangle/core/Address';
+import { ECKey } from 'net/bigtangle/core/ECKey';
+import { Transaction } from 'net/bigtangle/core/Transaction';
 import { FakeTxBuilder } from './FakeTxBuilder';
 import {
     VerificationException,
     ScriptException,
-} from '../../src/net/bigtangle/exception';
-import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
-import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
-import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
-import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
-import { Coin } from '../../src/net/bigtangle/core/Coin';
-import { Message } from '../../src/net/bigtangle/core/Message';
-import { Script } from '../../src/net/bigtangle/script/Script';
-import { MemoInfo } from '../../src/net/bigtangle/core/MemoInfo';
-import { UTXO } from '../../src/net/bigtangle/core/UTXO';
-import { Utils } from '../../src/net/bigtangle/utils/Utils';
-import { BigInteger } from '../../src/net/bigtangle/core/BigInteger';
+} from 'net/bigtangle/exception';
+import { TransactionInput } from 'net/bigtangle/core/TransactionInput';
+import { Sha256Hash } from 'net/bigtangle/core/Sha256Hash';
+import { ScriptBuilder } from 'net/bigtangle/script/ScriptBuilder';
+import { TransactionOutput } from 'net/bigtangle/core/TransactionOutput';
+import { Coin } from 'net/bigtangle/core/Coin';
+import { Message } from 'net/bigtangle/core/Message';
+import { Script } from 'net/bigtangle/script/Script';
+import { MemoInfo } from 'net/bigtangle/core/MemoInfo';
+import { UTXO } from 'net/bigtangle/core/UTXO';
+import { Utils } from 'net/bigtangle/utils/Utils';
+import { BigInteger } from 'net/bigtangle/core/BigInteger';
 
 describe('TransactionTest', () => {
     const PARAMS = MainNetParams.get();

@@ -3,6 +3,7 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Address } from '../../src/net/bigtangle/core/Address';
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
+import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 
 describe('TransactionOutputTest', () => {
@@ -14,9 +15,15 @@ describe('TransactionOutputTest', () => {
         );
         const script = ScriptBuilder.createOutputScript(P2SHAddress);
         const tx = new Transaction(MainNetParams.get());
-        tx.addOutput(Coin.COIN, script);
+        const output = new TransactionOutput(
+            MainNetParams.get(), 
+            tx, 
+            Coin.COIN, 
+            Buffer.from(script.getProgram())
+        );
+        tx.addOutput(output);
         expect(
-            tx.getOutput(0).getAddressFromP2SH(MainNetParams.get()).toString(),
+            tx.getOutput(0).getAddressFromP2SH(MainNetParams.get())!.toString(),
         ).toBe(P2SHAddressString);
     });
 });

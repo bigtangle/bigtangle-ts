@@ -26,7 +26,7 @@ export class Block extends Message {
     private version!: number;
     private prevBlockHash!: Sha256Hash;
     private prevBranchBlockHash!: Sha256Hash;
-    private merkleRoot!: Sha256Hash;
+    private merkleRoot: Sha256Hash;
     private time!: number;
     private difficultyTarget!: number;
     private lastMiningRewardBlock!: number;
@@ -49,6 +49,7 @@ export class Block extends Message {
         this.headerBytesValid = false;
         this.transactionBytesValid = false;
         this.optimalEncodingMessageSize = 0;
+        this.merkleRoot = Sha256Hash.ZERO_HASH; // Explicitly initialize merkleRoot
     }
 
     public static fromVersion(params: NetworkParameters, setVersion: number): Block {
@@ -63,6 +64,7 @@ export class Block extends Message {
         block.minerAddress = Buffer.alloc(20);
         block.length = NetworkParameters.HEADER_SIZE;
         block.transactions = [];
+        block.height = 0; // Initialize height
         return block;
     }
 
@@ -88,6 +90,7 @@ export class Block extends Message {
         block.minerAddress = Buffer.alloc(20);
         block.length = NetworkParameters.HEADER_SIZE;
         block.transactions = [];
+        block.height = 0; // Initialize height for genesis block
         return block;
     }
 
@@ -269,13 +272,15 @@ export class Block extends Message {
     private calculateHash(): Sha256Hash {
         const stream = new DataOutputStream();
         this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Buffer.from(stream.toByteArray()));
+        // Hash the serialized header twice and then wrap the result
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(stream.toByteArray())).toBuffer());
     }
 
     private calculatePoWHash(): Sha256Hash {
         const stream = new DataOutputStream();
         this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Buffer.from(stream.toByteArray()));
+        // Hash the serialized header twice and then wrap the result
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(stream.toByteArray())).toBuffer());
     }
 
     public getHashAsString(): string {
@@ -615,7 +620,8 @@ export class Block extends Message {
      */
     public solveDifficult(target: BigInteger): void {
         // Add randomness to prevent new empty blocks from same miner with same approved blocks to be the same
-        this.setNonce(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        // Ensure nonce is within 32-bit unsigned integer range
+        this.setNonce(Math.floor(Math.random() * 0xFFFFFFFF));
 
         while (true) {
             try {
@@ -624,7 +630,8 @@ export class Block extends Message {
                     return;
                 }
                 // No, so increment the nonce and try again.
-                this.setNonce(this.getNonce() + 1);
+                // Ensure nonce wraps around if it exceeds 32-bit max
+                this.setNonce((this.getNonce() + 1) >>> 0); // Use unsigned right shift to ensure 32-bit unsigned
             } catch (e) {
                 if (e instanceof VerificationException) {
                     throw new Error(e.message);
@@ -633,5 +640,22 @@ export class Block extends Message {
                 }
             }
         }
+    }
+
+    public cloneAsHeader(): Block {
+        const block = new Block(this.params);
+        block.version = this.version;
+        block.prevBlockHash = this.prevBlockHash;
+        block.prevBranchBlockHash = this.prevBranchBlockHash;
+        block.merkleRoot = this.merkleRoot;
+        block.time = this.time;
+        block.difficultyTarget = this.difficultyTarget;
+        block.lastMiningRewardBlock = this.lastMiningRewardBlock;
+        block.nonce = this.nonce;
+        block.minerAddress = this.minerAddress;
+        block.blockType = this.blockType;
+        block.height = this.height;
+        block.length = NetworkParameters.HEADER_SIZE;
+        return block;
     }
 }

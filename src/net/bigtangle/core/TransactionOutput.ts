@@ -114,12 +114,12 @@ export class TransactionOutput extends ChildMessage {
         if (!this.value) throw new Error("value is null");
 
         const valuebytes = TransactionOutput.bigintToBuffer(this.value.getValue(), 32);
-        stream.write(VarInt.write(valuebytes.length, stream));
+        VarInt.write(valuebytes.length, stream); // Corrected
         stream.write(valuebytes);
 
-        stream.write(VarInt.write(this.value.getTokenid().length, stream));
+        VarInt.write(this.value.getTokenid().length, stream); // Corrected
         stream.write(this.value.getTokenid());
-        stream.write(VarInt.write(this.scriptBytes.length, stream));
+        VarInt.write(this.scriptBytes.length, stream); // Corrected
         stream.write(this.scriptBytes);
     }
 
@@ -240,11 +240,13 @@ export class TransactionOutput extends ChildMessage {
     }
 
     // Add this static method to parse a TransactionOutput from a buffer
-    static parseFromBuffer(buffer: Buffer, offset: number): [TransactionOutput, number] {
-        // Placeholder implementation: replace with actual parsing logic
-        // For now, just return a new TransactionOutput and assume size is 0
-        // You should implement the actual parsing logic as per your protocol
-        // Provide placeholder arguments for now; replace with actual parsed values as needed
-        return [new TransactionOutput({} as NetworkParameters, null, Coin.ZERO, Buffer.alloc(0)), 0];
+    static parseFromBuffer(params: NetworkParameters, buffer: Buffer, offset: number): [TransactionOutput, number] {
+        const output = new TransactionOutput(params, null, Coin.ZERO, Buffer.alloc(0)); // Initial dummy values
+        output.payload = buffer;
+        output.offset = offset;
+        output.cursor = offset;
+        output.parse();
+        const size = output.getMessageSize();
+        return [output, size];
     }
 }
