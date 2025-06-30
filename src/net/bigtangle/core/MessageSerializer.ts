@@ -97,12 +97,7 @@ export abstract class MessageSerializer {
        
     }
 
-    /**
-     * Make an filter message from the payload. Extension point for alternative
-     * serialization format support.
-     */
-    public abstract makeBloomFilter(payloadBytes: Buffer): BloomFilter;
-
+  
     /**
      * Make a transaction from the payload. Extension point for alternative
      * serialization format support.

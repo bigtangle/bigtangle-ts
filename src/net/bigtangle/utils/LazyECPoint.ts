@@ -1,4 +1,4 @@
-import { BigInteger } from '../core/BigInteger'; // Import BigInteger as a value
+import bigInt from 'big-integer';
 
 // Placeholder for SpongyCastle ECPoint
 // In a real application, this would wrap an actual elliptic curve point object.
@@ -28,8 +28,8 @@ export class LazyECPoint {
             },
             isCompressed: () => this.compressed,
             normalize: () => this.point, // Dummy normalize
-            getAffineXCoord: () => ({ toBigInteger: () => new BigInteger("0") }), // Dummy
-            getAffineYCoord: () => ({ toBigInteger: () => new BigInteger("0") }), // Dummy
+            getAffineXCoord: () => ({ toBigInteger: () => bigInt("0") }), // Dummy
+            getAffineYCoord: () => ({ toBigInteger: () => bigInt("0") }), // Dummy
         };
     }
 

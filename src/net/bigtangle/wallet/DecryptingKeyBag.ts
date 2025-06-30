@@ -24,8 +24,9 @@ export class DecryptingKeyBag implements KeyBag {
             if (this.aesKey === null) {
                 throw new Error("KeyIsEncryptedException: Key is encrypted but no AES key provided.");
             }
-            // Assuming ECKey.decrypt takes KeyParameter and returns ECKey
-            return key.decrypt(key.getKeyCrypter()!, this.aesKey); // Pass keyCrypter from the key itself
+            // Use the key's crypter if available, otherwise use default implementation
+            const crypter = (key as any).getKeyCrypter?.() || null;
+            return key.decrypt(crypter, this.aesKey);
         } else {
             return key;
         }

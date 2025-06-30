@@ -1,4 +1,4 @@
-import { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import { ec } from 'elliptic';
 
 // Initialize the elliptic curve
@@ -6,7 +6,7 @@ const secp256k1 = new ec('secp256k1');
 
 // Export curve parameters
 export const CURVE = {
-    n: BigInteger(secp256k1.curve.n.toString()),
+    n: bigInt(secp256k1.curve.n.toString()),
     g: secp256k1.curve.g,
     // Add other curve parameters as needed
 };

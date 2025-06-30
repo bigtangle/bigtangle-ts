@@ -1,7 +1,8 @@
-import { ObjectMapper, SerializationFeature, DeserializationFeature } from 'jackson-js';
+import { ObjectMapper  } from 'jackson-js';
+type ObjectMapperType = InstanceType<typeof ObjectMapper>;
 
 export class Json {
-    public static jsonmapper(): ObjectMapper {
+    public static jsonmapper(): ObjectMapperType {
         const mapper = new ObjectMapper();
  
 

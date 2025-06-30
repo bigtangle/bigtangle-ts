@@ -21,26 +21,20 @@ export class BloomFilter extends Message {
     private nTweak: number = 0;
     private nFlags: number = 0;
 
-    constructor(params: NetworkParameters, bytes?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
-        super(params, bytes, offset, serializer);
+    constructor(params: NetworkParameters, elements?: number, falsePositiveRate?: number, nTweak?: number, nFlags?: number) {
+        super(params);
+        
+        if (elements !== undefined && falsePositiveRate !== undefined && nTweak !== undefined) {
+            // Create a new filter
+            this.data = Buffer.alloc(Math.ceil(-elements * Math.log(falsePositiveRate) / (Math.LN2 ** 2) / 8));
+            this.hashFuncs = Math.floor(this.data.length * 8 / elements * Math.log(2));
+            this.nTweak = nTweak;
+            this.nFlags = nFlags || BloomUpdate.UPDATE_P2PUBKEY_ONLY;
+        }
     }
 
     static create(params: NetworkParameters, elements: number, falsePositiveRate: number, randomNonce: number, updateFlag: BloomUpdate = BloomUpdate.UPDATE_P2PUBKEY_ONLY): BloomFilter {
-        // Calculate optimal filter size
-        let size = Math.floor(-1 / (Math.pow(Math.log(2), 2)) * elements * Math.log(falsePositiveRate));
-        size = Math.max(1, Math.min(size, BloomFilter.MAX_FILTER_SIZE * 8) / 8);
-        
-        const data = Buffer.alloc(size);
-        let hashFuncs = Math.floor(data.length * 8 / elements * Math.log(2));
-        hashFuncs = Math.max(1, Math.min(hashFuncs, BloomFilter.MAX_HASH_FUNCS));
-        
-        const filter = new BloomFilter(params);
-        filter.data = data;
-        filter.hashFuncs = hashFuncs;
-        filter.nTweak = randomNonce;
-        filter.nFlags = updateFlag;
-        
-        return filter;
+        return new BloomFilter(params, elements, falsePositiveRate, randomNonce, updateFlag);
     }
 
     getFalsePositiveRate(elements: number): number {

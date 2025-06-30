@@ -8,6 +8,7 @@ import { WalletExtension } from './WalletExtension';
 import { DefaultKeyChainFactory } from './DefaultKeyChainFactory';
 import { Buffer } from 'buffer';
 import { KeyChainFactory } from './KeyChainFactory';
+import { UtilParam } from '../params/UtilParam';
 
 export class WalletProtobufSerializer {
     public static readonly CURRENT_WALLET_VERSION = 1; // Assuming a simple version for now
@@ -25,26 +26,26 @@ export class WalletProtobufSerializer {
         this.keyChainFactory = keyChainFactory;
     }
 
-    public writeWallet(wallet: Wallet, output: any): void {
-        const walletProto = this.walletToProto(wallet);
+    public async writeWallet(wallet: Wallet, output: any): Promise<void> {
+        const walletProto = await this.walletToProto(wallet);
         // Assuming walletProto has a method to write to a stream/output
         // This part would depend on the actual Protobuf.js implementation
         // For now, we'll just convert to a buffer and write
         output.write(Buffer.from(JSON.stringify(walletProto))); // Simplified for now
     }
 
-    public walletToText(wallet: Wallet): string {
-        const walletProto = this.walletToProto(wallet);
+    public async walletToText(wallet: Wallet): Promise<string> {
+        const walletProto = await this.walletToProto(wallet);
         return JSON.stringify(walletProto, null, 2); // Pretty print JSON
     }
 
     // --- Fix walletToProto and related Protos usage ---
     // Use a plain object for walletProto, since Protos.Wallet.Wallet and Builder do not exist
-    public walletToProto(wallet: Wallet): any {
+    public async walletToProto(wallet: Wallet): Promise<any> {
         const walletProto: any = {};
         walletProto.networkIdentifier = wallet.getNetworkParameters().getId();
         // Use a public method to get keychain group serialization, or expose it if needed
-        walletProto.keys = wallet['serializeKeyChainGroupToProtobuf'] ? wallet['serializeKeyChainGroupToProtobuf']() : [];
+        walletProto.keys = wallet['serializeKeyChainGroupToProtobuf'] ? await wallet['serializeKeyChainGroupToProtobuf']() : [];
 
         const keyCrypter = wallet.getKeyCrypter();
         if (keyCrypter === null) {
@@ -79,7 +80,7 @@ export class WalletProtobufSerializer {
         try {
             const walletProto = this.parseToProto(input);
             const paramsID = walletProto.getNetworkIdentifier();
-            const params = NetworkParameters.fromID(paramsID);
+            const params = UtilParam.fromID(paramsID);
             if (params === null) {
                 throw new UnreadableWalletException(`Unknown network parameters ID ${paramsID}`);
             }

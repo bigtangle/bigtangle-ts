@@ -31,7 +31,10 @@ export enum Purpose {
 }
 
 export class Transaction extends ChildMessage {
- public static readonly UNCONNECTED = 0xFFFFFFFF;
+    // Make SigHash accessible as a static property
+    static SigHash = SigHash;
+    
+    public static readonly UNCONNECTED = 0xFFFFFFFF;
 
     protected parse(): void {
         // Parse the transaction from the provided bytes
@@ -210,20 +213,20 @@ export class Transaction extends ChildMessage {
         this.unCache();
     }
 
-    getInputs(): TransactionInput[] {
-        return [...this.inputs];
-    }
-
-    getOutputs(): TransactionOutput[] {
-        return [...this.outputs];
-    }
-
     getInput(index: number): TransactionInput {
         return this.inputs[index];
     }
 
+    getInputs(): TransactionInput[] {
+        return [...this.inputs];
+    }
+
     getOutput(index: number): TransactionOutput {
         return this.outputs[index];
+    }
+
+    getOutputs(): TransactionOutput[] {
+        return [...this.outputs];
     }
 
     // Simplified placeholder implementations

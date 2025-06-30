@@ -27,7 +27,7 @@ import { Utils } from './Utils';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Script } from '../script/Script';
 import { ScriptBuilder } from '../script/ScriptBuilder';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 
 /**
  * A collection of various utility methods that are helpful for working with the
@@ -35,10 +35,12 @@ import { BigInteger } from 'big-integer';
  * -Dbitcoinj.logging=true on your command line.
  */
 export class UtilGeneseBlock {
-  public static add(params: NetworkParameters, amount: BigInteger, account: string, coinbase: Transaction) {
+    public static add(params: NetworkParameters, amount: BigInteger, account: string, coinbase: Transaction) {
     // amount, many public keys
     const list = account.split(',');
-    const base = new Coin(BigInt(amount.toString()), Buffer.from(NetworkParameters.BIGTANGLE_TOKENID_STRING));
+    // Convert BigInteger to bigint
+    const amountBigInt = BigInt(amount.toString());
+    const base = new Coin(amountBigInt, Buffer.from(NetworkParameters.BIGTANGLE_TOKENID_STRING));
     const keys: ECKey[] = [];
     for (const s of list) {
       keys.push(ECKey.fromPublic(Buffer.from(s.trim(), 'hex')));
@@ -60,33 +62,44 @@ export class UtilGeneseBlock {
     }
   }
 
-  public static createGenesis(params: NetworkParameters): Block {
-    const genesisBlock = new Block(
-      params,
-      Sha256Hash.ZERO_HASH,
-      Sha256Hash.ZERO_HASH,
-      BlockType.BLOCKTYPE_INITIAL,
-      0,
-      0,
-      Utils.encodeCompactBits(params.getMaxTarget()),
-    );
-    genesisBlock.setTime(1532896109);
-    genesisBlock.setDifficultyTarget(Utils.encodeCompactBits(params.getMaxTarget()));
-    const coinbase = new Transaction(params);
-    const inputBuilder = new ScriptBuilder();
-    coinbase.addInput(new TransactionInput(params, coinbase, Buffer.from(inputBuilder.build().getProgram())));
-    const rewardInfo = new RewardInfo(
-      Sha256Hash.ZERO_HASH,
-      Utils.encodeCompactBits(params.getMaxTargetReward()),
-      new Set<Sha256Hash>(),
-      new BigInteger('0'),
-    );
+    public static createGenesis(params: NetworkParameters): Block {
+        // Use the Block factory method to create a genesis block
+        // Convert bigint to BigInteger
+        const maxTargetBigInt = bigInt(params.getMaxTarget().toString());
+        const maxTargetRewardBigInt = bigInt(params.getMaxTargetReward().toString());
+        
+        // Now convert to compact bits
+        const maxTarget = Number(Utils.encodeCompactBits(maxTargetBigInt));
+        const maxTargetReward = Number(Utils.encodeCompactBits(maxTargetRewardBigInt));
+        
+        const genesisBlock = Block.fromGenesis(
+            params,
+            Sha256Hash.ZERO_HASH,
+            Sha256Hash.ZERO_HASH,
+            BlockType.BLOCKTYPE_INITIAL,
+            1532896109,
+            0,
+            maxTarget
+        );
+        
+        genesisBlock.setDifficultyTarget(maxTarget);
+        const coinbase = new Transaction(params);
+        const inputBuilder = new ScriptBuilder();
+        coinbase.addInput(new TransactionInput(params, coinbase, Buffer.from(inputBuilder.build().getProgram())));
+        
+        const rewardInfo = new RewardInfo(
+            Sha256Hash.ZERO_HASH,
+            maxTargetReward,
+            new Set<Sha256Hash>(),
+            0  // Use number instead of BigInteger
+        );
 
-    coinbase.setData(Buffer.from(rewardInfo.toByteArray()));
-    this.add(params, new BigInteger(NetworkParameters.BigtangleCoinTotal.toString()), params.genesisPub, coinbase);
-    genesisBlock.addTransaction(coinbase);
-    genesisBlock.setNonce(new BigInteger('0'));
-    genesisBlock.setHeight(0);
-    return genesisBlock;
-  }
+        coinbase.setData(Buffer.from(rewardInfo.toByteArray()));
+        this.add(params, bigInt(NetworkParameters.BigtangleCoinTotal.toString()), params.genesisPub, coinbase);
+        genesisBlock.addTransaction(coinbase);
+        genesisBlock.setNonce(0); // Use number instead of BigInteger
+        genesisBlock.setHeight(0);
+        return genesisBlock;
+    } 
+     
 }

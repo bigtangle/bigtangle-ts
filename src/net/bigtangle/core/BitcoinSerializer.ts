@@ -106,9 +106,7 @@ export class BitcoinSerializer extends MessageSerializer {
             return this.makeTransaction(payloadBytes, 0, length, hash);
         } else if (command === "alert") {
             return this.makeAlertMessage(payloadBytes);
-        } else if (command === "filterload") {
-            return this.makeBloomFilter(payloadBytes);
-        } else {
+        }  else {
             throw new ProtocolException(`No support for deserializing message with name ${command}`);
         }
     }
@@ -167,10 +165,7 @@ export class BitcoinSerializer extends MessageSerializer {
         return typeof this.parseRetain !== 'undefined' ? !!this.parseRetain : false;
     }
 
-    public makeBloomFilter(payloadBytes: Buffer): BloomFilter {
-        return new BloomFilter(this.params, payloadBytes, 0, this);
-    }
-
+   
     deserializeHeader(inBuffer: Buffer): BitcoinPacketHeader {
         const header = inBuffer.subarray(0, BitcoinPacketHeader.HEADER_LENGTH);
         // inBuffer position is advanced by HEADER_LENGTH in caller

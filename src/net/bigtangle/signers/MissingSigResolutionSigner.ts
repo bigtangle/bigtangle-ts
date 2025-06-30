@@ -6,7 +6,7 @@ import { TransactionSignature } from '../crypto/TransactionSignature';
 import { ECKey } from '../core/ECKey';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 import { MissingPrivateKeyException } from '../crypto/MissingPrivateKeyException';
-import { MissingSignatureException } from '../exception/Exceptions'; // Placeholder
+import { VerificationException } from '../exception/VerificationException';
 
 export namespace Wallet {
     export enum MissingSigsMode {
@@ -61,14 +61,14 @@ export class MissingSigResolutionSigner extends StatelessTransactionSigner {
                     const scriptChunk: ScriptChunk = inputScript.getChunks()[j];
                     if (scriptChunk.equalsOpCode(0)) {
                         if (this.missingSigsMode === Wallet.MissingSigsMode.THROW) {
-                            throw new MissingSignatureException();
+                            throw new VerificationException.MissingSignatureException();
                         } else if (this.missingSigsMode === Wallet.MissingSigsMode.USE_DUMMY_SIG) {
                             txIn.setScriptSig(scriptPubKey.getScriptSigWithSignature(inputScript, dummySig, j - 1));
                         }
                     }
                 }
             } else {
-                if (!inputScript.getChunks().isEmpty()) {
+                if (inputScript.getChunks().length > 0) {
                     if (inputScript.getChunks()[0].equalsOpCode(0)) {
                         if (this.missingSigsMode === Wallet.MissingSigsMode.THROW) {
                             throw new MissingPrivateKeyException();
@@ -82,4 +82,6 @@ export class MissingSigResolutionSigner extends StatelessTransactionSigner {
         }
         return true;
     }
+
+ 
 }

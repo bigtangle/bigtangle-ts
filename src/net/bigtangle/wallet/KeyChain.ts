@@ -1,6 +1,6 @@
 import { ECKey } from '../core/ECKey';
 import { BloomFilter } from '../core/BloomFilter';
-import { Protos } from './Protos';
+import * as Protos from './Protos';
 
 export enum KeyPurpose {
     RECEIVE_FUNDS,
@@ -31,7 +31,7 @@ export interface KeyChain {
     getKey(purpose: KeyPurpose): ECKey;
 
     /** Returns a list of keys serialized to the bitcoinj protobuf format. */
-    serializeToProtobuf(): Protos.Key.Key[];
+    serializeToProtobuf(): Protos.Key[];
 
     /** Returns the number of keys this key chain manages. */
     numKeys(): number;

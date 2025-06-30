@@ -13,10 +13,11 @@ import { Transaction } from '../core/Transaction';
 import { KeyBag } from './KeyBag';
 import { EncryptionType } from '../crypto/EncryptableItem';
 import { DeterministicKey } from '../crypto/DeterministicKey';
+import { Mutex } from '../../../utils/Mutex';
 
 export abstract class WalletBase implements KeyBag {
-    protected readonly lock = { lock: () => {}, unlock: () => {} };
-    protected readonly keyChainGroupLock = { lock: () => {}, unlock: () => {} };
+    protected readonly lock = new Mutex();
+    protected readonly keyChainGroupLock = new Mutex();
 
     protected serverPool: ServerPool | null = null;
     protected fee: boolean = true;
@@ -214,10 +215,10 @@ export abstract class WalletBase implements KeyBag {
         return this.getEncryptionType() !== EncryptionType.UNENCRYPTED;
     }
 
-    protected serializeKeyChainGroupToProtobuf(): ProtosKey[] {
-        this.keyChainGroupLock.lock();
+    protected async serializeKeyChainGroupToProtobuf(): Promise<ProtosKey[]> {
+        await this.keyChainGroupLock.lock();
         try {
-            return this.keyChainGroup.serializeToProtobuf();
+            return this.keyChainGroup.toProtobuf();
         } finally {
             this.keyChainGroupLock.unlock();
         }

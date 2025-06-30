@@ -1,4 +1,4 @@
-import { NetworkParameters } from '../core/NetworkParameters.js';
+import { NetworkParameters } from '../params/NetworkParameters';
 import { VersionedChecksummedBytes } from '../core/VersionedChecksummedBytes.js';
 import { AddressFormatException } from '../exception/AddressFormatException.js';
 import { WrongNetworkException } from '../exception/WrongNetworkException.js';
@@ -6,7 +6,7 @@ import { ECKey } from '../core/ECKey.js';
 import { Base58 } from '../utils/Base58.js';
 import bigInt from 'big-integer';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { BigInteger } from '../core/BigInteger.js';
+import { BigInteger } from '../../../core/BigInteger';
 
 export class DumpedPrivateKey extends VersionedChecksummedBytes {
   public compressed: boolean;
@@ -76,8 +76,8 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
     if (keyInt.lesser(1) || keyInt.greaterOrEquals(bigInt(N))) {
       throw new Error('DumpedPrivateKey: private key out of range [1..N-1]');
     }
-    // Use jsbn BigInteger for ECKey
-    const priv = new BigInteger(hex, 16);
+    // Use big-integer library
+    const priv = bigInt(hex, 16);
     return ECKey.fromPrivate(priv);
   }
 

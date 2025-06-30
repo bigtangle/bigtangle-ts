@@ -75,7 +75,7 @@ export class Wallet extends WalletBase {
         this.params = params;
         this.keyChainGroup = keyChainGroup ?? new KeyChainGroup(params);
         if ((params as any).getId && (NetworkParameters as any).ID_UNITTESTNET && (params as any).getId() === (NetworkParameters as any).ID_UNITTESTNET) {
-            this.keyChainGroup.setLookaheadSize(5);
+            this.keyChainGroup.lookaheadSize=5;
         }
         if (this.keyChainGroup.numKeys() === 0) {
             this.keyChainGroup.createAndActivateNewHDChain();
@@ -99,16 +99,17 @@ export class Wallet extends WalletBase {
 
     static fromKeysSingle(params: NetworkParameters, key: ECKey): Wallet { throw new Error('Not implemented'); }
     static fromKeysWithUrl(params: NetworkParameters, key: ECKey, url: string): Wallet { throw new Error('Not implemented'); }
-       async getTip(): Promise<Block> { 
-    return this.params.getDefaultSerializer().makeBlock(await this.getTipData());
+    async getTip(): Promise<Block> {
+        const tipData = await this.getTipData();
+        return this.params.getDefaultSerializer().makeBlock(Buffer.from(tipData));
     }
 
-    async getTipData(): Promise<Uint8Array> {
+    getTipData(): Promise<Uint8Array> {
         const requestParam = {};
         // Use OkHttp3Util to POST and get block data
-        return await OkHttp3Util.postAndGetBlock(
+        return OkHttp3Util.postAndGetBlock(
             this.getServerURL() + ReqCmd.getTip,
-            Json.jsonmapper().stringify(requestParam)
+            Json.jsonmapper().stringify(requestParam),
         );
     }
     

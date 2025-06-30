@@ -6,7 +6,7 @@ import { TransactionSignature } from '../crypto/TransactionSignature';
 import { Script } from '../script/Script';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 import { RedeemData } from '../wallet/RedeemData'; // Placeholder
-import { ScriptException } from '../exception/Exceptions';
+import { VerificationException } from '../exception/VerificationException';
 import { DeterministicKey } from '../crypto/DeterministicKey';
 
 /**
@@ -76,24 +76,15 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
             let inputScript = txIn.getScriptSig();
             const script = redeemData.redeemScript.getProgram();
             try {
-                const signature = tx.calculateSignature(i, key, script, Transaction.SigHash.ALL, false);
-
-                // at this point we have incomplete inputScript with OP_0 in place of one or more signatures. We already
-                // have calculated the signature using the local key and now need to insert it in the correct place
-                // within inputScript. For pay-to-address and pay-to-key script there is only one signature and it always
-                // goes first in an inputScript (sigIndex = 0). In P2SH input scripts we need to figure out our relative
-                // position relative to other signers.  Since we don't have that information at this point, and since
-                // we always run first, we have to depend on the other signers rearranging the signatures as needed.
-                // Therefore, always place as first signature.
-                const sigIndex = 0;
-                inputScript = scriptPubKey.getScriptSigWithSignature(inputScript, signature.encodeToBitcoin(), sigIndex);
-                txIn.setScriptSig(inputScript);
+                const sighash = tx.hashForSignature(i, script, Transaction.SigHash.ALL);
+                const signature = key.sign(sighash.getBytes());
+                // Create a DER-encoded signature
+                const derSignature = signature.encodeDER();
+                // Create a new script with the signature
+                const scriptSig = Script.createInputScript(Buffer.from(derSignature), Buffer.from(key.getPubKey()));
+                txIn.setScriptSig(scriptSig);
             } catch (e: any) {
-                if (e instanceof ScriptException) {
-                    console.warn(`No private key in keypair for input ${i}`);
-                } else {
-                    throw e;
-                }
+                console.warn(`Error signing input ${i}: ${e.message}`);
             }
         }
         return true;

@@ -1,35 +1,52 @@
-import { Protos } from './Protos';
+// Correctly import the Key message interface from the generated wallet file and alias it.
+import { Key as ProtoKey } from '../wallet/Protos';
 import { DeterministicSeed } from './DeterministicSeed';
-import { KeyCrypter } from '../../crypto/KeyCrypter';
+import { KeyCrypter } from '../crypto/KeyCrypter';
 import { DeterministicKeyChain } from './DeterministicKeyChain';
-import { DeterministicKey } from '../../crypto/DeterministicKey';
-import { UnreadableWalletException } from './UnreadableWalletException';
+import { DeterministicKey } from '../crypto/DeterministicKey';
 
 /**
- * Factory interface for creation keychains while de-serializing a wallet.
+ * A factory interface for creating KeyChain instances while de-serializing a wallet.
+ * This allows for different KeyChain implementations to be used without changing the
+ * wallet loading logic.
  */
 export interface KeyChainFactory {
     /**
-     * Make a keychain (but not a watching one).
+     * Creates a standard, spendable keychain from a seed.
      *
-     * @param key the protobuf for the root key
-     * @param firstSubKey the protobuf for the first child key (normally the parent of the external subchain)
-     * @param seed the seed
-     * @param crypter the encrypted/decrypter
-     * @param isMarried whether the keychain is leading in a marriage
+     * @param key The protobuf message for the root key of the chain.
+     * @param firstSubKey The protobuf message for the first child key (e.g., the parent of the external subchain).
+     * @param seed The deterministic seed for this chain.
+     * @param crypter The key crypter for handling encrypted data.
+     * @param isMarried Whether this keychain is the leading chain in a multi-signature (married) setup.
+     * @returns A new DeterministicKeyChain instance.
      */
-    makeKeyChain(key: Protos.Key.Key, firstSubKey: Protos.Key.Key, seed: DeterministicSeed, crypter: KeyCrypter, isMarried: boolean): DeterministicKeyChain;
+    makeKeyChain(
+        key: ProtoKey,
+        firstSubKey: ProtoKey,
+        seed: DeterministicSeed,
+        crypter: KeyCrypter,
+        isMarried: boolean
+    ): DeterministicKeyChain;
 
     /**
-     * Make a watching keychain.
+     * Creates a "watching" keychain, which can track balances and transactions
+     * but cannot sign them. This is created from an extended public key.
      *
-     * <p>isMarried and isFollowingKey must not be true at the same time.
+     * Note: `isMarried` and `isFollowingKey` should not be true at the same time.
      *
-     * @param key the protobuf for the account key
-     * @param firstSubKey the protobuf for the first child key (normally the parent of the external subchain)
-     * @param accountKey the account extended public key
-     * @param isFollowingKey whether the keychain is following in a marriage
-     * @param isMarried whether the keychain is leading in a marriage
+     * @param key The protobuf message for the account-level key.
+     * @param firstSubKey The protobuf message for the first child key.
+     * @param accountKey The deterministic key representing the account's extended public key.
+     * @param isFollowingKey Whether this keychain is a "following" chain in a married setup.
+     * @param isMarried Whether this keychain is the leading chain in a married setup.
+     * @returns A new, watching-only DeterministicKeyChain instance.
      */
-    makeWatchingKeyChain(key: Protos.Key.Key, firstSubKey: Protos.Key.Key, accountKey: DeterministicKey, isFollowingKey: boolean, isMarried: boolean): DeterministicKeyChain;
+    makeWatchingKeyChain(
+        key: ProtoKey,
+        firstSubKey: ProtoKey,
+        accountKey: DeterministicKey,
+        isFollowingKey: boolean,
+        isMarried: boolean
+    ): DeterministicKeyChain;
 }

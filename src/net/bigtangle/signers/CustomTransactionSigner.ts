@@ -60,7 +60,7 @@ export abstract class CustomTransactionSigner extends StatelessTransactionSigner
                 continue;
             }
 
-            const sighash = tx.hashForSignature(i, redeemData.redeemScript, Transaction.SigHash.ALL, false);
+            const sighash = tx.hashForSignature(i, redeemData.redeemScript, Transaction.SigHash.ALL);
             const sigKey = this.getSignature(sighash, propTx.keyPaths.get(scriptPubKey));
             const txSig = new TransactionSignature(sigKey.sig.r, sigKey.sig.s, Transaction.SigHash.ALL);
             const sigIndex = inputScript.getSigInsertionIndex(sighash, sigKey.pubKey);

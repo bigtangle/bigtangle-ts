@@ -1,67 +1,122 @@
-import { KeyChain } from './KeyChain';
-import { EncryptableKeyChain } from './EncryptableKeyChain';
 import { DeterministicSeed } from './DeterministicSeed';
-import { KeyCrypter, KeyParameter } from '../crypto/KeyCrypter';
+import { DeterministicHierarchy } from '../crypto/DeterministicHierarchy';
 import { DeterministicKey } from '../crypto/DeterministicKey';
-import { BloomFilter } from '../core/BloomFilter';
-import { NetworkParameters } from '../core/NetworkParameters';
-// import { ECKey } from '../core/ECKey'; // Removed ECKey import
+import { ChildNumber } from '../crypto/ChildNumber';
+import { BasicKeyChain } from './BasicKeyChain';
+import { HDKeyDerivation } from '../crypto/HDKeyDerivation';
+import { NetworkParameters } from '../params/NetworkParameters';
 
-export class DeterministicKeyChain implements EncryptableKeyChain {
-    // Minimal properties to allow compilation
-    protected basicKeyChain: any;
-    protected seed: DeterministicSeed | null = null;
-    protected rootKey: DeterministicKey | null = null;
-    protected hierarchy: any;
-    protected issuedExternalKeys: number = 0;
-    protected issuedInternalKeys: number = 0;
-    protected lookaheadSize: number = 100;
-    protected lookaheadThreshold: number = 33;
-    protected externalParentKey: DeterministicKey | null = null;
-    protected internalParentKey: DeterministicKey | null = null;
-    protected keyLookaheadEpoch: number = 0;
-    protected sigsRequiredToSpend: number = 1;
+// Mock NetworkParameters implementation
+const MOCK_NETWORK_PARAMETERS: NetworkParameters = {
+    // Add required properties here based on NetworkParameters interface
+} as NetworkParameters;
 
-    constructor(...args: any[]) {
-        this.basicKeyChain = {}; // Dummy initialization
-        this.hierarchy = {}; // Dummy initialization
+export class DeterministicKeyChain {
+    private static readonly DEFAULT_PASSPHRASE_FOR_MNEMONIC = "";
+    
+    // Paths through the key tree
+    public static readonly ACCOUNT_ZERO_PATH: ChildNumber[] = [ChildNumber.ZERO_HARDENED];
+    public static readonly EXTERNAL_SUBPATH: ChildNumber[] = [ChildNumber.ZERO];
+    public static readonly INTERNAL_SUBPATH: ChildNumber[] = [ChildNumber.ONE];
+    public static readonly EXTERNAL_PATH: ChildNumber[] = [...DeterministicKeyChain.ACCOUNT_ZERO_PATH, ...DeterministicKeyChain.EXTERNAL_SUBPATH];
+    public static readonly INTERNAL_PATH: ChildNumber[] = [...DeterministicKeyChain.ACCOUNT_ZERO_PATH, ...DeterministicKeyChain.INTERNAL_SUBPATH];
+    public static readonly BIP44_ACCOUNT_ZERO_PATH: ChildNumber[] = [
+        new ChildNumber(44, true), ChildNumber.ZERO_HARDENED, ChildNumber.ZERO_HARDENED
+    ];
+
+    private hierarchy!: DeterministicHierarchy;
+    private rootKey: DeterministicKey | null = null;
+    private seed: DeterministicSeed | null = null;
+    private lookaheadSize = 100;
+    private lookaheadThreshold: number;
+    private externalParentKey!: DeterministicKey;
+    private internalParentKey!: DeterministicKey;
+    private issuedExternalKeys = 0;
+    private issuedInternalKeys = 0;
+    private keyLookaheadEpoch = 0;
+    private basicKeyChain: BasicKeyChain;
+    private isFollowing = false;
+    protected sigsRequiredToSpend = 1;
+
+    constructor(seed: DeterministicSeed);
+    constructor(watchingKey: DeterministicKey);
+    constructor(seedOrKey: DeterministicSeed | DeterministicKey) {
+        // Pass mock network parameters to BasicKeyChain constructor
+        this.basicKeyChain = new BasicKeyChain(MOCK_NETWORK_PARAMETERS);
+        this.lookaheadThreshold = this.calcDefaultLookaheadThreshold();
+        
+        if (seedOrKey instanceof DeterministicSeed) {
+            this.seed = seedOrKey;
+            if (!this.seed.isEncrypted()) {
+                const seedBytes = this.seed.getSeedBytes();
+                if (!seedBytes) throw new Error("Seed bytes are null");
+                
+                this.rootKey = HDKeyDerivation.createMasterPrivateKey(seedBytes);
+                this.rootKey.setCreationTimeSeconds(this.seed.getCreationTimeSeconds());
+                this.addToBasicChain(this.rootKey);
+                this.hierarchy = new DeterministicHierarchy(this.rootKey);
+                this.initializeHierarchyUnencrypted();
+            }
+        } else {
+            const watchingKey = seedOrKey;
+            if (watchingKey.isPubKeyOnly() !== true) {
+                throw new Error("Private subtrees not currently supported");
+            }
+            if (watchingKey.getPath().length !== this.getAccountPath().length) {
+                throw new Error("You can only watch an account key currently");
+            }
+            
+            this.seed = null;
+            this.rootKey = null;
+            this.addToBasicChain(watchingKey);
+            this.hierarchy = new DeterministicHierarchy(watchingKey);
+            this.initializeHierarchyUnencrypted();
+        }
     }
 
-    // Minimal method implementations to satisfy interfaces and common usage
-    public getKey(purpose: any): any { return {} as any; } // Replaced ECKey with any
-    public getKeys(purpose: any, numberOfKeys: number): any[] { return []; } // Replaced ECKey with any
-    public serializeToProtobuf(): any[] { return []; }
-    public numKeys(): number { return 0; }
-    public numBloomFilterEntries(): number { return 0; }
-    public getEarliestKeyCreationTime(): number { return 0; }
-    public getFilter(size: number, falsePositiveRate: number, tweak: number): BloomFilter { return {} as any; }
-    public getKeyCrypter(): KeyCrypter | null { return null; }
-    public toEncrypted(password: string | KeyCrypter, aesKey?: KeyParameter): EncryptableKeyChain { return {} as any; }
-    public toDecrypted(password: string | KeyParameter): EncryptableKeyChain { return {} as any; }
-    public checkPassword(password: string): boolean { return false; }
-    public checkAESKey(aesKey: KeyParameter): boolean { return false; }
-    public isWatching(): boolean { return false; }
-    public getWatchingKey(): DeterministicKey { return {} as any; }
-    public markKeyAsUsed(k: DeterministicKey): DeterministicKey { return k; }
-    public findKeyFromPubHash(pubkeyHash: Uint8Array): DeterministicKey | undefined { return undefined; }
-    public findKeyFromPubKey(pubkey: Uint8Array): DeterministicKey | undefined { return undefined; }
-    public markPubHashAsUsed(pubkeyHash: Uint8Array): DeterministicKey | null { return null; }
-    public markPubKeyAsUsed(pubkey: Uint8Array): DeterministicKey | null { return null; }
-    public hasKey(key: any): boolean { return false; } // Replaced ECKey with any
-    public numLeafKeysIssued(): number { return 0; }
-    public getSeed(): DeterministicSeed | null { return null; }
-    public getMnemonicCode(): string[] | null { return null; }
-    public isFollowing(): boolean { return false; }
-    public maybeLookAhead(): void { }
-    public maybeLookAheadScripts(): void { }
-    public getIssuedExternalKeys(): number { return 0; }
-    public getIssuedInternalKeys(): number { return 0; }
-    public getKeyLookaheadEpoch(): number { return 0; }
-    public isMarried(): boolean { return false; }
-    public getRedeemData(followedKey: DeterministicKey): any { return {}; }
-    public freshOutputScript(purpose: any): Script { return {} as any; }
-    public toString(includePrivateKeys: boolean, params: NetworkParameters): string { return ""; }
-    public setSigsRequiredToSpend(sigsRequiredToSpend: number): void { }
-    public getSigsRequiredToSpend(): number { return 0; }
-    public findRedeemDataByScriptHash(bytes: Uint8Array): any { return null; }
+    private calcDefaultLookaheadThreshold(): number {
+        return Math.floor(this.lookaheadSize / 3);
+    }
+
+    protected getAccountPath(): ChildNumber[] {
+        return DeterministicKeyChain.ACCOUNT_ZERO_PATH;
+    }
+
+    private initializeHierarchyUnencrypted(): void {
+        // Derive account key
+        const accountKey = this.hierarchy.get(this.getAccountPath(), false, true);
+        
+        // Derive external and internal parent keys
+        const externalPath = [...this.getAccountPath(), ...DeterministicKeyChain.EXTERNAL_SUBPATH];
+        this.externalParentKey = this.hierarchy.get(externalPath, false, true);
+        
+        const internalPath = [...this.getAccountPath(), ...DeterministicKeyChain.INTERNAL_SUBPATH];
+        this.internalParentKey = this.hierarchy.get(internalPath, false, true);
+        
+        this.addToBasicChain(this.externalParentKey);
+        this.addToBasicChain(this.internalParentKey);
+    }
+
+    private addToBasicChain(key: DeterministicKey): void {
+        this.basicKeyChain.importKey(key);
+    }
+
+    // Implement some basic methods from the original Java class
+    public getExternalKey(): DeterministicKey {
+        // Implementation to be added
+        throw new Error('Method not implemented.');
+    }
+
+    public getInternalKey(): DeterministicKey {
+        // Implementation to be added
+        throw new Error('Method not implemented.');
+    }
+
+    public getKeyByPath(path: ChildNumber[]): DeterministicKey {
+        // Implementation to be added
+        throw new Error('Method not implemented.');
+    }
+
+    // Additional methods will be implemented below...
+    // [Rest of the class implementation]
 }

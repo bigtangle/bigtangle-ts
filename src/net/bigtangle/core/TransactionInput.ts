@@ -262,10 +262,6 @@ export class TransactionInput extends ChildMessage {
      */
     public verifyWithOutput(output: TransactionOutput): void {
         if (output.parent !== null) {
-            // This part needs to be re-evaluated based on how parentTransaction and parentBlock are handled in TS
-            // if (!this.getOutpoint().getHash().equals(Sha256Hash.of( Utils.addAll(
-            //         output.getParentTransaction().getParentBlock().getHash().getBytes(), output.getParentTransaction().getHash().getBytes()))))
-            //     throw new VerificationException("This input does not refer to the tx containing the output.");
             if (this.getOutpoint().getIndex() !== output.getIndex())
                 throw new VerificationException("This input refers to a different output on the given tx.");
         }
@@ -296,6 +292,19 @@ export class TransactionInput extends ChildMessage {
     /** Returns a copy of the input detached from its containing transaction, if need be. */
     public duplicateDetached(): TransactionInput {
         return new TransactionInput(this.params, null, Buffer.from(this.bitcoinSerialize()), 0);
+    }
+
+    /**
+     * Returns the redeem data required to spend this input.
+     * @param keyBag The key bag containing redeem data
+     */
+    public getConnectedRedeemData(keyBag: any): any {
+        const connectedOutput = this.getConnectedOutput();
+        if (!connectedOutput) {
+            throw new Error("No connected output.");
+        }
+        const scriptPubKey = connectedOutput.getScriptPubKey();
+        return keyBag.findRedeemDataFromScript(scriptPubKey);
     }
 
     public equals(o: any): boolean {
