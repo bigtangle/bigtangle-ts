@@ -10,10 +10,12 @@ describe('MessageTest', () => {
     test('readStrOfExtremeLength', () => {
         expect(() => {
             const params = MainNetParams.get();
-            const length = new VarInt(Number.MAX_SAFE_INTEGER);
-            const payload = length.encode();
+            const chunks: Buffer[] = [];
+            const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
+            VarInt.write(Number.MAX_SAFE_INTEGER, writer);
+            const payload = Buffer.concat(chunks);
             new VarStrMessage(params, payload);
-        }).toThrow(ProtocolException);
+        }).toThrow('Claimed value length too large: 9007199254740991');
     });
 
     class VarStrMessage extends Message {
@@ -30,10 +32,12 @@ describe('MessageTest', () => {
     test('readByteArrayOfExtremeLength', () => {
         expect(() => {
             const params = MainNetParams.get();
-            const length = new VarInt(Number.MAX_SAFE_INTEGER);
-            const payload = length.encode();
+            const chunks: Buffer[] = [];
+            const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
+            VarInt.write(Number.MAX_SAFE_INTEGER, writer);
+            const payload = Buffer.concat(chunks);
             new VarBytesMessage(params, payload);
-        }).toThrow(ProtocolException);
+        }).toThrow('Claimed value length too large: 9007199254740991');
     });
 
     class VarBytesMessage extends Message {
