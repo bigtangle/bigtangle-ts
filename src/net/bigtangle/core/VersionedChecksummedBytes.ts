@@ -75,6 +75,10 @@ export class VersionedChecksummedBytes {
         return this.bytes.length - o.bytes.length;
     }
 
+    public static fromBase58(base58: string): VersionedChecksummedBytes {
+        return new VersionedChecksummedBytes(base58);
+    }
+
     public getVersion(): number {
         return this.version;
     }

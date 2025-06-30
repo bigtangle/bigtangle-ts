@@ -12,8 +12,16 @@ export class ECPoint {
         return new ECPoint(secp256k1.Point.fromHex(encoded));
     }
 
-    public encode(compressed: boolean): Uint8Array {
-        return this.point.toRawBytes(compressed);
+    public encode(compressed?: boolean): Uint8Array {
+        const useCompressed = compressed ?? this.compressed;
+        return this.point.toRawBytes(useCompressed);
+    }
+
+    public decompress(): ECPoint {
+        // Create a new point with the same coordinates but uncompressed
+        const decompressedPoint = new ECPoint(new secp256k1.Point(this.point.x, this.point.y, 1n));
+        decompressedPoint.setCompressed(false);
+        return decompressedPoint;
     }
 
     public getX(): bigInt.BigInteger {
@@ -67,10 +75,18 @@ export class ECPoint {
         return true;
     }
 
+    private compressed: boolean = true;
+
+    public setCompressed(compressed: boolean): void {
+        this.compressed = compressed;
+    }
+
+    public getCompressed(): boolean {
+        return this.compressed;
+    }
+
     public isCompressed(): boolean {
-        // This depends on how the point was originally encoded or if it's a new point
-        // For simplicity, we'll assume it's compressed if its encoded length is 33
-        return this.encode(true).length === 33;
+        return this.compressed;
     }
 
     public isValid(): boolean {

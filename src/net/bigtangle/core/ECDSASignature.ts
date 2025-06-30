@@ -3,7 +3,10 @@
 // Uses imports from core, utils, exception, params, script
 
 import { Buffer } from 'buffer';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { InvalidTransactionDataException } from '../exception/Exceptions';
+
+import bigInt, { BigInteger } from 'big-integer';
 
 export class ECDSASignature {
     public r: bigint;
@@ -19,26 +22,28 @@ export class ECDSASignature {
      */
     public encodeDER(): Buffer {
         // Minimal DER encoding for ECDSA signature (r, s)
-        // This is a simplified implementation. For production, use a crypto library for DER encoding.
         function encodeInt(num: bigint): Buffer {
-            let hex = num.toString(16);
-            if (hex.length % 2) hex = '0' + hex;
-            let b = Buffer.from(hex, 'hex');
-            if (b[0] & 0x80) b = Buffer.concat([Buffer.from([0]), b]);
-            return b;
+            const hex = num.toString(16).padStart(2, '0');
+            const bytes = Buffer.from(hex, 'hex');
+            // If the most significant bit is set, add a 00 byte
+            if (bytes[0] & 0x80) {
+                return Buffer.concat([Buffer.from([0x00]), bytes]);
+            }
+            return bytes;
         }
+        
         const rBytes = encodeInt(this.r);
         const sBytes = encodeInt(this.s);
         const totalLen = 2 + rBytes.length + 2 + sBytes.length;
         const der = Buffer.alloc(2 + totalLen);
         let offset = 0;
-        der[offset++] = 0x30;
+        der[offset++] = 0x30; // SEQUENCE
         der[offset++] = totalLen;
-        der[offset++] = 0x02;
+        der[offset++] = 0x02; // INTEGER
         der[offset++] = rBytes.length;
         rBytes.copy(der, offset);
         offset += rBytes.length;
-        der[offset++] = 0x02;
+        der[offset++] = 0x02; // INTEGER
         der[offset++] = sBytes.length;
         sBytes.copy(der, offset);
         return der;
@@ -82,5 +87,17 @@ export class ECDSASignature {
         const sLen = buffer[offset++];
         const s = BigInt('0x' + buffer.slice(offset, offset + sLen).toString('hex'));
         return new ECDSASignature(r, s);
+    }
+
+    public recoverPublicKey(messageHash: Uint8Array, recoveryId: number): Uint8Array {
+        // Recover public key using noble/secp256k1
+        const signature = new Uint8Array(64);
+        const rBytes = new Uint8Array(Buffer.from(this.r.toString(16).padStart(64, '0'), 'hex'));
+        const sBytes = new Uint8Array(Buffer.from(this.s.toString(16).padStart(64, '0'), 'hex'));
+        signature.set(rBytes, 0);
+        signature.set(sBytes, 32);
+        
+        const publicKeyPoint = secp256k1.Signature.fromCompact(signature).recoverPublicKey(messageHash);
+        return publicKeyPoint.toRawBytes(true); // compressed format
     }
 }

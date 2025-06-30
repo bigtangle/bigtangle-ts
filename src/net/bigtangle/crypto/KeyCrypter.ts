@@ -37,14 +37,14 @@ export interface KeyCrypter {
      * @return KeyParameter The KeyParameter which typically contains the AES key to use for encrypting and decrypting
      * @throws KeyCrypterException
      */
-    deriveKey(password: string): KeyParameter;
+    deriveKey(password: string): Promise<KeyParameter>;
 
     /**
      * Decrypt the provided encrypted bytes, converting them into unencrypted bytes.
      *
      * @throws KeyCrypterException if decryption was unsuccessful.
      */
-    decrypt(encryptedBytesToDecode: EncryptedData, aesKey: KeyParameter): Uint8Array;
+    decrypt(encryptedBytesToDecode: EncryptedData, aesKey: KeyParameter): Promise<Uint8Array>;
 
     /**
      * Encrypt the supplied bytes, converting them into ciphertext.
@@ -52,7 +52,7 @@ export interface KeyCrypter {
      * @return encryptedPrivateKey An encryptedPrivateKey containing the encrypted bytes and an initialisation vector.
      * @throws KeyCrypterException if encryption was unsuccessful
      */
-    encrypt(plainBytes: Uint8Array, aesKey: KeyParameter): EncryptedData;
+    encrypt(plainBytes: Uint8Array, aesKey: KeyParameter): Promise<EncryptedData>;
 
     equals(other: KeyCrypter): boolean;
 }
