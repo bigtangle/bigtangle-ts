@@ -46,6 +46,11 @@ export class VarInt {
     }
 
     static sizeOf(value: number): number {
+        // Handle negative numbers as large unsigned integers
+        if (value < 0) {
+            return 9;
+        }
+        
         if (value < 0xfd) {
             return 1;
         } else if (value <= 0xffff) {
