@@ -96,18 +96,18 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public importKeysAndEncrypt(keys: ECKey[], password: string): number {
-        this.keyChainGroupLock.lock();
-        let result: number;
+    public async importKeysAndEncrypt(keys: ECKey[], password: string): Promise<number> {
+        await this.keyChainGroupLock.lock();
         try {
-            if (!this.getKeyCrypter()) {
+            const crypter = this.getKeyCrypter();
+            if (!crypter) {
                 throw new Error("Wallet is not encrypted");
             }
-            result = this.importKeysAndEncryptWithAesKey(keys, this.getKeyCrypter()!.deriveKey(password));
+            const aesKey = await crypter.deriveKey(password);
+            return this.importKeysAndEncryptWithAesKey(keys, aesKey);
         } finally {
             this.keyChainGroupLock.unlock();
         }
-        return result;
     }
 
     public importKeysAndEncryptWithAesKey(keys: ECKey[], aesKey: KeyParameter): number {
@@ -120,8 +120,8 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null {
-        this.keyChainGroupLock.lock();
+    public async findKeyFromPubHash(pubkeyHash: Uint8Array): Promise<ECKey | null> {
+        await this.keyChainGroupLock.lock();
         try {
             return this.keyChainGroup.findKeyFromPubHash(pubkeyHash);
         } finally {
@@ -129,8 +129,8 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null {
-        this.keyChainGroupLock.lock();
+    public async findKeyFromPubKey(pubkey: Uint8Array): Promise<ECKey | null> {
+        await this.keyChainGroupLock.lock();
         try {
             return this.keyChainGroup.findKeyFromPubKey(pubkey);
         } finally {
@@ -138,8 +138,8 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public findRedeemDataFromScriptHash(payToScriptHash: Uint8Array): RedeemData | null {
-        this.keyChainGroupLock.lock();
+    public async findRedeemDataFromScriptHash(payToScriptHash: Uint8Array): Promise<RedeemData | null> {
+        await this.keyChainGroupLock.lock();
         try {
             return this.keyChainGroup.findRedeemDataFromScriptHash(payToScriptHash);
         } finally {
@@ -147,11 +147,12 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public encrypt(password: string): void {
-        this.keyChainGroupLock.lock();
+    public async encrypt(password: string): Promise<void> {
+        await this.keyChainGroupLock.lock();
         try {
             const scrypt = new KeyCrypterScrypt();
-            this.keyChainGroup.encrypt(scrypt, scrypt.deriveKey(password));
+            const aesKey = await scrypt.deriveKey(password);
+            this.keyChainGroup.encrypt(scrypt, aesKey);
         } finally {
             this.keyChainGroupLock.unlock();
         }
@@ -166,14 +167,15 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public decrypt(password: string): void {
-        this.keyChainGroupLock.lock();
+    public async decrypt(password: string): Promise<void> {
+        await this.keyChainGroupLock.lock();
         try {
             const crypter = this.keyChainGroup.getKeyCrypter();
             if (!crypter) {
                 throw new Error("Not encrypted");
             }
-            this.keyChainGroup.decrypt(crypter.deriveKey(password));
+            const aesKey = await crypter.deriveKey(password);
+            this.keyChainGroup.decrypt(aesKey);
         } finally {
             this.keyChainGroupLock.unlock();
         }
@@ -246,8 +248,8 @@ export abstract class WalletBase implements KeyBag {
         this.version = version;
     }
 
-    public signTransaction(tx: Transaction, aesKey: KeyParameter, missingSigsMode: any): void {
-        this.lock.lock();
+    public async signTransaction(tx: Transaction, aesKey: KeyParameter, missingSigsMode: any): Promise<void> {
+        await this.lock.lock();
         try {
             const inputs = tx.getInputs();
             const outputs = tx.getOutputs();
@@ -266,28 +268,28 @@ export abstract class WalletBase implements KeyBag {
 
             const proposal = new TransactionSigner.ProposedTransaction(tx);
             for (const signer of this.signers) {
-                if (!signer.signInputs(proposal, maybeDecryptingKeyBag)) {
+                if (!await signer.signInputs(proposal, maybeDecryptingKeyBag)) {
                     // Remove WalletBase.log usage, fallback to console
                     console.info(`${signer.constructor.name} returned false for the tx`);
                 }
             }
 
-            new MissingSigResolutionSigner(missingSigsMode).signInputs(proposal, maybeDecryptingKeyBag);
+            await new MissingSigResolutionSigner(missingSigsMode).signInputs(proposal, maybeDecryptingKeyBag);
         } finally {
             this.lock.unlock();
         }
     }
 
-    public signTransactionWithAesKey(tx: Transaction, aesKey: KeyParameter): void {
+    public async signTransactionWithAesKey(tx: Transaction, aesKey: KeyParameter): Promise<void> {
         // Use string literal for missingSigsMode, or pass null/undefined if not used
-        this.signTransaction(tx, aesKey, 'THROW');
+        await this.signTransaction(tx, aesKey, 'THROW');
     }
 
-    public walletKeys(aesKey: KeyParameter | null): ECKey[] {
+    public async walletKeys(aesKey: KeyParameter | null): Promise<ECKey[]> {
         const maybeDecryptingKeyBag = new DecryptingKeyBag(this, aesKey);
         const walletKeys: ECKey[] = [];
         for (const key of this.getImportedKeys()) {
-            const ecKey = maybeDecryptingKeyBag.maybeDecrypt(key);
+            const ecKey = await maybeDecryptingKeyBag.maybeDecrypt(key);
             if (ecKey) {
                 walletKeys.push(ecKey);
             }
@@ -296,8 +298,8 @@ export abstract class WalletBase implements KeyBag {
         return walletKeys;
     }
 
-    public walletKeysWithoutAesKey(): ECKey[] {
-        return this.walletKeys(null);
+    public async walletKeysWithoutAesKey(): Promise<ECKey[]> {
+        return await this.walletKeys(null);
     }
 
     public setServerURL(contextRoot: string): void {

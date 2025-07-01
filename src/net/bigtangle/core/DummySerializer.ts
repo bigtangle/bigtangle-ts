@@ -45,7 +45,7 @@ export class DummySerializer extends MessageSerializer {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    makeTransaction(payloadBytes: Buffer, offset: number, length: number, hash: Buffer): Transaction {
+    makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 

@@ -2,9 +2,11 @@ import { Monetary } from './Monetary';
 import { Buffer } from 'buffer';
 import * as Utils from './Utils';
 import { Constants } from './Constants';
+import { MonetaryFormat } from '../utils/MonetaryFormat';
 
 export class Coin implements IMonetary, IComparable<Coin> {
     private static readonly serialVersionUID: bigint = 551802452657362699n;
+    static FIAT: MonetaryFormat = new MonetaryFormat().shift(0).minDecimals(0);
 
     // Static constants
     public static readonly ZERO: Coin = Coin.valueOf(0n, Constants.BIGTANGLE_TOKENID);
@@ -16,15 +18,17 @@ export class Coin implements IMonetary, IComparable<Coin> {
     private value: bigint;
     private tokenid: Buffer;
 
-    constructor(satoshis: bigint, tokenid: Buffer) {
+    constructor(satoshis: bigint, tokenid: Buffer | string) {
         this.value = satoshis;
-        this.tokenid = tokenid;
+        
+        if (typeof tokenid === 'string') {
+            this.tokenid = Buffer.from(tokenid, 'hex');
+        } else {
+            this.tokenid = tokenid;
+        }
     }
 
     public static valueOf(satoshis: bigint, tokenid?: Buffer | string): Coin {
-        if (typeof tokenid === 'string') {
-            return new Coin(satoshis, Buffer.from(tokenid, 'hex'));
-        }
         return new Coin(satoshis, tokenid || Constants.BIGTANGLE_TOKENID);
     }
 
@@ -62,19 +66,24 @@ export class Coin implements IMonetary, IComparable<Coin> {
         return this.subtract(value);
     }
 
-    public multiply(factor: bigint): Coin {
+    public multiply(factor: bigint | number): Coin {
+        if (typeof factor === 'number') factor = BigInt(factor);
         return new Coin(this.value * factor, this.tokenid);
     }
 
-    public times(factor: bigint): Coin {
+    public times(factor: bigint | number): Coin {
         return this.multiply(factor);
     }
 
-    public divide(divisor: Coin): bigint {
+    public divideBy(divisor: Coin): bigint {
+        if (!this.tokenid.equals(divisor.tokenid)) {
+            throw new Error('Token IDs must match for division');
+        }
         return this.value / divisor.value;
     }
 
-    public divideBy(divisor: bigint): Coin {
+    public divide(divisor: bigint | number): Coin {
+        if (typeof divisor === 'number') divisor = BigInt(divisor);
         return new Coin(this.value / divisor, this.tokenid);
     }
 

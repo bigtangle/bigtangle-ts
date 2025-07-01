@@ -1,5 +1,6 @@
 import { Sha256Hash } from '../core/Sha256Hash';
 import { Utils } from './Utils';
+import { AddressFormatException } from '../exception/AddressFormatException';
 
 /**
  * Base58 encoding/decoding
@@ -14,8 +15,15 @@ export class Base58 {
     static encode(input: Uint8Array): string {
         if (input.length === 0) return '';
         
+        // Count leading zeros
+        let leadingZeros = 0;
+        while (leadingZeros < input.length && input[leadingZeros] === 0) {
+            leadingZeros++;
+        }
+        
+        // Convert the rest to a big integer
         let value = BigInt(0);
-        for (let i = 0; i < input.length; i++) {
+        for (let i = leadingZeros; i < input.length; i++) {
             value = value * BigInt(256) + BigInt(input[i]);
         }
         
@@ -27,12 +35,28 @@ export class Base58 {
         }
         
         // Add leading '1's for each leading zero byte
-        for (let i = 0; i < input.length; i++) {
-            if (input[i] !== 0) break;
-            result = '1' + result;
+        return '1'.repeat(leadingZeros) + result;
+    }
+    
+    /**
+     * Decodes a Base58 string to a big integer
+     */
+    static decodeToBigInteger(input: string): bigint {
+        const bytes = Base58.decode(input);
+        let value = BigInt(0);
+        for (let i = 0; i < bytes.length; i++) {
+            value = value * BigInt(256) + BigInt(bytes[i]);
         }
-        
-        return result;
+        return value;
+    }
+    
+    /**
+     * Converts a Uint8Array to a hexadecimal string
+     */
+    static toHexString(bytes: Uint8Array): string {
+        return Array.from(bytes)
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('');
     }
     
     /**
@@ -45,7 +69,7 @@ export class Base58 {
         for (let i = 0; i < input.length; i++) {
             const char = input[i];
             const index = Base58.ALPHABET.indexOf(char);
-            if (index === -1) throw new Error(`Invalid Base58 character: ${char}`);
+            if (index === -1) throw new AddressFormatException(`Invalid Base58 character: ${char}`);
             value = value * Base58.BASE + BigInt(index);
         }
         
@@ -80,7 +104,7 @@ export class Base58 {
      */
     static decodeChecked(input: string): Uint8Array {
         const decoded = Base58.decode(input);
-        if (decoded.length < 4) throw new Error('Input too short');
+        if (decoded.length < 4) throw new AddressFormatException('Input too short');
         
         const data = decoded.slice(0, decoded.length - 4);
         const checksum = decoded.slice(decoded.length - 4);
@@ -92,7 +116,7 @@ export class Base58 {
 
         // Use Utils.arraysEqual instead of non-existent bytesEqual
         if (!Utils.arraysEqual(checksum, expectedChecksum)) {
-            throw new Error('Checksum does not match');
+            throw new AddressFormatException('Checksum does not match');
         }
         
         return data;

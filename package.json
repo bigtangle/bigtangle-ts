@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "devDependencies": {
+    "@bufbuild/protobuf": "^2.6.0",
     "@types/big-integer": "^0.0.30",
     "@types/elliptic": "^6.4.18",
     "@types/jest": "^30.0.0",

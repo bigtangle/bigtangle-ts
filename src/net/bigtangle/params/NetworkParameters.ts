@@ -33,9 +33,9 @@ export abstract class NetworkParameters {
 
     // Token ID for System Coin
     static readonly BIGTANGLE_TOKENID_STRING = 'bc';
+    static readonly BIGTANGLE_TOKENID = Buffer.from(NetworkParameters.BIGTANGLE_TOKENID_STRING, 'hex');
     static readonly BIGTANGLE_TOKENNAME = 'BIG';
     static readonly BIGTANGLE_DECIMAL = 6;
-
     static readonly BLOCK_VERSION_GENESIS = 1;
     static readonly MAX_DEFAULT_BLOCK_SIZE = 1024 * 1024;
     static readonly MAX_BLOCK_SIGOPS = NetworkParameters.MAX_DEFAULT_BLOCK_SIZE / 50;

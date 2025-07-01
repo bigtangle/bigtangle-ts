@@ -26,7 +26,7 @@ export abstract class CustomTransactionSigner extends StatelessTransactionSigner
         return true;
     }
 
-    public signInputs(propTx: any, keyBag: KeyBag): boolean {
+    public async signInputs(propTx: any, keyBag: KeyBag): Promise<boolean> {
         const tx: Transaction = propTx.partialTx;
         const numInputs = tx.getInputs().length;
         for (let i = 0; i < numInputs; i++) {

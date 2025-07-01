@@ -56,5 +56,5 @@ export interface TransactionSigner {
      * Returns true if signer is compatible with given transaction (can do something meaningful with it).
      * Otherwise this method returns false
      */
-    signInputs(propTx: TransactionSigner.ProposedTransaction, keyBag: KeyBag): boolean;
+    signInputs(propTx: TransactionSigner.ProposedTransaction, keyBag: KeyBag): Promise<boolean>;
 }

@@ -143,7 +143,8 @@ export class Wallet extends WalletBase {
     async calculateAllSpendCandidatesUTXO(aesKey: any, multisigns: boolean): Promise<UTXO[]> {
         const candidates: UTXO[] = [];
         const pubKeyHashs: string[] = [];
-        for (const ecKey of this.walletKeys(aesKey)) {
+        const keys = await this.walletKeys(aesKey);
+        for (const ecKey of keys) {
             pubKeyHashs.push(Utils.HEX.encode(ecKey.getPubKeyHash()));
         }
         // OkHttp3Util.post expects (urls: string[], data: Buffer)
@@ -218,7 +219,7 @@ export class Wallet extends WalletBase {
         const sighash = transaction?.getHash?.();
         // TODO: Adapt sign and encodeDER to your ECKey and ECDSASignature implementations
         if (sighash && ownerKey.sign) {
-            const party1Signature = ownerKey.sign(sighash as any, aesKey);
+            const party1Signature = await ownerKey.sign(sighash as any, aesKey);
             if (party1Signature && typeof party1Signature.encodeDER === 'function') {
                 // party1Signature.encodeDER(); // Use as needed
             }
@@ -275,7 +276,7 @@ export class Wallet extends WalletBase {
         const transaction = block.getTransactions?.()?.[0];
         const sighash = transaction?.getHash?.();
         if (sighash && ownerKey.sign) {
-            const signature = ownerKey.sign(sighash as any, aesKey);
+            const signature = await ownerKey.sign(sighash as any, aesKey);
             if (signature && typeof signature.encodeDER === 'function') {
                 // Optionally use signature.encodeDER() if needed
             }
@@ -339,7 +340,7 @@ export class Wallet extends WalletBase {
         const pubKeyHex = Utils.HEX.encode(outKey.getPubKeyBytes());
         // The signature is typically over the tokenid (or a hash of it)
         const sighash = require('crypto').createHash('sha256').update(tokenid).digest();
-        const signatureObj = outKey.sign(sighash, aesKey);
+        const signatureObj = await outKey.sign(sighash, aesKey);
         // Convert signature to DER hex string if needed
         let signature = '';
         if (signatureObj && typeof signatureObj.encodeDER === 'function') {
@@ -590,16 +591,71 @@ export class Wallet extends WalletBase {
         // Gather spendable UTXOs
         const candidates = await this.calculateAllSpendCandidates(aesKey, false);
         // Find the destination Address object
-        const AddressClass = require('../core/Address').Address;
-        const destAddr = AddressClass.fromString
-            ? AddressClass.fromString(destination)
-            : new AddressClass(destination);
+        const destAddr = Address.fromBase58(this.params, destination);
         // Create the transaction
-        const tx = (this as any).createTransaction(aesKey, candidates, destAddr, amount, memoInfo?.toString?.() ?? (memoInfo as any)?.memo ?? '');
+        const tx = await this.createTransaction(aesKey, candidates, destAddr, amount, memoInfo?.toString?.() ?? (memoInfo as any)?.memo ?? '');
         // Create a block with this transaction
-        const block = await (this as any).payTransaction([tx]);
-        // Optionally solve and post the block
-        // return await this.solveAndPost(block);
+        const block = await this.payTransaction([tx]);
+        return block;
+    }
+
+    async createTransaction(
+        aesKey: any,
+        candidates: any[],
+        destAddr: any,
+        amount: Coin,
+        memo: string
+    ): Promise<Transaction> {
+        const TransactionClass = require('../core/Transaction').Transaction;
+        const TransactionInputClass = require('../core/TransactionInput').TransactionInput;
+        const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput;
+
+        // Calculate total input value
+        let totalInput = Coin.valueOf(0n, amount.getTokenid());
+        const inputs = [];
+        for (const candidate of candidates) {
+            const output = candidate.output || candidate;
+            const value = output.getValue();
+            totalInput = totalInput.add(value);
+            const input = new TransactionInputClass(output.getHash(), output.getIndex());
+            inputs.push(input);
+            if (totalInput.compareTo(amount) >= 0) break;
+        }
+
+        // Check sufficient funds
+        if (totalInput.compareTo(amount) < 0) {
+            throw new InsufficientMoneyException(`Insufficient funds. Needed: ${amount}, available: ${totalInput}`);
+        }
+
+        // Create outputs
+        const outputs = [
+            new TransactionOutputClass(amount, destAddr)
+        ];
+
+        // Add change output if needed
+        const change = totalInput.subtract(amount);
+        if (change.compareTo(Coin.valueOf(0n, amount.getTokenid())) > 0) {
+            const keys = await this.walletKeys(aesKey);
+            const changeKey = keys[0];
+            const pubKeyHash = changeKey.getPubKeyHash();
+            // Convert Uint8Array to Buffer
+            const pubKeyHashBuffer = Buffer.from(pubKeyHash);
+            const changeAddr = Address.fromP2PKH(this.params, pubKeyHashBuffer);
+            outputs.push(new TransactionOutputClass(change, changeAddr));
+        }
+
+        return new TransactionClass(this.params, inputs, outputs, memo);
+    }
+
+    async payTransaction(transactions: Transaction[]): Promise<Block> {
+        const block = await this.getTip();
+        for (const tx of transactions) {
+            if (typeof block.addTransaction === 'function') {
+                block.addTransaction(tx);
+            } else if (Array.isArray(block.transactions)) {
+                block.transactions.push(tx);
+            }
+        }
         return block;
     }
 
@@ -728,13 +784,13 @@ export class Wallet extends WalletBase {
      * @param candidates List of FreeStandingTransactionOutput (UTXO wrappers).
      * @returns A Transaction object.
      */
-    payFromListNoSplitTransaction(
+    async payFromListNoSplitTransaction(
         aesKey: any,
         destination: string,
         amount: Coin,
         memoInfo: MemoInfo,
         candidates: any[]
-    ): Transaction {
+    ): Promise<Transaction> {
         // Find the destination Address object
         const AddressClass = require('../core/Address').Address;
         const destAddr = AddressClass.fromString
@@ -767,7 +823,8 @@ export class Wallet extends WalletBase {
         const change = totalInput.subtract(amount);
         if (change.isGreaterThan(Coin.valueOf(0n, amount.getTokenid()))) {
             // Send change back to a wallet address
-            const changeKey = this.walletKeys(aesKey)[0];
+            const keys = await this.walletKeys(aesKey);
+        const changeKey = keys[0];
             const changeAddr = AddressClass.fromKey
                 ? AddressClass.fromKey(this.params, changeKey)
                 : new AddressClass(changeKey.getPubKeyHash());
@@ -790,15 +847,15 @@ export class Wallet extends WalletBase {
      * @param tipBlock The tip Block to add the transaction to.
      * @returns The updated Block with the new transaction.
      */
-    payFromListNoSplit(
+    async payFromListNoSplit(
         aesKey: any,
         destination: string,
         amount: Coin,
         memoInfo: MemoInfo,
         candidates: any[],
         tipBlock: Block
-    ): Block {
-        const tx = this.payFromListNoSplitTransaction(aesKey, destination, amount, memoInfo, candidates);
+    ): Promise<Block> {
+        const tx = await this.payFromListNoSplitTransaction(aesKey, destination, amount, memoInfo, candidates);
         if (typeof tipBlock.addTransaction === 'function') {
             tipBlock.addTransaction(tx);
         } else if (Array.isArray((tipBlock as any).transactions)) {
@@ -855,7 +912,7 @@ export class Wallet extends WalletBase {
             const tipBlock = await this.getTip();
 
             // Add transaction to the block
-            const block = this.payFromListNoSplit(aesKey, destination, payAmount, memoInfo, part, tipBlock);
+            const block = await this.payFromListNoSplit(aesKey, destination, payAmount, memoInfo, part, tipBlock);
             result.push(block);
 
             if (canPay.compareTo(payAmount) >= 0) {

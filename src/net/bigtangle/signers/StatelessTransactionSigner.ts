@@ -12,5 +12,5 @@ export abstract class StatelessTransactionSigner implements TransactionSigner {
     }
 
     public abstract isReady(): boolean;
-    public abstract signInputs(propTx: any, keyBag: any): boolean;
+    public abstract signInputs(propTx: any, keyBag: any): Promise<boolean>;
 }

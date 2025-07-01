@@ -303,7 +303,7 @@ export class ECKey {
             messageBuffer
         ]);
         const hash = sha256(sha256(buffer));
-        return await this.sign(Uint8Array.from(hash));
+        return this.sign(Uint8Array.from(hash));
     }
 
     public static signedMessageToKey(message: string, signatureBase64: string): ECKey {

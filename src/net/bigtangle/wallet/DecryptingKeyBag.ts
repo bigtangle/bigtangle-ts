@@ -17,7 +17,7 @@ export class DecryptingKeyBag implements KeyBag {
         this.aesKey = aesKey;
     }
 
-    public maybeDecrypt(key: ECKey | null): ECKey | null {
+    public async maybeDecrypt(key: ECKey | null): Promise<ECKey | null> {
         if (key === null) {
             return null;
         } else if (key.isEncrypted()) {
@@ -26,17 +26,17 @@ export class DecryptingKeyBag implements KeyBag {
             }
             // Use the key's crypter if available, otherwise use default implementation
             const crypter = (key as any).getKeyCrypter?.() || null;
-            return key.decrypt(crypter, this.aesKey);
+            return await key.decrypt(crypter, this.aesKey);
         } else {
             return key;
         }
     }
 
-    private maybeDecryptRedeemData(redeemData: RedeemData | null): RedeemData | null {
+    private async maybeDecryptRedeemData(redeemData: RedeemData | null): Promise<RedeemData | null> {
         if (redeemData === null) return null;
         const decryptedKeys: ECKey[] = [];
         for (const key of redeemData.keys) {
-            const decryptedKey = this.maybeDecrypt(key);
+            const decryptedKey = await this.maybeDecrypt(key);
             if (decryptedKey) {
                 decryptedKeys.push(decryptedKey);
             }
@@ -45,15 +45,18 @@ export class DecryptingKeyBag implements KeyBag {
         return RedeemData.of(decryptedKeys, redeemData.redeemScript);
     }
 
-    public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null {
-        return this.maybeDecrypt(this.target.findKeyFromPubHash(pubkeyHash));
+    public async findKeyFromPubHash(pubkeyHash: Uint8Array): Promise<ECKey | null> {
+        const key = await this.target.findKeyFromPubHash(pubkeyHash);
+        return await this.maybeDecrypt(key);
     }
 
-    public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null {
-        return this.maybeDecrypt(this.target.findKeyFromPubKey(pubkey));
+    public async findKeyFromPubKey(pubkey: Uint8Array): Promise<ECKey | null> {
+        const key = await this.target.findKeyFromPubKey(pubkey);
+        return await this.maybeDecrypt(key);
     }
 
-    public findRedeemDataFromScriptHash(scriptHash: Uint8Array): RedeemData | null {
-        return this.maybeDecryptRedeemData(this.target.findRedeemDataFromScriptHash(scriptHash));
+    public async findRedeemDataFromScriptHash(scriptHash: Uint8Array): Promise<RedeemData | null> {
+        const data = await this.target.findRedeemDataFromScriptHash(scriptHash);
+        return await this.maybeDecryptRedeemData(data);
     }
 }

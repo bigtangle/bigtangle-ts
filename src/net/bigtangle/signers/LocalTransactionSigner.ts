@@ -32,7 +32,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
         return true;
     }
 
-    public signInputs(propTx: any, keyBag: KeyBag): boolean {
+    public async signInputs(propTx: any, keyBag: KeyBag): Promise<boolean> {
         const tx: Transaction = propTx.partialTx;
         const numInputs = tx.getInputs().length;
         for (let i = 0; i < numInputs; i++) {
@@ -77,9 +77,9 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
             const script = redeemData.redeemScript.getProgram();
             try {
                 const sighash = tx.hashForSignature(i, script, Transaction.SigHash.ALL);
-                const signature = key.sign(sighash.getBytes());
+                const signature = await key.sign(sighash.getBytes());
                 // Create a DER-encoded signature
-                const derSignature = signature.encodeDER();
+                const derSignature = await signature.encodeDER();
                 // Create a new script with the signature
                 const scriptSig = Script.createInputScript(Buffer.from(derSignature), Buffer.from(key.getPubKey()));
                 txIn.setScriptSig(scriptSig);

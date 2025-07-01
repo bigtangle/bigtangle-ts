@@ -38,7 +38,7 @@ export class MissingSigResolutionSigner extends StatelessTransactionSigner {
         return true;
     }
 
-    public signInputs(propTx: any, keyBag: KeyBag): boolean {
+    public async signInputs(propTx: any, keyBag: KeyBag): Promise<boolean> {
         if (this.missingSigsMode === Wallet.MissingSigsMode.USE_OP_ZERO) {
             return true;
         }

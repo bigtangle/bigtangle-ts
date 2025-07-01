@@ -12,14 +12,20 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
   public compressed: boolean;
   public network: NetworkParameters | null;
 
-  public static fromBase58(params: NetworkParameters | null, base58: string): DumpedPrivateKey {
-    return new DumpedPrivateKey(params, base58);
-  }
-
   constructor(params: NetworkParameters, keyBytes: Uint8Array, compressed: boolean);
   constructor(params: NetworkParameters | null, encoded: string);
+  constructor(encoded: string); // Add new constructor overload
   constructor(...args: any[]) {
-    if (args.length === 2 && typeof args[1] === 'string') {
+    if (args.length === 1 && typeof args[0] === 'string') {
+      // Constructor with encoded string only
+      const [encoded] = args as [string];
+      super(encoded);
+      this.network = null;
+      this.compressed = this.bytes.length === 33 && this.bytes[32] === 1;
+      if (this.compressed) {
+        this.bytes = this.bytes.slice(0, 32);
+      }
+    } else if (args.length === 2 && typeof args[1] === 'string') {
       // Constructor with params and encoded string
       const [params, encoded] = args as [NetworkParameters | null, string];
       super(encoded);

@@ -155,11 +155,11 @@ export class DeterministicSeed implements EncryptableItem {
         this.creationTimeSeconds = creationTimeSeconds;
     }
 
-    public encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): DeterministicSeed {
+    public async encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<DeterministicSeed> {
         if (this.encryptedMnemonicCode !== null) throw new Error("Trying to encrypt seed twice");
         if (this.mnemonicCode === null) throw new Error("Mnemonic missing so cannot encrypt");
-        const encryptedMnemonic = keyCrypter.encrypt(this.getMnemonicAsBytes()!, aesKey);
-        const encryptedSeed = keyCrypter.encrypt(this.seedBytes!, aesKey);
+        const encryptedMnemonic = await keyCrypter.encrypt(this.getMnemonicAsBytes()!, aesKey);
+        const encryptedSeed = await keyCrypter.encrypt(this.seedBytes!, aesKey);
         return new DeterministicSeed(null, null, encryptedMnemonic, encryptedSeed, this.creationTimeSeconds);
     }
 
@@ -167,11 +167,12 @@ export class DeterministicSeed implements EncryptableItem {
         return this.mnemonicCode ? new TextEncoder().encode(this.mnemonicCode.join(" ")) : null;
     }
 
-    public decrypt(crypter: KeyCrypter, passphrase: string, aesKey: KeyParameter): DeterministicSeed {
+    public async decrypt(crypter: KeyCrypter, passphrase: string, aesKey: KeyParameter): Promise<DeterministicSeed> {
         if (!this.isEncrypted()) throw new Error("Seed is not encrypted");
         if (this.encryptedMnemonicCode === null) throw new Error("Encrypted mnemonic code is null");
-        const mnemonic = DeterministicSeed.decodeMnemonicCode(crypter.decrypt(this.encryptedMnemonicCode, aesKey));
-        const seed = this.encryptedSeed === null ? null : crypter.decrypt(this.encryptedSeed, aesKey);
+        const decryptedMnemonic = await crypter.decrypt(this.encryptedMnemonicCode, aesKey);
+        const mnemonic = DeterministicSeed.decodeMnemonicCode(decryptedMnemonic);
+        const seed = this.encryptedSeed === null ? null : await crypter.decrypt(this.encryptedSeed, aesKey);
         return new DeterministicSeed(mnemonic, seed, null, null, this.creationTimeSeconds);
     }
 

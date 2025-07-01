@@ -1566,7 +1566,7 @@ export class Script {
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
             const payloadBytes = txContainingThis.bitcoinSerialize();
-            txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes), 0, payloadBytes.length, null);
+            txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.
         }

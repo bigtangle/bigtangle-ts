@@ -4,7 +4,6 @@ import { ECKey } from './ECKey';
 import { BigInteger } from 'big-integer';
 import bigInt from 'big-integer';
 import { Utils } from './Utils';
-import { MainNetParams } from '../params/MainNetParams';
 
 export class DumpedPrivateKey extends VersionedChecksummedBytes {
     private compressed: boolean;
@@ -25,8 +24,9 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
         if (bytes.length === 34 && bytes[33] === 1) {
             compressed = true;
         }
-        // Use the default network parameters - tests will override if needed
-        return new DumpedPrivateKey(MainNetParams.get(), bytes, compressed);
+        // Use dependency injection to avoid circular dependencies
+        const NetworkParams = require('../params/NetworkParameters');
+        return new DumpedPrivateKey(NetworkParams.MainNetParams.get(), bytes, compressed);
     }
     
     public static parseBase58(params: NetworkParameters, base58: string): DumpedPrivateKey {

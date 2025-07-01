@@ -112,7 +112,7 @@ export class BitcoinSerializer extends MessageSerializer {
         if (command === "block") {
             return this.makeBlock(payloadBytes, 0, length);
         } else if (command === "tx") {
-            return this.makeTransaction(payloadBytes, 0, length, hash);
+            return this.makeTransaction(payloadBytes);
         } else if (command === "alert") {
             return this.makeAlertMessage(payloadBytes);
         }  else {
@@ -137,7 +137,7 @@ export class BitcoinSerializer extends MessageSerializer {
         return Block.fromPayloadWithOffsetAndParent(this.params, payloadBytes, offset, null, this, length ?? payloadBytes.length);
     }
 
-    public makeTransaction(payloadBytes: Buffer, offset: number, length: number, hash: Buffer | null): Transaction {
+    public makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
         const tx = new Transaction(this.params, payloadBytes, offset, this);
         if (hash) {
             tx.setHash(Sha256Hash.wrap(hash));

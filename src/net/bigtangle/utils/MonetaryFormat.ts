@@ -1,5 +1,3 @@
-import bigInt, { BigInteger } from 'big-integer';
-
 export enum RoundingMode {
   HALF_UP = "HALF_UP",
   DOWN = "DOWN",
@@ -12,6 +10,8 @@ export enum RoundingMode {
 
 export class MonetaryFormat {
   private static readonly MAX_DECIMALS = 8;
+
+  static FIAT: MonetaryFormat = new MonetaryFormat().shift(0).minDecimals(0);
   
   constructor(
     private readonly _negativeSign: string = '-',
@@ -254,43 +254,39 @@ export class MonetaryFormat {
     );
   }
 
-  public format(value: BigInteger, decimal: number = 8): string {
+    public format(value: bigint, decimal: number = 8): string {
     // Handle sign
-    const isNegative = value.isNegative();
-    const absValue = value.abs();
+    const isNegative = value < 0n;
+    const absValue = isNegative ? -value : value;
 
-    // Calculate shift divisor
-    const shiftDivisor = Math.pow(10, decimal - this._shift);
+    // Calculate divisor based on decimal places
+    const divisor = 10n ** BigInt(decimal);
     
     // Split into integer and fractional parts
-    const numbers = absValue.divide(shiftDivisor);
-    const decimals = absValue.mod(shiftDivisor);
+    const integerPart = absValue / divisor;
+    const fractionalPart = absValue % divisor;
     
-    // Format fractional part
-    let decimalsStr = decimals.toString().padStart(decimal - this._shift, '0');
+    // Format fractional part with proper padding
+    let fractionalStr = fractionalPart.toString().padStart(decimal, '0');
     
     // Trim trailing zeros
-    while (decimalsStr.length > this._minDecimals && decimalsStr.endsWith('0')) {
-      decimalsStr = decimalsStr.slice(0, -1);
-    }
+    fractionalStr = fractionalStr.replace(/0+$/, '');
     
-    // Apply decimal groups
-    let formattedDecimals = decimalsStr;
-    if (this._decimalGroups && decimalsStr.length > this._minDecimals) {
-      let i = this._minDecimals;
-      for (const group of this._decimalGroups) {
-        if (decimalsStr.length > i && decimalsStr.length < i + group) {
-          formattedDecimals = decimalsStr.padEnd(i + group, '0');
-          break;
-        }
-        i += group;
-      }
+    // If we removed all zeros but we should show minDecimals
+    if (fractionalStr === '') {
+        fractionalStr = '0'.repeat(this._minDecimals);
+    } else if (fractionalStr.length < this._minDecimals) {
+        fractionalStr = fractionalStr.padEnd(this._minDecimals, '0');
     }
     
     // Combine integer and fractional parts
-    let result = numbers.toString();
-    if (formattedDecimals) {
-      result += this._decimalMark + formattedDecimals;
+    let result = integerPart.toString();
+    if (fractionalStr) {
+        // Trim trailing zeros
+        fractionalStr = fractionalStr.replace(/0+$/, '');
+        if (fractionalStr) {
+            result += this._decimalMark + fractionalStr;
+        }
     }
     
     // Add sign
@@ -319,7 +315,7 @@ export class MonetaryFormat {
     return result;
   }
 
-  public parse(str: string, decimal: number = 8): BigInteger {
+  public parse(str: string, decimal: number = 8): bigint {
     str = str.trim();
     if (!str) throw new Error("empty string");
     
@@ -368,10 +364,10 @@ export class MonetaryFormat {
       throw new Error("invalid characters");
     }
     
-    // Create BigInteger
-    let result = bigInt(fullNumber);
+    // Create bigint
+    let result = BigInt(fullNumber);
     if (isNegative) {
-      result = result.multiply(-1);
+      result = -result;
     }
     
     return result;

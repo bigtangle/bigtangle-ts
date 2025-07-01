@@ -221,12 +221,9 @@ export class DeterministicKey extends ECKey {
         return checksummed;
     }
 
-    // Ensure encrypt matches base class signature
-    public encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): ECKey {
-        return this.encryptDeterministic(keyCrypter, aesKey, null);
-    }
+    
     // DeterministicKey-specific encrypt
-    public encryptDeterministic(keyCrypter: KeyCrypter, aesKey: KeyParameter, newParent: DeterministicKey | null = null): DeterministicKey {
+    public async encryptDeterministic(keyCrypter: KeyCrypter, aesKey: KeyParameter, newParent: DeterministicKey | null = null): Promise<DeterministicKey> {
         if (newParent !== null) {
             if (!newParent.isEncrypted()) {
                 throw new Error("New parent must be encrypted.");
@@ -234,7 +231,7 @@ export class DeterministicKey extends ECKey {
         }
         const privKeyBytes = this.getPrivKeyBytes();
         if (!privKeyBytes) throw new Error("Private key is not available");
-        const encryptedPrivateKey = keyCrypter.encrypt(privKeyBytes, aesKey);
+        const encryptedPrivateKey = await keyCrypter.encrypt(privKeyBytes, aesKey);
         const key = new DeterministicKey(
             this.childNumberPath,
             this.chainCode,
@@ -292,26 +289,28 @@ export class DeterministicKey extends ECKey {
     }
 
     // Ensure sign matches base class signature
-    public sign(messageHash: Uint8Array, aesKey?: KeyParameter): ECDSASignature {
+    public async sign(messageHash: Uint8Array, aesKey?: KeyParameter): Promise<ECDSASignature> {
         if (this.isEncrypted()) {
-            return super.sign(messageHash, aesKey);
+            return await super.sign(messageHash, aesKey);
         } else {
             const privateKey = this.findOrDerivePrivateKey();
             if (privateKey === null) {
                 throw new MissingPrivateKeyException();
             }
-            return super.doSign(messageHash, privateKey);
+            // Convert BigInteger to native bigint
+            const signature = super.doSign(messageHash, BigInt(privateKey.toString()));
+            return Promise.resolve(signature);
         }
     }
 
-    public decrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): ECKey {
+    public async decrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<ECKey> {
         return this.decryptDeterministic(keyCrypter, aesKey);
     }
-    public decryptDeterministic(keyCrypter: KeyCrypter, aesKey: KeyParameter): DeterministicKey {
+    public async decryptDeterministic(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<DeterministicKey> {
         if (this.keyCrypter && !this.keyCrypter.equals(keyCrypter)) {
             throw new Error("The keyCrypter being used to decrypt the key is different to the one that was used to encrypt it");
         }
-        const privKey = this.findOrDeriveEncryptedPrivateKey(keyCrypter, aesKey);
+        const privKey = await this.findOrDeriveEncryptedPrivateKey(keyCrypter, aesKey);
         const key = new DeterministicKey(
             this.childNumberPath,
             this.chainCode,
@@ -330,9 +329,9 @@ export class DeterministicKey extends ECKey {
 
     // For when a key is encrypted, either decrypt our encrypted private key bytes, or work up the tree asking parents
     // to decrypt and re-derive.
-    private findOrDeriveEncryptedPrivateKey(keyCrypter: KeyCrypter, aesKey: KeyParameter): BigInteger {
+    private async findOrDeriveEncryptedPrivateKey(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<BigInteger> {
         if (this.encryptedPrivateKey !== null) {
-            const decrypted = keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
+            const decrypted = await keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
             return bigInt(Utils.HEX.encode(decrypted), 16); // Use bigInt()
         }
         let cursor: DeterministicKey | null = this.parent;
@@ -343,7 +342,7 @@ export class DeterministicKey extends ECKey {
         if (cursor === null) {
             throw new Error("Neither this key nor its parents have an encrypted private key");
         }
-        const parentalPrivateKeyBytes = keyCrypter.decrypt(cursor.encryptedPrivateKey!, aesKey);
+        const parentalPrivateKeyBytes = await keyCrypter.decrypt(cursor.encryptedPrivateKey!, aesKey);
         return this.derivePrivateKeyDownwards(cursor, parentalPrivateKeyBytes);
     }
 

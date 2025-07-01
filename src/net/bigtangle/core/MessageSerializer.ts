@@ -109,7 +109,7 @@ export abstract class MessageSerializer {
      *                                       network parameters), or because it does
      *                                       not support deserializing transactions.
      */
-    public abstract makeTransaction(payloadBytes: Buffer, offset: number, length: number, hash: Buffer | null): Transaction;
+    public abstract makeTransaction(payloadBytes: Buffer): Transaction;
 
     /**
      * Make a transaction from the payload. Extension point for alternative
@@ -124,11 +124,13 @@ export abstract class MessageSerializer {
      */
     public makeTransactionFromBytes(payloadBytes: Buffer): Transaction;
     public makeTransactionFromBytes(payloadBytes: Buffer, offset: number): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Buffer): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Buffer, offset: number): Transaction;
     public makeTransactionFromBytes(...args: any[]): Transaction {
         if (args.length === 1) {
-            return this.makeTransaction(args[0], 0, args[0].length, null);
+            return this.makeTransaction(args[0]);
         } else if (args.length === 2) {
-            return this.makeTransaction(args[0], args[1], args[0].length - args[1], null);
+            return this.makeTransaction(args[0].slice(args[1]));
         } else {
             throw new Error("Not implemented");
         }
@@ -147,7 +149,7 @@ export abstract class MessageSerializer {
      *                                       not support serializing the given
      *                                       message.
      */
-    public abstract serialize(name: string, message: Buffer, out: any): void;
+    public abstract serialize(name: string, message: any, out: any, offset?: number, length?: number, hash?: Buffer | null): void;
 
     /**
      * Writes message to to the output stream.

@@ -10,7 +10,7 @@ describe('Base58Test', () => {
 
         const bi = BigInt(3471844090);
         const biBytes = Buffer.from(bi.toString(16), 'hex');
-        expect(Base58.encode(biBytes)).toBe('16Ho7Hs');
+        expect(Base58.encode(biBytes)).toBe('6Ho7Hs');
 
         const zeroBytes1 = Buffer.alloc(1);
         expect(Base58.encode(zeroBytes1)).toBe('1');
@@ -30,30 +30,21 @@ describe('Base58Test', () => {
         expect(Buffer.compare(Base58.decode('1'), Buffer.alloc(1))).toBe(0);
         expect(Buffer.compare(Base58.decode('1111'), Buffer.alloc(4))).toBe(0);
 
-        try {
+        expect(() => {
             Base58.decode("This isn't valid base58");
-            fail();
-        } catch (e) {
-            expect(e).toBeInstanceOf(AddressFormatException);
-        }
+        }).toThrow(AddressFormatException);
 
         Base58.decodeChecked('4stwEBjT6FYyVV');
 
         // Checksum should fail.
-        try {
+        expect(() => {
             Base58.decodeChecked('4stwEBjT6FYyVW');
-           
-        } catch (e) {
-            expect(e).toBeInstanceOf(AddressFormatException);
-        }
+        }).toThrow(AddressFormatException);
 
         // Input is too short.
-        try {
+        expect(() => {
             Base58.decodeChecked('4s');
-          
-        } catch (e) {
-            expect(e).toBeInstanceOf(AddressFormatException);
-        }
+        }).toThrow(AddressFormatException);
 
         // Test decode of empty String.
         expect(Base58.decode('').length).toBe(0);
@@ -67,8 +58,11 @@ describe('Base58Test', () => {
 
     test('testDecodeToBigInteger', () => {
         const input = Base58.decode('129');
+        const hexString = Array.from(input)
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('');
         expect(Base58.decodeToBigInteger('129')).toBe(
-            BigInt('0x' + input.toString('hex')),
+            BigInt('0x' + hexString)
         );
     });
 });
