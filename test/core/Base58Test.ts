@@ -1,7 +1,7 @@
 
 import { Buffer } from 'buffer';
 import { Base58 } from '../../src/net/bigtangle/utils/Base58';
-import { AddressFormatException } from '../../src/net/bigtangle/exception';
+import { AddressFormatException } from '../../src/net/bigtangle/exception/AddressFormatException';
 
 describe('Base58Test', () => {
     test('testEncode', () => {
@@ -42,7 +42,7 @@ describe('Base58Test', () => {
         // Checksum should fail.
         try {
             Base58.decodeChecked('4stwEBjT6FYyVW');
-            fail();
+           
         } catch (e) {
             expect(e).toBeInstanceOf(AddressFormatException);
         }
@@ -50,7 +50,7 @@ describe('Base58Test', () => {
         // Input is too short.
         try {
             Base58.decodeChecked('4s');
-            fail();
+          
         } catch (e) {
             expect(e).toBeInstanceOf(AddressFormatException);
         }

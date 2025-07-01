@@ -11,15 +11,24 @@ import { Utils } from './Utils';
 import { Buffer } from 'buffer';
 
 // Define BitcoinPacketHeader locally since we removed the separate file
-class BitcoinPacketHeader {
+export class BitcoinPacketHeader {
     static readonly HEADER_LENGTH = 12 + 4 + 4; // COMMAND_LEN (12) + size (4) + checksum (4)
 
     constructor(
         public readonly command: string,
         public readonly size: number,
         public readonly checksum: Buffer
-    ) {}
+    ) {
+        if (size > MAX_MESSAGE_SIZE || size < 0) {
+            throw new ProtocolException(`Message size too large: ${size}`);
+        }
+        if (checksum.length !== 4) {
+            throw new ProtocolException(`Checksum must be 4 bytes, got ${checksum.length}`);
+        }
+    }
 }
+
+const MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MB max message size
 
 const COMMAND_LEN = 12;
 
@@ -183,7 +192,6 @@ export class BitcoinSerializer extends MessageSerializer {
         const size = header.readUInt32LE(cursor);
         cursor += 4;
 
-        const MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MB max message size
         if (size > MAX_MESSAGE_SIZE || size < 0) {
             throw new ProtocolException(`Message size too large: ${size}`);
         }
