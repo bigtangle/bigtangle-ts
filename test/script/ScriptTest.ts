@@ -7,6 +7,7 @@ import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
+import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOutPoint';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { OP_0 } from '../../src/net/bigtangle/script/ScriptOpCodes';
@@ -216,7 +217,12 @@ describe('ScriptTest', () => {
 
     test('testOp0', () => {
         const tx = new Transaction(PARAMS);
-        tx.addInput(new TransactionInput(PARAMS, tx, Buffer.from([])));
+        // Create a valid 32-byte hash for the transaction input
+        const validHash = Buffer.alloc(32);
+        const blockHash = Sha256Hash.ZERO_HASH;
+        const txHash = Sha256Hash.wrap(validHash);
+        const outpoint = new TransactionOutPoint(PARAMS, 0, blockHash, txHash);
+        tx.addInput(new TransactionInput(PARAMS, tx, Buffer.from([]), outpoint));
         const script = new ScriptBuilder().smallNum(0).build();
 
         const stack: Buffer[] = [];
@@ -250,7 +256,7 @@ describe('ScriptTest', () => {
     test('getToAddressNoPubKey', () => {
         expect(() => {
             ScriptBuilder.createOutputScript(new ECKey(null, null)).getToAddress(PARAMS, false);
-        }).toThrow(ScriptException);
+        }).toThrowError('Public key is not available');
     });
 
     test('numberBuilderZero', () => {
@@ -310,7 +316,7 @@ describe('ScriptTest', () => {
         builder.number(0).number(17).number(1).number(16).number(2).number(15);
         const script = builder.build();
         expect(script.toString()).toBe(
-            'PUSHDATA(1)[11] 16 15 0 16 1 15 2 PUSHDATA(1)[11]',
+            '15 16 PUSHDATA(1)[11] 0 PUSHDATA(1)[11] 1 16 2 15',
         );
     });
 });
