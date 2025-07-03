@@ -8,6 +8,7 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 import { MessageSerializer } from './MessageSerializer';
+import { DummySerializer } from './DummySerializer';
 import { Message } from './Message';
 import { TransactionInput } from './TransactionInput';
 
@@ -86,6 +87,11 @@ export class TransactionOutPoint extends ChildMessage {
             this.connectedOutput = null;
         }
         this.length = TransactionOutPoint.MESSAGE_LENGTH;
+        
+        // Initialize serializer to prevent null errors
+        if (!this.serializer) {
+            this.serializer = new DummySerializer();
+        }
     }
     
     // Helper method to handle payload-based initialization

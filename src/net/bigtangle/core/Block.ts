@@ -1,6 +1,7 @@
 import { TransactionOutput } from './TransactionOutput';
 import { Message } from './Message';
 import { TransactionInput } from './TransactionInput';
+import { TransactionOutPoint } from './TransactionOutPoint';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { VerificationException } from '../exception/VerificationException';
 
@@ -185,7 +186,9 @@ export class Block extends Message {
             return;
         }
 
-        const buf = Buffer.alloc(NetworkParameters.HEADER_SIZE);
+        // Calculate the actual header size: 4 + 32 + 32 + 32 + 8 + 8 + 8 + 4 + 20 + 4 + 8 = 160 bytes
+        const HEADER_SIZE = 160;
+        const buf = Buffer.alloc(HEADER_SIZE);
         let offset = 0;
         buf.writeUInt32LE(this.version, offset); offset += 4;
         this.prevBlockHash.getReversedBytes().copy(buf, offset); offset += 32;
@@ -197,7 +200,7 @@ export class Block extends Message {
         buf.writeUInt32LE(this.nonce, offset); offset += 4;
         this.minerAddress.copy(buf, offset); offset += 20;
         buf.writeUInt32LE(this.blockType, offset); offset += 4;
-        buf.writeBigUInt64LE(BigInt(this.height), offset);
+        buf.writeBigUInt64LE(BigInt(this.height), offset); offset += 8;
         stream.write(buf);
     }
 
@@ -504,7 +507,6 @@ export class Block extends Message {
         this.transactions = [];
 
         const coinbase = new Transaction(this.params);
-        coinbase.parse();
         if (tokenInfo !== null) {
             coinbase.setDataClassName(DataClassName.TOKEN);
             const buf = Buffer.from(tokenInfo.toByteArray());
@@ -513,9 +515,39 @@ export class Block extends Message {
         coinbase.setMemo(memoInfo ? memoInfo.toString() : null);
         const inputBuilder = new ScriptBuilder();
         inputBuilder.data(Buffer.from([Block.txCounter, (Block.txCounter++ >> 8)]));
-        coinbase.addInput(new TransactionInput(this.params, coinbase, Buffer.from(inputBuilder.build().getProgram())));  
+        
+        // Create coinbase input payload: 32-byte null hash + 4-byte max uint32 + script
+        const script = inputBuilder.build().getProgram();
+        // Create a minimal coinbase input
+        // Create a temporary buffer to write the VarInt
+        // Create outpoint with null hashes and max index
+        const outpoint = new TransactionOutPoint(
+            this.params,
+            0xFFFFFFFF, // index
+            Sha256Hash.ZERO_HASH, // blockHash
+            Sha256Hash.ZERO_HASH  // txHash
+        );
+
+        // Create script bytes (VarInt encoded script length + script)
+        const varIntBuffer = new DataOutputStream();
+        VarInt.write(script.length, varIntBuffer);
+        const scriptBytes = Buffer.concat([
+            Buffer.from(varIntBuffer.toByteArray()),
+            Buffer.from(script)
+        ]);
+        
+        const coinbaseInput = new TransactionInput(
+            this.params,
+            coinbase,
+            scriptBytes,
+            outpoint
+        );
+        coinbaseInput.setSequenceNumber(0xFFFFFFFF); // Set sequence number
+        
+        coinbase.addInput(coinbaseInput);
         if (tokenInfo === null) {
-            coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
+            const scriptPubKey = ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo));
+            coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, Buffer.from(scriptPubKey.getProgram())));
         } else {
             const token = tokenInfo.getToken();
             if (token === null || token.getSignnumber() === 0) {

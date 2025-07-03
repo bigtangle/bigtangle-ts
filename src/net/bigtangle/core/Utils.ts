@@ -66,9 +66,21 @@ export class Utils {
             return Buffer.alloc(0);
         }
         const buf = Buffer.alloc(length);
-        for (let i = 0; i < length; i += 4) {
-            buf.writeUInt32LE(bytes.readUInt32BE(i), i);
+        // Process complete 4-byte chunks
+        const chunkCount = Math.floor(length / 4);
+        for (let i = 0; i < chunkCount; i++) {
+            const offset = i * 4;
+            const value = bytes.readUInt32BE(offset);
+            buf.writeUInt32LE(value, offset);
         }
+        
+        // Copy any remaining bytes that don't form a complete dword
+        const remainingStart = chunkCount * 4;
+        const remainingBytes = length - remainingStart;
+        if (remainingBytes > 0) {
+            bytes.copy(buf, remainingStart, remainingStart, remainingStart + remainingBytes);
+        }
+        
         return buf;
     }
 

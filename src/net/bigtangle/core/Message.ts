@@ -2,6 +2,7 @@ import { NetworkParameters } from '../params/NetworkParameters';
  import { ProtocolVersion } from './ProtocolVersion';
 import { ProtocolException } from '../exception/Exceptions';
 import { MessageSerializer } from './MessageSerializer';
+import { DummySerializer } from './DummySerializer';
 import { Sha256Hash } from './Sha256Hash';
 import { VarInt } from './VarInt';
 import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
@@ -41,7 +42,7 @@ export abstract class Message {
 
     constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
         this.params = params;
-        this.serializer = serializer || params.getDefaultSerializer();
+        this.serializer = serializer || params.getDefaultSerializer() || new DummySerializer();
         this.payload = payload || Buffer.alloc(0);
         this.offset = offset;
         // Set protocolVersion from params or default to 1 if not available

@@ -133,10 +133,8 @@ export class UtilsTest {
             prevBlock,
             branchBlock,
             NetworkParameters.BLOCK_VERSION_GENESIS,
-            Address.fromBase58(
-                params,
-                '1Kbm8rqjcX6j5oLbq9J8FapksdvrfGUA88',
-            ).getHash160(),
+            // Use a valid test address for our network
+            Buffer.from('0000000000000000000000000000000000000000', 'hex'),
         );
     }
 
