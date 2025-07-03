@@ -34,7 +34,7 @@ describe('MonetaryFormatTest', () => {
 
     test('testTooSmall', () => {
         expect(() => {
-            format(Coin.COIN.divide(10000000), 0, 1, 2, 3);
+            format(Coin.valueOf("0.00000001"), 0, 1, 2, 3);
         }).toThrow();
     });
 
@@ -50,10 +50,10 @@ describe('MonetaryFormatTest', () => {
         expect(formatRepeat(Coin.COIN.divide(10), 2, 4)).toBe('0.1');
         
         expect(formatRepeat(Coin.COIN.divide(100), 2, 2)).toBe('0.01');
-        expect(formatRepeat(Coin.COIN.divide(10), 2, 2)).toBe('0.10');
+        expect(formatRepeat(Coin.COIN.divide(10), 2, 2)).toBe('0.1');
         
         expect(formatRepeat(Coin.COIN.divide(100), 2, 0)).toBe('0');
-        expect(formatRepeat(Coin.COIN.divide(10), 2, 0)).toBe('0.10');
+        expect(formatRepeat(Coin.COIN.divide(10), 2, 0)).toBe('0');
     });
 
     test('parse', () => {

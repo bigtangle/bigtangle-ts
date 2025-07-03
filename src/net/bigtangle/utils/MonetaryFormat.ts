@@ -162,17 +162,6 @@ export class MonetaryFormat {
         
         // Handle values that are too small to represent
         if (absValue > 0n && whole === 0n && fractional === 0n) {
-            // If we have decimal groups, try to represent it
-            if (this.decimalGroups) {
-                fractional = absValue;
-            } else {
-                throw new Error('Value too small to be represented');
-            }
-        }
-        
-        // Handle values that are non-zero but smaller than the smallest representable unit
-        if (value !== 0n && whole === 0n && fractional === 0n) {
-            // If we have decimal groups, try to represent it
             if (this.decimalGroups) {
                 fractional = absValue;
             } else {
@@ -193,14 +182,14 @@ export class MonetaryFormat {
         }
         decimalsToShow = decimalsToShow.substring(0, lastNonZero);
         
-        // Special case: if we have all zeros after decimal, show nothing
-        if (/^0+$/.test(decimalsToShow)) {
-            decimalsToShow = '';
-        }
-        
-        // Pad back to minDecimals if we removed too many
+        // Always preserve at least minDecimals
         if (decimalsToShow.length < this.minDecimals) {
             decimalsToShow = decimalsToShow.padEnd(this.minDecimals, '0');
+        }
+        
+        // Special case: if we have all zeros after decimal and minDecimals is 0, show nothing
+        if (this.minDecimals === 0 && /^0+$/.test(decimalsToShow)) {
+            decimalsToShow = '';
         }
         
         // Format the whole number part
