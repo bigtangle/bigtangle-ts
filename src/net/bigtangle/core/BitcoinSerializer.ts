@@ -138,7 +138,8 @@ export class BitcoinSerializer extends MessageSerializer {
     }
 
     public makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
-        const tx = new Transaction(this.params, payloadBytes, offset, this);
+        const tx = new Transaction(this.params, payloadBytes, offset);
+        tx.parse();
         if (hash) {
             tx.setHash(Sha256Hash.wrap(hash));
         }

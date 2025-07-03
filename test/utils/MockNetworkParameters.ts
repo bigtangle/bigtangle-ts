@@ -3,6 +3,10 @@ import { Block } from '../../src/net/bigtangle/core/Block';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 
 export class MockNetworkParameters extends NetworkParameters {
+    constructor() {
+        super();
+    }
+    
     getId(): string {
         return "mock";
     }

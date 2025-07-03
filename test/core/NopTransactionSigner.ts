@@ -1,29 +1,31 @@
 
 import { Buffer } from 'buffer';
 import { TransactionSigner } from '../../src/net/bigtangle/signers/TransactionSigner';
-import { ProposedTransaction } from '../../src/net/bigtangle/core/ProposedTransaction';
 import { KeyBag } from '../../src/net/bigtangle/wallet/KeyBag';
 
+// Define ProposedTransaction locally since the import was failing
+type ProposedTransaction = any;
+
 export class NopTransactionSigner implements TransactionSigner {
-    private isReady: boolean;
+    private _isReady: boolean;
 
     public constructor(ready?: boolean) {
-        this.isReady = ready || false;
+        this._isReady = ready || false;
     }
 
-    public isReadyToSign(): boolean {
-        return this.isReady;
+    public isReady(): boolean {
+        return this._isReady;
     }
 
     public serialize(): Buffer {
-        return this.isReady ? Buffer.from([1]) : Buffer.from([0]);
+        return this._isReady ? Buffer.from([1]) : Buffer.from([0]);
     }
 
     public deserialize(data: Buffer): void {
-        if (data.length > 0) this.isReady = data[0] === 1;
+        if (data.length > 0) this._isReady = data[0] === 1;
     }
 
-    public signInputs(t: ProposedTransaction, keyBag: KeyBag): boolean {
+    public async signInputs(t: ProposedTransaction, keyBag: KeyBag): Promise<boolean> {
         return false;
     }
 }

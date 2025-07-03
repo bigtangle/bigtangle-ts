@@ -43,8 +43,8 @@ export class Block extends Message {
     protected transactionBytesValid!: boolean;
     protected optimalEncodingMessageSize!: number;
 
-    // Private constructor to be used by static factory methods
-    private constructor(params: NetworkParameters) {
+    // Public constructor to be used by static factory methods
+    public constructor(params: NetworkParameters) {
         super(params);
         this.headerBytesValid = false;
         this.transactionBytesValid = false;
@@ -144,7 +144,8 @@ export class Block extends Message {
         this.optimalEncodingMessageSize += VarInt.sizeOf(numTransactions);
         this.transactions = new Array(numTransactions);
         for (let i = 0; i < numTransactions; i++) {
-            const tx = new Transaction(this.params, this.payload, this.cursor, this.serializer);
+            const tx = new Transaction(this.params);
+            tx.parse();
             this.transactions[i] = tx;
             this.cursor += tx.getMessageSize();
             this.optimalEncodingMessageSize += tx.getMessageSize();
@@ -503,6 +504,7 @@ export class Block extends Message {
         this.transactions = [];
 
         const coinbase = new Transaction(this.params);
+        coinbase.parse();
         if (tokenInfo !== null) {
             coinbase.setDataClassName(DataClassName.TOKEN);
             const buf = Buffer.from(tokenInfo.toByteArray());

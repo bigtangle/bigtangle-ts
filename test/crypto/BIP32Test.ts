@@ -189,15 +189,9 @@ describe('BIP32Test', () => {
             expect(tc.name).toBe(
                 `Test${testCase + 1} ${tc.getPathDescription()}`,
             );
-            const depth = tc.path.length - 1;
-            const ehkey = dh.deriveChild(
-                tc.path.slice(0, depth),
-                false,
-                true,
-                tc.path[depth],
-            );
-            expect(testEncode(tc.priv)).toBe(testEncode(ehkey.serializePrivB58(params)));
-            expect(testEncode(tc.pub)).toBe(testEncode(ehkey.serializePubB58(params)));
+        const ehkey = dh.get(tc.path, true, false);
+        expect(testEncode(tc.priv)).toBe(testEncode(ehkey.serializePrivB58(params)));
+        expect(testEncode(tc.pub)).toBe(testEncode(ehkey.serializePubB58(params)));
         }
     }
 

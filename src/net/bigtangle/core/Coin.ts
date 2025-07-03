@@ -3,14 +3,15 @@ import { Buffer } from 'buffer';
 import * as Utils from './Utils';
 import { Constants } from './Constants';
 import { MonetaryFormat } from '../utils/MonetaryFormat';
+import { BigInteger } from '../../../core/BigInteger';
 
 export class Coin implements IMonetary, IComparable<Coin> {
     private static readonly serialVersionUID: bigint = 551802452657362699n;
-    static FIAT: MonetaryFormat = new MonetaryFormat().shift(0).minDecimals(0);
+    static FIAT: MonetaryFormat = new MonetaryFormat().withShift(0).withMinDecimals(0);
 
     // Static constants
     public static readonly ZERO: Coin = Coin.valueOf(0n, Constants.BIGTANGLE_TOKENID);
-    public static readonly COIN: Coin = Coin.valueOf(10n ** BigInt(Constants.BIGTANGLE_DECIMAL), Constants.BIGTANGLE_TOKENID);
+    public static readonly COIN: Coin = Coin.valueOf(1000000n, Constants.BIGTANGLE_TOKENID);
     public static readonly SATOSHI: Coin = Coin.valueOf(1n, Constants.BIGTANGLE_TOKENID);
     public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOf(-1n, Constants.BIGTANGLE_TOKENID);
     public static readonly FEE_DEFAULT: Coin = Coin.valueOf(1000n, Constants.BIGTANGLE_TOKENID);
@@ -18,11 +19,13 @@ export class Coin implements IMonetary, IComparable<Coin> {
     private value: bigint;
     private tokenid: Buffer;
 
-    constructor(satoshis: bigint, tokenid: Buffer | string) {
+    constructor(satoshis: bigint, tokenid: Buffer | Uint8Array | string) {
         this.value = satoshis;
         
         if (typeof tokenid === 'string') {
             this.tokenid = Buffer.from(tokenid, 'hex');
+        } else if (tokenid instanceof Uint8Array) {
+            this.tokenid = Buffer.from(tokenid);
         } else {
             this.tokenid = tokenid;
         }
@@ -32,8 +35,16 @@ export class Coin implements IMonetary, IComparable<Coin> {
         return new Coin(satoshis, tokenid || Constants.BIGTANGLE_TOKENID);
     }
 
+    public static fromBigInteger(value: BigInteger, tokenid: Uint8Array): Coin {
+        return new Coin(value.getValue(), Buffer.from(tokenid));
+    }
+
     public getValue(): bigint {
         return this.value;
+    }
+
+    public toBigInteger(): BigInteger {
+        return BigInteger.fromBigInt(this.value);
     }
 
     public setValue(value: bigint): void {

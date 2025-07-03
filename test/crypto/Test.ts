@@ -5,7 +5,10 @@ import * as crypto from 'crypto';
 describe('Test', () => {
     const ALGORITHM = 'RSA-KEM';
 
-    function generateKeyPair(): crypto.RsaKeyPairKeyObjectOptions {
+    function generateKeyPair(): {
+        publicKey: crypto.KeyObject;
+        privateKey: crypto.KeyObject;
+    } {
         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 512,
         });

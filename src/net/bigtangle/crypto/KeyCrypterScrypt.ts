@@ -37,7 +37,7 @@ export class KeyCrypterScrypt implements KeyCrypter {
   }
 
   async deriveKey(password: string): Promise<KeyParameter> {
-    const passwordBytes = KeyCrypterScrypt.convertToByteArray(password);
+    const passwordBytes = Buffer.from(password, 'utf8');
     const { N, r, p, salt } = this.scryptParameters;
 
     const key = await scrypt(passwordBytes, salt, N, r, p, KeyCrypterScrypt.KEY_LENGTH);

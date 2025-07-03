@@ -39,10 +39,11 @@ export abstract class Message {
 
     protected params: NetworkParameters;
 
-    constructor(params: NetworkParameters, payload?: Buffer, offset?: number, serializer?: MessageSerializer, length?: number) {
+    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
         this.params = params;
         this.serializer = serializer || params.getDefaultSerializer();
         this.payload = payload || Buffer.alloc(0);
+        this.offset = offset;
         // Set protocolVersion from params or default to 1 if not available
         this.protocolVersion = params.getProtocolVersionNum(ProtocolVersion.CURRENT)
 

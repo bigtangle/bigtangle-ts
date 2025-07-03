@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import { describe, test, expect } from 'vitest';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ContactInfo } from '../../src/net/bigtangle/core/ContactInfo';
@@ -72,16 +72,16 @@ describe('SerializationTest', () => {
 
     test('testOrderOpenInfoSerialization', () => {
         const info1 = new OrderOpenInfo(
-            new BigInteger('2') as any,
+            2, // version
             'test1',
             Buffer.from([2]),
-            new BigInteger('3') as any,
-            new BigInteger('4') as any,
+            3, // targetValue (number)
+            4, // validFromTime (number)
             Side.SELL,
             'test2',
             NetworkParameters.BIGTANGLE_TOKENID_STRING,
-            new BigInteger('1') as any,
-            3,
+            1, // validToTime (number)
+            3, // signnumber
             NetworkParameters.BIGTANGLE_TOKENID_STRING,
         );
         const info2 = new OrderOpenInfo().parse(info1.toByteArray());
@@ -104,11 +104,11 @@ describe('SerializationTest', () => {
     test('testContractEventInfoSerialization', () => {
         const info1 = new ContractEventInfo(
             'contracttokenid',
-            new BigInteger('1') as any,
+            bigInt("1"), // version
             'tokenid',
             'address',
-            new BigInteger('3') as any,
-            new BigInteger('4') as any,
+            3, // offerValue (number)
+            4, // offerSystem (number)
             '',
         );
         const info2 = new ContractEventInfo().parse(info1.toByteArray());
@@ -153,7 +153,7 @@ describe('SerializationTest', () => {
         const randomHash = getRandomSha256Hash();
         const blocks = new Set<Sha256Hash>();
         blocks.add(randomHash);
-        const info1 = new RewardInfo(randomHash, 2, blocks, new BigInteger('2') as any);
+        const info1 = new RewardInfo(randomHash, 2, blocks, 2);
         const bytes1 = info1.toByteArray();
         const info2 = new RewardInfo().parse(bytes1);
         const bytes2 = info2.toByteArray();
@@ -169,23 +169,23 @@ describe('SerializationTest', () => {
     test('testTokenInfoSerialization', () => {
         const addresses: MultiSignAddress[] = [];
         const tokens = Token.buildSimpleTokenInfo(
-            true,
-            null, // Changed from new ECKey() to null
-            '2',
-            '3',
-            '4',
-            2,
-            3,
-            new BigInteger('4') as any,
-            true,
-            null,
-            false,
-            null,
-            null,
-            0,
-            0,
-            null,
-            null
+            true, // confirmed
+            null, // prevblockhash
+            '2', // tokenid
+            '3', // tokenname
+            '4', // description
+            3, // signnumber
+            2, // tokenindex
+            4n, // amount (native bigint)
+            true, // tokenstop
+            null, // tokenKeyValues
+            false, // revoked
+            null, // language
+            null, // classification
+            0, // tokentype
+            0, // decimals
+            null, // domainName
+            null  // domainNameBlockHash
         );
         const info1 = new TokenInfo();
         info1.setToken(tokens);

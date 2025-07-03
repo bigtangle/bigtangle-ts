@@ -13,8 +13,9 @@ export abstract class ChildMessage extends Message {
 
     public parent: Message | null = null;
 
-    constructor(params: NetworkParameters, payload?: Buffer, offset?: number, serializer?: MessageSerializer, length?: number) {
-        super(params, payload, offset, serializer, length);
+    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer, parent?: Message) {
+        super(params, payload, offset, serializer);
+        this.parent = parent || null;
     }
 
     public setParent(parent: Message | null): void {

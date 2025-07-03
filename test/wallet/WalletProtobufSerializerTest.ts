@@ -36,7 +36,7 @@ describe('WalletProtobufSerializerTest', () => {
 
     test('empty', async () => {
         const wallet1 = await roundTrip(myWallet);
-        const key1 = wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
+        const key1 = await wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
         expect(key1).not.toBeNull();
         expect(Buffer.compare(myKey.getPubKey(), key1!.getPubKey())).toBe(0);
         expect(Buffer.compare(myKey.getPrivKeyBytes(), key1!.getPrivKeyBytes())).toBe(0);
@@ -48,7 +48,7 @@ describe('WalletProtobufSerializerTest', () => {
             myKey = ECKey.fromPrivate(bigInt((i + 10).toString()));
             myWallet = Wallet.fromKeys(PARAMS, [myKey]);
             const wallet1 = await roundTrip(myWallet);
-            const key1 = wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
+            const key1 = await wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
             expect(key1).not.toBeNull();
             expect(Buffer.compare(myKey.getPubKey(), key1!.getPubKey())).toBe(0);
             expect(Buffer.compare(myKey.getPrivKeyBytes(), key1!.getPrivKeyBytes())).toBe(0);
@@ -57,7 +57,7 @@ describe('WalletProtobufSerializerTest', () => {
 
     test('testRoundTripNormalWallet', async () => {
         const wallet1 = await roundTrip(myWallet);
-        const key1 = wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
+        const key1 = await wallet1.findKeyFromPubHash(myKey.getPubKeyHash());
         expect(key1).not.toBeNull();
         expect(Buffer.compare(myKey.getPubKey(), key1!.getPubKey())).toBe(0);
         expect(Buffer.compare(myKey.getPrivKeyBytes(), key1!.getPrivKeyBytes())).toBe(0);

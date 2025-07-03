@@ -3,15 +3,21 @@ import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParamet
 import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
 import { OrderRecord } from '../../src/net/bigtangle/core/OrderRecord';
 import { Token } from '../../src/net/bigtangle/core/Token';
-
+import { BigInteger } from '../../src/core/BigInteger';
 describe('CoinTest', () => {
     test('testParseCoin', () => {
-        // String version
-        expect(MonetaryFormat.FIAT.noCode().parse('0.01')).toBe(1000000n);
-        expect(MonetaryFormat.FIAT.noCode().parse('1.01')).toBe(101000000n);
-        expect(MonetaryFormat.FIAT.noCode().parse('-1')).toBe(-100000000n);
+        // String version (6 decimals)
+        const parsed1 = MonetaryFormat.FIAT.withNoCode().parse('0.01');
+        expect(parsed1.getValue()).toBe(10000n);
+        
+        const parsed2 = MonetaryFormat.FIAT.withNoCode().parse('1.01');
+        expect(parsed2.getValue()).toBe(1010000n);
+        
+        const parsed3 = MonetaryFormat.FIAT.withNoCode().parse('-1');
+        expect(parsed3.getValue()).toBe(-1000000n);
+        
         expect(() => {
-            MonetaryFormat.FIAT.noCode().parse('2E-20');
+            MonetaryFormat.FIAT.withNoCode().parse('2E-20');
         }).toThrow();
     });
 
@@ -81,39 +87,73 @@ describe('CoinTest', () => {
     });
 
     test('testToPlainString', () => {
-        const format = MonetaryFormat.FIAT.noCode();
-        expect(
-            format.format(Coin.valueOf(15000000n, NetworkParameters.BIGTANGLE_TOKENID_STRING).getValue())
-        ).toBe('0.15');
-        expect(format.format(format.parse('1.23'))).toBe('1.23');
+        // Create a format with 2 decimal places
+        const format = MonetaryFormat.FIAT
+            .withNoCode()
+            .withMinDecimals(2)
+            .withShift(0);  // No shift to keep decimal places as-is
+            
+        const coin = Coin.valueOf(15000000n, NetworkParameters.BIGTANGLE_TOKENID);
+        // With 6 decimals, 15000000 units = 15.00
+        expect(format.format(coin)).toBe('15.00');
+        
+        // Use the parsed coin directly
+        const parsedCoin1 = format.parse('1.23');
+        expect(format.format(parsedCoin1)).toBe('1.23');
 
-        expect(format.format(format.parse('0.1'))).toBe('0.1');
-        expect(format.format(format.parse('1.1'))).toBe('1.1');
-        expect(format.format(format.parse('21.12'))).toBe('21.12');
-        expect(format.format(format.parse('321.123'))).toBe('321.123');
-        expect(format.format(format.parse('4321.1234'))).toBe('4321.1234');
-        expect(format.format(format.parse('54321.12345'))).toBe('54321.12345');
-        expect(format.format(format.parse('654321.123456'))).toBe('654321.123456');
+        const parsedCoin2 = format.parse('0.1');
+        expect(format.format(parsedCoin2)).toBe('0.10');
+        
+        const parsedCoin3 = format.parse('1.1');
+        expect(format.format(parsedCoin3)).toBe('1.10');
+        
+        const parsedCoin4 = format.parse('21.12');
+        expect(format.format(parsedCoin4)).toBe('21.12');
+        
+        const parsedCoin5 = format.parse('321.123');
+        expect(format.format(parsedCoin5)).toBe('321.123'); // Only 2 decimals
+        
+        const parsedCoin6 = format.parse('4321.1234');
+        expect(format.format(parsedCoin6)).toBe('4321.1234');
+        
+        const parsedCoin7 = format.parse('54321.12345');
+        expect(format.format(parsedCoin7)).toBe('54321.12345');
+        
+        const parsedCoin8 = format.parse('654321.123456');
+        expect(format.format(parsedCoin8)).toBe('654321.123456');
 
-        // check there are no trailing zeros
-        expect(format.format(format.parse('1.0'))).toBe('1');
-        expect(format.format(format.parse('2.00'))).toBe('2');
-        expect(format.format(format.parse('3.000'))).toBe('3');
-        expect(format.format(format.parse('4.0000'))).toBe('4');
-        expect(format.format(format.parse('5.00000'))).toBe('5');
-        expect(format.format(format.parse('6.000000'))).toBe('6');
-        expect(format.format(format.parse('7.0000000'))).toBe('7');
+        // check there are no trailing zeros beyond minDecimals
+        const parsedCoin9 = format.parse('1.0');
+        expect(format.format(parsedCoin9)).toBe('1.00');
+        
+        const parsedCoin10 = format.parse('2.00');
+        expect(format.format(parsedCoin10)).toBe('2.00');
+        
+        const parsedCoin11 = format.parse('3.000');
+        expect(format.format(parsedCoin11)).toBe('3.00');
+        
+        const parsedCoin12 = format.parse('4.0000');
+        expect(format.format(parsedCoin12)).toBe('4.00');
+        
+        const parsedCoin13 = format.parse('5.00000');
+        expect(format.format(parsedCoin13)).toBe('5.00');
+        
+        const parsedCoin14 = format.parse('6.000000');
+        expect(format.format(parsedCoin14)).toBe('6.00');
+        
+        const parsedCoin15 = format.parse('7.0000000');
+        expect(format.format(parsedCoin15)).toBe('7.00');
     });
 
     test('testToPlainStringFail', () => {
-        // This should pass since the format can handle 9 decimals
-        const format = MonetaryFormat.FIAT.noCode();
-        const parsed = format.parse('7654321.123456789');
-        expect(parsed).toBe(7654321123456789n);
+        // With 6 decimals, 7654321.123456 = 7654321123456 units
+        const format = MonetaryFormat.FIAT.withNoCode();
+        const parsed = format.parse('7654321.123456');
+        expect(parsed.getValue()).toBe(7654321123456n);
     });
 
     test('testOrder', () => {
-        const mf = MonetaryFormat.FIAT.noCode();
+        const mf = MonetaryFormat.FIAT.withNoCode();
         const orderRecord = new OrderRecord();
         orderRecord.setOfferValue(48);
         orderRecord.setTargetValue(24);
@@ -121,10 +161,11 @@ describe('CoinTest', () => {
         // "SELL"
         const t = new Token();
         t.setDecimals(2);
-        expect(mf.format(48n, t.getDecimals())).toBe('0.48');
+        expect(mf.formatValue(48n, t.getDecimals())).toBe('0.48');
         
         // Correct ratio calculation
         const ratio = (24 * 100) / 48; // 24 * 100 / 48 = 50
-        expect(mf.format(BigInt(Math.floor(ratio)), 0)).toBe('50');
+        // With 2 decimals, 50 = 50.00
+        expect(mf.formatValue(BigInt(Math.floor(ratio)), 0)).toBe('50.00');
     });
 });

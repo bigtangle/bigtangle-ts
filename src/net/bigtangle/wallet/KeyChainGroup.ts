@@ -70,15 +70,68 @@ export class KeyChainGroup implements KeyBag {
     return this.chains[this.chains.length - 1];
   }
 
-  public currentKey(purpose: KeyPurpose): DeterministicKey { return {} as any; }
-  public currentAddress(purpose: KeyPurpose): Address { return {} as any; }
-  public freshKey(purpose: KeyPurpose): DeterministicKey { return {} as any; }
-  public freshKeys(purpose: KeyPurpose, numberOfKeys: number): DeterministicKey[] { return []; }
-  public freshAddress(purpose: KeyPurpose): Address { return {} as any; }
   public getLookaheadSize(): number { return this.lookaheadSize; }
   public setLookaheadThreshold(num: number): void { this.lookaheadThreshold = num; }
   public getLookaheadThreshold(): number { return this.lookaheadThreshold; }
-  public importKeys(keys: ECKey[]): number { return 0; }
+  public importKeys(...keys: ECKey[]): number {
+    return this.basic.importKeys(...keys);
+  }
+  
+  public removeKey(key: ECKey): boolean {
+    return this.basic.removeKey(key);
+  }
+  
+  public removeImportedKey(key: ECKey): boolean {
+    return this.basic.removeKey(key);
+  }
+  
+  public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null {
+    return this.basic.findKeyFromPubKey(pubkey);
+  }
+
+  public currentKey(purpose: KeyPurpose): ECKey {
+    const keys = this.basic.getKeys();
+    return keys.length > 0 ? keys[0] : null!;
+  }
+
+  public currentAddress(purpose: KeyPurpose): Address {
+    const key = this.currentKey(purpose);
+    return key ? Address.fromKey(this.params, key) : null!;
+  }
+  
+  public freshKey(purpose: KeyPurpose): ECKey {
+    const key = ECKey.createNewKey();
+    this.importKeys(key);
+    return key;
+  }
+  
+  public freshAddress(purpose: KeyPurpose): Address {
+    const key = this.freshKey(purpose);
+    return Address.fromKey(this.params, key);
+  }
+  
+  public encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): void {
+    this.keyCrypter = keyCrypter;
+    // this.basic.encrypt(keyCrypter, aesKey); // BasicKeyChain doesn't have encrypt yet
+  }
+  
+  public decrypt(aesKey: KeyParameter): void {
+    if (!this.keyCrypter) return;
+    // this.basic.decrypt(aesKey); // BasicKeyChain doesn't have decrypt yet
+    this.keyCrypter = null;
+  }
+  
+  public isEncrypted(): boolean {
+    return this.keyCrypter !== null;
+  }
+  
+  public getImportedKeys(): ECKey[] {
+    return this.basic.getKeys();
+  }
+
+  public numKeys(): number {
+    return this.basic.numKeys();
+  }
   public checkPassword(password: string): boolean { return false; }
   public checkAESKey(aesKey: KeyParameter): boolean { return false; }
   public importKeysAndEncrypt(keys: ECKey[], aesKey: KeyParameter): number { return 0; }
@@ -87,17 +140,10 @@ export class KeyChainGroup implements KeyBag {
   public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null { return null; }
   public markPubKeyHashAsUsed(pubkeyHash: Uint8Array): void { /* TODO: Implement */ }
   public hasKey(key: ECKey): boolean { return false; }
-  public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null { return null; }
   public markPubKeyAsUsed(pubkey: Uint8Array): void { /* TODO: Implement */ }
-  public numKeys(): number { return 0; }
-  public removeImportedKey(key: ECKey): boolean { return false; }
   public isMarried(): boolean { return false; }
-  public encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): void { /* TODO: Implement */ }
-  public decrypt(aesKey: KeyParameter): void { /* TODO: Implement */ }
-  public isEncrypted(): boolean { return this.keyCrypter !== null; }
   public isWatching(): boolean { return false; }
   public getKeyCrypter(): KeyCrypter | null { return this.keyCrypter; }
-  public getImportedKeys(): ECKey[] { return []; }
   public getEarliestKeyCreationTime(): number { return 0; }
   public getBloomFilterElementCount(): number { return 0; }
   public getBloomFilter(size: number, falsePositiveRate: number, nTweak: number): BloomFilter { return {} as any; }

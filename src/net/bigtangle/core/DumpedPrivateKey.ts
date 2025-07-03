@@ -1,7 +1,6 @@
 import { NetworkParameters } from '../params/NetworkParameters';
 import { VersionedChecksummedBytes } from './VersionedChecksummedBytes';
 import { ECKey } from './ECKey';
-import { BigInteger } from 'big-integer';
 import bigInt from 'big-integer';
 import { Utils } from './Utils';
 
@@ -17,19 +16,10 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
     }
 
     public static fromBase58(base58: string): DumpedPrivateKey {
-        const versionedChecksummedBytes = VersionedChecksummedBytes.fromBase58(base58);
-        // The last byte indicates compression (0x01) if present
-        const bytes = versionedChecksummedBytes.getBytes();
-        let compressed = false;
-        if (bytes.length === 34 && bytes[33] === 1) {
-            compressed = true;
-        }
-        // Use dependency injection to avoid circular dependencies
-        const NetworkParams = require('../params/NetworkParameters');
-        return new DumpedPrivateKey(NetworkParams.MainNetParams.get(), bytes, compressed);
+        throw new Error("Use fromBase58WithParams instead");
     }
-    
-    public static parseBase58(params: NetworkParameters, base58: string): DumpedPrivateKey {
+
+    public static fromBase58WithParams(base58: string, params: NetworkParameters): DumpedPrivateKey {
         const versionedChecksummedBytes = VersionedChecksummedBytes.fromBase58(base58);
         // The last byte indicates compression (0x01) if present
         const bytes = versionedChecksummedBytes.getBytes();
@@ -38,6 +28,10 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
             compressed = true;
         }
         return new DumpedPrivateKey(params, bytes, compressed);
+    }
+    
+    public static parseBase58(params: NetworkParameters, base58: string): DumpedPrivateKey {
+        return DumpedPrivateKey.fromBase58WithParams(base58, params);
     }
 
     public static encodePrivateKey(params: NetworkParameters, privKeyBytes: Uint8Array, compressed: boolean): DumpedPrivateKey {

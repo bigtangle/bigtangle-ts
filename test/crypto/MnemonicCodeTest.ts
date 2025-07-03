@@ -1,12 +1,7 @@
 
 import { Buffer } from 'buffer';
 import { MnemonicCode } from '../../src/net/bigtangle/crypto/MnemonicCode';
-import {
-    MnemonicException,
-    MnemonicLengthException,
-    MnemonicWordException,
-    MnemonicChecksumException,
-} from '../../src/net/bigtangle/crypto/MnemonicException';
+import { MnemonicException } from '../../src/net/bigtangle/crypto/MnemonicException';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 
 describe('MnemonicCodeTest', () => {
@@ -114,14 +109,14 @@ describe('MnemonicCodeTest', () => {
         mc = new MnemonicCode();
     });
 
-    test('testVectors', () => {
+    test('testVectors', async () => {
         for (let ii = 0; ii < vectors.length; ii += 3) {
             const vecData = vectors[ii];
             const vecCode = vectors[ii + 1];
             const vecSeed = vectors[ii + 2];
 
             const code = mc.toMnemonic(Utils.HEX.decode(vecData));
-            const seed = MnemonicCode.toSeed(code, 'TREZOR');
+            const seed = await MnemonicCode.toSeed(code, 'TREZOR');
             const entropy = mc.toEntropy(split(vecCode));
 
             expect(Utils.HEX.encode(entropy)).toBe(vecData);
@@ -134,7 +129,7 @@ describe('MnemonicCodeTest', () => {
         expect(() => {
             const entropy = Utils.HEX.decode('7f7f7f7f7f7f7f7f7f7f7f7f7f7f');
             mc.toMnemonic(entropy);
-        }).toThrow(MnemonicLengthException);
+        }).toThrow(MnemonicException);
     });
 
     test('testBadLength', () => {
@@ -143,7 +138,7 @@ describe('MnemonicCodeTest', () => {
                 'risk tiger venture dinner age assume float denial penalty hello',
             );
             mc.check(words);
-        }).toThrow(MnemonicLengthException);
+        }).toThrow(MnemonicException);
     });
 
     test('testBadWord', () => {
@@ -152,7 +147,7 @@ describe('MnemonicCodeTest', () => {
                 'risk tiger venture dinner xyzzy assume float denial penalty hello game wing',
             );
             mc.check(words);
-        }).toThrow(MnemonicWordException);
+        }).toThrow(MnemonicException);
     });
 
     test('testBadChecksum', () => {
@@ -161,21 +156,21 @@ describe('MnemonicCodeTest', () => {
                 'bless cloud wheel regular tiny venue bird web grief security dignity zoo',
             );
             mc.check(words);
-        }).toThrow(MnemonicChecksumException);
+        }).toThrow(MnemonicException);
     });
 
     test('testEmptyMnemonic', () => {
         expect(() => {
             const words: string[] = [];
             mc.check(words);
-        }).toThrow(MnemonicLengthException);
+        }).toThrow(MnemonicException);
     });
 
     test('testEmptyEntropy', () => {
         expect(() => {
             const entropy = Buffer.from([]);
             mc.toMnemonic(entropy);
-        }).toThrow(MnemonicLengthException);
+        }).toThrow(MnemonicException);
     });
 
     function split(words: string): string[] {

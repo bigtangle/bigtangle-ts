@@ -3,30 +3,22 @@ import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { BloomFilter, BloomUpdate } from '../../src/net/bigtangle/core/BloomFilter';
 import { MockNetworkParameters } from '../utils/MockNetworkParameters';
 import { expect } from 'vitest';
-import bigInt from 'big-integer';
 
 // Helper function to create test keys
-function createTestKey(seed: number): ECKey {
-    const priv = bigInt(seed);
-    const pub = ECKey.publicPointFromPrivate(priv);
-    const key = new ECKey(priv, pub);
-    key.setCreationTimeSeconds(0);
-    return key;
+function createTestKey(): ECKey {
+    return ECKey.createNewKey();
 }
-
 
 describe('BasicKeyChain', () => {
     let keyChain: BasicKeyChain;
     let key1: ECKey;
     let key2: ECKey;
-
-    let mockNetParams: MockNetworkParameters;
+    const networkParams = new MockNetworkParameters();
 
     beforeEach(() => {
-        mockNetParams = new MockNetworkParameters();
-        keyChain = new BasicKeyChain(mockNetParams);
-        key1 = createTestKey(1);
-        key2 = createTestKey(2);
+        keyChain = new BasicKeyChain(networkParams);
+        key1 = createTestKey();
+        key2 = createTestKey();
     });
 
     test('should import keys', () => {
@@ -36,21 +28,21 @@ describe('BasicKeyChain', () => {
     });
 
     test('should not import duplicate keys', () => {
-        keyChain.importKey(key1);
+        keyChain.importKeys(key1);
         const count = keyChain.importKeys(key1);
         expect(count).toBe(0);
         expect(keyChain.numKeys()).toBe(1);
     });
 
     test('should find keys by public key hash', () => {
-        keyChain.importKey(key1);
+        keyChain.importKeys(key1);
         const pubKeyHash = key1.getPubKeyHash();
         const foundKey = keyChain.findKeyFromPubHash(pubKeyHash);
         expect(foundKey).toEqual(key1);
     });
 
     test('should find keys by public key', () => {
-        keyChain.importKey(key2);
+        keyChain.importKeys(key2);
         const pubKey = key2.getPubKey();
         const foundKey = keyChain.findKeyFromPubKey(pubKey);
         expect(foundKey).toEqual(key2);

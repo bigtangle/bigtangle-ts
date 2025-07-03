@@ -4,7 +4,7 @@ import { ByteListResp } from './ByteListResp';
 import { ByteResp } from './ByteResp';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
-import { NetworkParameters } from '../../src/net/bigtangle/core/NetworkParameters';
+import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { BlockMCMC } from '../../src/net/bigtangle/core/BlockMCMC';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 
@@ -47,7 +47,7 @@ describe('JsonMapperTest', () => {
         }) as Sha256Hash;
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
 
-        let coin = Coin.valueOf(10000, NetworkParameters.BIGTANGLE_TOKENID);
+        let coin = Coin.valueOf(BigInt(10000), NetworkParameters.BIGTANGLE_TOKENID);
         jsonStr = JSON.stringify(coin);
 
         console.log(jsonStr);

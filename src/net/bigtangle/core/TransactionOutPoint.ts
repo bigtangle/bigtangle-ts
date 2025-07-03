@@ -43,22 +43,25 @@ export class TransactionOutPoint extends ChildMessage {
     constructor(params: NetworkParameters, payload: Buffer, offset: number);
     constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer);
     constructor(...args: any[]) {
-        const params = args[0];
-        super(params);
-
-        if (args.length === 4) {
+        // Call super first unconditionally
+        super(args[0]);
+        
+        // Now initialize properties based on constructor signature
+        if (args.length === 5) {
+            // (params, payload, offset, parent, serializer)
+            this.parseFromPayload(args[1], args[2], args[4], args[3]);
+        } else if (args.length === 3 && args[1] instanceof Buffer) {
+            // (params, payload, offset)
+            this.parseFromPayload(args[1], args[2]);
+        } else if (args.length === 4) {
             if (typeof args[1] === 'number') {
-                // constructor(params, index, blockHash, fromTx)
+                // (params, index, blockHash, fromTx)
                 this.index = args[1];
                 this.blockHash = args[2];
                 this.fromTx = args[3];
-                if (this.fromTx !== null) {
-                    this.txHash = this.fromTx.getHash();
-                } else {
-                    this.txHash = Sha256Hash.ZERO_HASH;
-                }
+                this.txHash = this.fromTx?.getHash() || Sha256Hash.ZERO_HASH;
             } else {
-                // constructor(params, blockHash, connectedOutput)
+                // (params, blockHash, connectedOutput)
                 this.blockHash = args[1];
                 this.connectedOutput = args[2];
                 if (this.connectedOutput) {
@@ -69,25 +72,38 @@ export class TransactionOutPoint extends ChildMessage {
                     this.txHash = Sha256Hash.ZERO_HASH;
                 }
             }
-        } else if (args.length === 3) {
-            // constructor(params, index, blockHash, transactionHash)
+        } else if (args.length === 3 && !(args[1] instanceof Buffer)) {
+            // (params, index, blockHash, transactionHash)
             this.index = args[1];
             this.blockHash = args[2];
             this.txHash = args[3];
-        } else if (args.length === 2) {
-            // constructor(params, payload, offset)
-            this.payload = args[1];
-            this.offset = args[2];
-            this.parse();
-        } else if (args.length === 5) {
-            // constructor(params, payload, offset, parent, serializer)
-            super(params, args[1], args[2], args[4], TransactionOutPoint.MESSAGE_LENGTH);
-            this.setParent(args[3]);
-            this.parse();
         } else {
-            throw new Error("Invalid constructor arguments");
+            // Default initialization
+            this.blockHash = null;
+            this.txHash = null;
+            this.index = 0;
+            this.fromTx = null;
+            this.connectedOutput = null;
         }
         this.length = TransactionOutPoint.MESSAGE_LENGTH;
+    }
+    
+    // Helper method to handle payload-based initialization
+    private parseFromPayload(payload: Buffer, offset: number, serializer?: MessageSerializer, parent?: Message): void {
+        // Set payload and offset for parsing
+        this.payload = payload;
+        this.offset = offset;
+        
+        // Set serializer and parent if provided
+        if (serializer) {
+            this.serializer = serializer;
+        }
+        if (parent) {
+            this.parent = parent;
+        }
+        
+        // Call parse to initialize from payload
+        this.parse();
     }
 
     protected parse(): void {

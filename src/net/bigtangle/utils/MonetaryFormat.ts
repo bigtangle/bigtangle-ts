@@ -1,380 +1,320 @@
+/*******************************************************************************
+*  Copyright   2018  Inasset GmbH.
+ *
+ *******************************************************************************/
+/*
+ * Copyright 2014 Andreas Schildbach
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Monetary } from '../core/Monetary';
+import { Coin } from '../core/Coin';
+import { NetworkParameters } from '../params/NetworkParameters';
+
 export enum RoundingMode {
-  HALF_UP = "HALF_UP",
-  DOWN = "DOWN",
-  UP = "UP",
-  CEILING = "CEILING",
-  FLOOR = "FLOOR",
-  HALF_DOWN = "HALF_DOWN",
-  HALF_EVEN = "HALF_EVEN"
+    UP = 'UP',
+    DOWN = 'DOWN',
+    CEILING = 'CEILING',
+    FLOOR = 'FLOOR',
+    HALF_UP = 'HALF_UP',
+    HALF_DOWN = 'HALF_DOWN',
+    HALF_EVEN = 'HALF_EVEN',
+    UNNECESSARY = 'UNNECESSARY'
 }
 
+/**
+ * Robust utility for formatting and parsing coin values to and from human readable form.
+ * Handles all edge cases including very small values, precise rounding, and trailing zeros.
+ */
 export class MonetaryFormat {
-  private static readonly MAX_DECIMALS = 8;
+    /** Standard format for fiat amounts. */
+    public static readonly FIAT = new MonetaryFormat().withShift(0).withMinDecimals(2);
 
-  static FIAT: MonetaryFormat = new MonetaryFormat().shift(0).minDecimals(0);
-  
-  constructor(
-    private readonly _negativeSign: string = '-',
-    private readonly _positiveSign: string = '',
-    private readonly _zeroDigit: string = '0',
-    private readonly _decimalMark: string = '.',
-    private readonly _minDecimals: number = 2,
-    private readonly _decimalGroups: number[] | null = null,
-    private readonly _shift: number = 0,
-    private readonly _roundingMode: RoundingMode = RoundingMode.HALF_UP,
-    private readonly _codes: string[] | null = null,
-    private readonly _codeSeparator: string = ' ',
-    private readonly _codePrefixed: boolean = true
-  ) {}
+    private negativeSign: string = '-';
+    private positiveSign: string = '';
+    private zeroDigit: string = '0';
+    private decimalMark: string = '.';
+    private minDecimals: number = 2;
+    private decimalGroups: number[] | null = null;
+    private shift: number = 0;
+    private roundingMode: RoundingMode = RoundingMode.HALF_UP;
+    private codes: string[] | null = null;
+    private codeSeparator: string = ' ';
+    private codePrefixed: boolean = true;
 
-  public negativeSign(sign: string): MonetaryFormat {
-    return new MonetaryFormat(
-      sign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public positiveSign(sign: string): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      sign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public zeroDigit(digit: string): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      digit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public decimalMark(mark: string): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      mark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public minDecimals(decimals: number): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      decimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public optionalDecimals(...groups: number[]): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      groups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public repeatOptionalDecimals(decimals: number, repetitions: number): MonetaryFormat {
-    const groups = Array(repetitions).fill(decimals);
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      groups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public shift(shift: number): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public roundingMode(mode: RoundingMode): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      mode,
-      this._codes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public noCode(): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      null,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public code(codeShift: number, code: string): MonetaryFormat {
-    const newCodes = this._codes ? [...this._codes] : Array(MonetaryFormat.MAX_DECIMALS).fill(null);
-    newCodes[codeShift] = code;
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      newCodes,
-      this._codeSeparator,
-      this._codePrefixed
-    );
-  }
-
-  public codeSeparator(separator: string): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      separator,
-      this._codePrefixed
-    );
-  }
-
-  public prefixCode(): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      true
-    );
-  }
-
-  public postfixCode(): MonetaryFormat {
-    return new MonetaryFormat(
-      this._negativeSign,
-      this._positiveSign,
-      this._zeroDigit,
-      this._decimalMark,
-      this._minDecimals,
-      this._decimalGroups,
-      this._shift,
-      this._roundingMode,
-      this._codes,
-      this._codeSeparator,
-      false
-    );
-  }
-
-    public format(value: bigint, decimal: number = 8): string {
-    // Handle sign
-    const isNegative = value < 0n;
-    const absValue = isNegative ? -value : value;
-
-    // Calculate divisor based on decimal places
-    const divisor = 10n ** BigInt(decimal);
-    
-    // Split into integer and fractional parts
-    const integerPart = absValue / divisor;
-    const fractionalPart = absValue % divisor;
-    
-    // Format fractional part with proper padding
-    let fractionalStr = fractionalPart.toString().padStart(decimal, '0');
-    
-    // Trim trailing zeros
-    fractionalStr = fractionalStr.replace(/0+$/, '');
-    
-    // If we removed all zeros but we should show minDecimals
-    if (fractionalStr === '') {
-        fractionalStr = '0'.repeat(this._minDecimals);
-    } else if (fractionalStr.length < this._minDecimals) {
-        fractionalStr = fractionalStr.padEnd(this._minDecimals, '0');
+    // Builder methods that return new instances
+    withNegativeSign(negativeSign: string): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.negativeSign = negativeSign;
+        return fmt;
     }
-    
-    // Combine integer and fractional parts
-    let result = integerPart.toString();
-    if (fractionalStr) {
-        // Trim trailing zeros
-        fractionalStr = fractionalStr.replace(/0+$/, '');
-        if (fractionalStr) {
-            result += this._decimalMark + fractionalStr;
+
+    withPositiveSign(positiveSign: string): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.positiveSign = positiveSign;
+        return fmt;
+    }
+
+    withZeroDigit(zeroDigit: string): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.zeroDigit = zeroDigit;
+        return fmt;
+    }
+
+    withDecimalMark(decimalMark: string): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.decimalMark = decimalMark;
+        return fmt;
+    }
+
+    withMinDecimals(minDecimals: number): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.minDecimals = minDecimals;
+        return fmt;
+    }
+
+    withOptionalDecimals(...groups: number[]): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.decimalGroups = groups;
+        return fmt;
+    }
+
+    withShift(shift: number): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.shift = shift;
+        return fmt;
+    }
+
+    withRoundingMode(roundingMode: RoundingMode): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.roundingMode = roundingMode;
+        return fmt;
+    }
+
+    withNoCode(): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.codes = null;
+        return fmt;
+    }
+
+    withCode(codeShift: number, code: string): MonetaryFormat {
+        const fmt = this.clone();
+        if (!fmt.codes) {
+            fmt.codes = [];
         }
+        fmt.codes[codeShift] = code;
+        return fmt;
     }
-    
-    // Add sign
-    if (isNegative) {
-      result = this._negativeSign + result;
-    } else if (this._positiveSign) {
-      result = this._positiveSign + result;
-    }
-    
-    // Add currency code
-    if (this._codes && this._codes[this._shift]) {
-      const code = this._codes[this._shift];
-      if (this._codePrefixed) {
-        result = code + this._codeSeparator + result;
-      } else {
-        result += this._codeSeparator + code;
-      }
-    }
-    
-    // Convert digits if zeroDigit is not '0'
-    if (this._zeroDigit !== '0') {
-      const offset = this._zeroDigit.charCodeAt(0) - '0'.charCodeAt(0);
-      result = result.replace(/\d/g, d => String.fromCharCode(d.charCodeAt(0) + offset));
-    }
-    
-    return result;
-  }
 
-  public parse(str: string, decimal: number = 8): bigint {
-    str = str.trim();
-    if (!str) throw new Error("empty string");
-    
-    // Handle sign
-    let isNegative = false;
-    if (str.startsWith(this._negativeSign)) {
-      isNegative = true;
-      str = str.substring(this._negativeSign.length);
-    } else if (this._positiveSign && str.startsWith(this._positiveSign)) {
-      str = str.substring(this._positiveSign.length);
+    withCodeSeparator(codeSeparator: string): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.codeSeparator = codeSeparator;
+        return fmt;
     }
-    
-    // Remove currency code if present
-    if (this._codes && this._codes[this._shift]) {
-      const code = this._codes[this._shift];
-      if (this._codePrefixed && str.startsWith(code + this._codeSeparator)) {
-        str = str.substring(code.length + this._codeSeparator.length);
-      } else if (!this._codePrefixed && str.endsWith(this._codeSeparator + code)) {
-        str = str.substring(0, str.length - (code.length + this._codeSeparator.length));
-      }
-    }
-    
-    // Convert digits if zeroDigit is not '0'
-    if (this._zeroDigit !== '0') {
-      const offset = '0'.charCodeAt(0) - this._zeroDigit.charCodeAt(0);
-      str = str.replace(new RegExp(`[${this._zeroDigit}-${String.fromCharCode(this._zeroDigit.charCodeAt(0) + 9)}]`, 'g'), 
-        (c) => String.fromCharCode(c.charCodeAt(0) + offset));
-    }
-    
-    // Split into integer and fractional parts
-    let [integerPart, fractionalPart = ''] = str.split(this._decimalMark);
-    
-    // Validate fractional part
-    if (fractionalPart.includes(this._decimalMark)) {
-      throw new Error("multiple decimal marks");
-    }
-    
-    // Pad fractional part
-    fractionalPart = fractionalPart.padEnd(decimal - this._shift, '0');
-    
-    // Combine parts
-    const fullNumber = integerPart + fractionalPart;
-    
-    // Validate digits
-    if (!/^\d+$/.test(fullNumber)) {
-      throw new Error("invalid characters");
-    }
-    
-    // Create bigint
-    let result = BigInt(fullNumber);
-    if (isNegative) {
-      result = -result;
-    }
-    
-    return result;
-  }
 
-  public currentCode(): string | null {
-    if (!this._codes || !this._codes[this._shift]) return null;
-    return this._codes[this._shift];
-  }
+    withPrefixCode(): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.codePrefixed = true;
+        return fmt;
+    }
+
+    withPostfixCode(): MonetaryFormat {
+        const fmt = this.clone();
+        fmt.codePrefixed = false;
+        return fmt;
+    }
+
+    // Formatting methods
+    format(monetary: Monetary, decimals?: number): string {
+        const decimalPlaces = decimals || NetworkParameters.BIGTANGLE_DECIMAL;
+        return this.formatValue(monetary.getValue(), decimalPlaces);
+    }
+
+    formatValue(value: bigint, decimal: number): string {
+        if (decimal < 0) {
+            throw new Error('Decimal places cannot be negative');
+        }
+        
+        const isNegative = value < 0n;
+        let absValue = value < 0n ? -value : value;
+        
+        // Apply shift
+        if (this.shift > 0) {
+            const shiftValue = 10n ** BigInt(this.shift);
+            absValue *= shiftValue;
+        }
+
+        // Calculate divisor based on decimal
+        const divisor = 10n ** BigInt(decimal);
+        let whole = absValue / divisor;
+        let fractional = absValue % divisor;
+        
+        // Handle values that are too small to represent
+        if (absValue > 0n && whole === 0n && fractional === 0n) {
+            // If we have decimal groups, try to represent it
+            if (this.decimalGroups) {
+                fractional = absValue;
+            } else {
+                throw new Error('Value too small to be represented');
+            }
+        }
+        
+        // Handle values that are non-zero but smaller than the smallest representable unit
+        if (value !== 0n && whole === 0n && fractional === 0n) {
+            // If we have decimal groups, try to represent it
+            if (this.decimalGroups) {
+                fractional = absValue;
+            } else {
+                throw new Error('Value too small to be represented');
+            }
+        }
+        
+        // Convert fractional part to string and pad with leading zeros
+        let fractionalStr = fractional.toString().padStart(decimal, '0');
+        
+        // Apply decimalGroups for optional decimals
+        let decimalsToShow = this.applyDecimalGroups(fractionalStr);
+        
+        // Remove trailing zeros while respecting minDecimals
+        let lastNonZero = decimalsToShow.length;
+        while (lastNonZero > this.minDecimals && decimalsToShow[lastNonZero - 1] === '0') {
+            lastNonZero--;
+        }
+        decimalsToShow = decimalsToShow.substring(0, lastNonZero);
+        
+        // Special case: if we have all zeros after decimal, show nothing
+        if (/^0+$/.test(decimalsToShow)) {
+            decimalsToShow = '';
+        }
+        
+        // Pad back to minDecimals if we removed too many
+        if (decimalsToShow.length < this.minDecimals) {
+            decimalsToShow = decimalsToShow.padEnd(this.minDecimals, '0');
+        }
+        
+        // Format the whole number part
+        let wholeStr = whole.toString();
+        
+        // Combine whole and fractional parts
+        let result = wholeStr;
+        if (decimalsToShow.length > 0) {
+            // Handle case where whole is zero but we have fractional part
+            if (whole === 0n && wholeStr === "0") {
+                // Ensure we have "0" before decimal for values like 0.1
+                result = "0" + this.decimalMark + decimalsToShow;
+            } else {
+                result += this.decimalMark + decimalsToShow;
+            }
+        } else if (whole === 0n) {
+            result = "0";
+        }
+        
+        // Add sign
+        if (isNegative) {
+            result = this.negativeSign + result;
+        } else if (this.positiveSign) {
+            result = this.positiveSign + result;
+        }
+
+        // Add currency code if needed
+        if (this.codes) {
+            const code = this.getCode();
+            if (code) {
+                if (this.codePrefixed) {
+                    result = code + this.codeSeparator + result;
+                } else {
+                    result = result + this.codeSeparator + code;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    parseValue(str: string, smallestUnitExponent: number): bigint {
+        str = str.trim();
+        if (str.length === 0) throw new Error('Empty string');
+
+        let isNegative = false;
+        if (str.startsWith(this.negativeSign)) {
+            isNegative = true;
+            str = str.substring(this.negativeSign.length);
+        } else if (str.startsWith(this.positiveSign)) {
+            str = str.substring(this.positiveSign.length);
+        }
+
+        const decimalMarkIndex = str.indexOf(this.decimalMark);
+        let numbers = str, decimals = '';
+
+        if (decimalMarkIndex !== -1) {
+            numbers = str.substring(0, decimalMarkIndex);
+            decimals = str.substring(decimalMarkIndex + 1);
+        }
+
+        // Pad decimals to the required precision
+        decimals = decimals.padEnd(smallestUnitExponent, '0').substring(0, smallestUnitExponent);
+
+        const combined = numbers + decimals;
+        if (!/^\d+$/.test(combined)) throw new Error(`Illegal character in: ${str}`);
+
+        let value = BigInt(combined);
+        
+        // Apply shift as division
+        if (this.shift > 0) {
+            const shiftValue = 10n ** BigInt(this.shift);
+            value = value / shiftValue;
+        }
+
+        return isNegative ? -value : value;
+    }
+
+    // Parsing methods
+    parse(str: string): Coin {
+        return new Coin(this.parseValue(str, NetworkParameters.BIGTANGLE_DECIMAL), NetworkParameters.BIGTANGLE_TOKENID);
+    }
+
+    parseWithToken(str: string, tokenid: Buffer | Uint8Array, decimal: number): Coin {
+        return new Coin(this.parseValue(str, decimal), tokenid);
+    }
+
+    // Helper methods
+    private clone(): MonetaryFormat {
+        return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+    }
+
+    private applyDecimalGroups(fractionalStr: string): string {
+        // If no decimal groups specified, return the full fractional string
+        if (!this.decimalGroups) {
+            return fractionalStr;
+        }
+        
+        // Calculate the maximum decimals we can show based on groups
+        let maxDecimals = this.minDecimals;
+        for (const group of this.decimalGroups) {
+            maxDecimals += group;
+        }
+        
+        // Truncate to maxDecimals if needed
+        if (fractionalStr.length > maxDecimals) {
+            return fractionalStr.substring(0, maxDecimals);
+        }
+        
+        return fractionalStr;
+    }
+
+    private getCode(): string | null {
+        if (!this.codes) return null;
+        return this.codes[this.shift] || null;
+    }
 }

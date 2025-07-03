@@ -66,7 +66,7 @@ export class Wallet extends WalletBase {
             }
         }
         const group = new KeyChainGroup(params);
-        group.importKeys(keys);
+        group.importKeys(...keys);
         return new Wallet(params, group);
     }
 

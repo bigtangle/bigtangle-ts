@@ -96,7 +96,7 @@ describe('HDUtilsTest', () => {
     });
 
     function getBytes(hmacTestVectors: string[], i: number): Buffer {
-        return Utils.HEX.decode(hmacTestVectors[i]);
+        return Buffer.from(Utils.HEX.decode(hmacTestVectors[i]));
     }
 
     test('testLongToByteArray', () => {

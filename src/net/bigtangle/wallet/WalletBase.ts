@@ -54,14 +54,23 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-    public removeKey(key: ECKey): boolean {
-        this.keyChainGroupLock.lock();
-        try {
-            return this.keyChainGroup.removeImportedKey(key);
-        } finally {
-            this.keyChainGroupLock.unlock();
-        }
+  public removeKey(key: ECKey): boolean {
+    this.keyChainGroupLock.lock();
+    try {
+      return this.keyChainGroup.removeKey(key);
+    } finally {
+      this.keyChainGroupLock.unlock();
     }
+  }
+  
+  public removeImportedKey(key: ECKey): boolean {
+    this.keyChainGroupLock.lock();
+    try {
+      return this.keyChainGroup.removeImportedKey(key);
+    } finally {
+      this.keyChainGroupLock.unlock();
+    }
+  }
 
     public getImportedKeys(): ECKey[] {
         this.keyChainGroupLock.lock();
@@ -81,7 +90,7 @@ export abstract class WalletBase implements KeyBag {
         let result: number;
         try {
             this.checkNoDeterministicKeys(keys);
-            result = this.keyChainGroup.importKeys(keys);
+            result = this.keyChainGroup.importKeys(...keys);
         } finally {
             this.keyChainGroupLock.unlock();
         }

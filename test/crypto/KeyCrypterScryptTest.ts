@@ -3,7 +3,6 @@ import { Buffer } from 'buffer';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
 import { EncryptedData } from '../../src/net/bigtangle/crypto/EncryptedData';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
-import { KeyCrypterException } from '../../src/net/bigtangle/crypto/KeyCrypterException';
 
 describe('KeyCrypterScryptTest', () => {
     const TEST_BYTES1 = Buffer.from([
@@ -21,18 +20,16 @@ describe('KeyCrypterScryptTest', () => {
         keyCrypter = new KeyCrypterScrypt();
     });
 
-    test('testKeyCrypterGood1', () => {
-        const data = keyCrypter.encrypt(
-            TEST_BYTES1,
-            keyCrypter.deriveKey(PASSWORD1),
-        );
+    test('testKeyCrypterGood1', async () => {
+        const key = await keyCrypter.deriveKey(PASSWORD1);
+        const data = await keyCrypter.encrypt(TEST_BYTES1, key);
         expect(data).not.toBeNull();
 
-        const reborn = keyCrypter.decrypt(data, keyCrypter.deriveKey(PASSWORD1));
+        const reborn = await keyCrypter.decrypt(data, key);
         expect(Utils.HEX.encode(reborn)).toBe(Utils.HEX.encode(TEST_BYTES1));
     });
 
-    test('testKeyCrypterGood2', () => {
+    test('testKeyCrypterGood2', async () => {
         const numberOfTests = 16;
         for (let i = 0; i < numberOfTests; i++) {
             const plainText =
@@ -42,78 +39,62 @@ describe('KeyCrypterScryptTest', () => {
                 Math.random().toString(36).substring(2, 15) +
                 Math.random().toString(36).substring(2, 15);
 
-            const data = keyCrypter.encrypt(
-                Buffer.from(plainText),
-                keyCrypter.deriveKey(password),
-            );
+            const key = await keyCrypter.deriveKey(password);
+            const data = await keyCrypter.encrypt(Buffer.from(plainText), key);
             expect(data).not.toBeNull();
 
-            const reconstructedPlainBytes = keyCrypter.decrypt(
-                data,
-                keyCrypter.deriveKey(password),
-            );
+            const reconstructedPlainBytes = await keyCrypter.decrypt(data, key);
             expect(Utils.HEX.encode(reconstructedPlainBytes)).toBe(
-                Utils.HEX.encode(Buffer.from(plainText)),
+                Utils.HEX.encode(Buffer.from(plainText))
             );
         }
     });
 
-    test('testKeyCrypterWrongPassword', () => {
+    test('testKeyCrypterWrongPassword', async () => {
         let builder = '';
         for (let i = 0; i < 100; i++) {
             builder += i + ' The quick brown fox';
         }
 
-        const data = keyCrypter.encrypt(
-            Buffer.from(builder),
-            keyCrypter.deriveKey(PASSWORD2),
-        );
+        const key = await keyCrypter.deriveKey(PASSWORD2);
+        const data = await keyCrypter.encrypt(Buffer.from(builder), key);
         expect(data).not.toBeNull();
 
         try {
-            keyCrypter.decrypt(data, keyCrypter.deriveKey(WRONG_PASSWORD));
-            fail('Decrypt with wrong password did not throw exception');
+            const wrongKey = await keyCrypter.deriveKey(WRONG_PASSWORD);
+            await keyCrypter.decrypt(data, wrongKey);
+            throw new Error('Decrypt with wrong password did not throw exception');
         } catch (e) {
-            expect(e).toBeInstanceOf(KeyCrypterException);
-            expect(e.message).toContain('Could not decrypt');
+            expect(e).toBeInstanceOf(Error);
+            expect((e as Error).message).toContain('Could not decrypt');
         }
     });
 
-    test('testEncryptDecryptBytes1', () => {
-        const data = keyCrypter.encrypt(
-            TEST_BYTES1,
-            keyCrypter.deriveKey(PASSWORD1),
-        );
+    test('testEncryptDecryptBytes1', async () => {
+        const key = await keyCrypter.deriveKey(PASSWORD1);
+        const data = await keyCrypter.encrypt(TEST_BYTES1, key);
         expect(data).not.toBeNull();
 
-        const rebornPlainBytes = keyCrypter.decrypt(
-            data,
-            keyCrypter.deriveKey(PASSWORD1),
-        );
+        const rebornPlainBytes = await keyCrypter.decrypt(data, key);
         expect(Utils.HEX.encode(rebornPlainBytes)).toBe(
-            Utils.HEX.encode(TEST_BYTES1),
+            Utils.HEX.encode(TEST_BYTES1)
         );
     });
 
-    test('testEncryptDecryptBytes2', () => {
+    test('testEncryptDecryptBytes2', async () => {
         for (let i = 0; i < 50; i++) {
             const plainBytes = Buffer.alloc(i);
             for (let j = 0; j < i; j++) {
                 plainBytes[j] = Math.floor(Math.random() * 256);
             }
 
-            const data = keyCrypter.encrypt(
-                plainBytes,
-                keyCrypter.deriveKey(PASSWORD1),
-            );
+            const key = await keyCrypter.deriveKey(PASSWORD1);
+            const data = await keyCrypter.encrypt(plainBytes, key);
             expect(data).not.toBeNull();
 
-            const rebornPlainBytes = keyCrypter.decrypt(
-                data,
-                keyCrypter.deriveKey(PASSWORD1),
-            );
+            const rebornPlainBytes = await keyCrypter.decrypt(data, key);
             expect(Utils.HEX.encode(rebornPlainBytes)).toBe(
-                Utils.HEX.encode(plainBytes),
+                Utils.HEX.encode(plainBytes)
             );
         }
     });

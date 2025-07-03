@@ -36,12 +36,95 @@ export class Transaction extends ChildMessage {
     
     public static readonly UNCONNECTED = 0xFFFFFFFF;
 
-    protected parse(): void {
-        // Parse the transaction from the provided bytes
+
+    // Helper to read a Bitcoin-style varint
+    private readVarIntFromBuffer(buffer: Buffer, offset: number): [number, number] {
+        const first = buffer[offset];
+        if (first < 0xfd) {
+            return [first, 1];
+        } else if (first === 0xfd) {
+            return [buffer.readUInt16LE(offset + 1), 3];
+        } else if (first === 0xfe) {
+            return [buffer.readUInt32LE(offset + 1), 5];
+        } else {
+            // 0xff
+            return [Number(buffer.readBigUInt64LE(offset + 1)), 9];
+        }
+    }
+    public static readonly LOCKTIME_THRESHOLD = 500000000;
+    public static readonly LOCKTIME_THRESHOLD_BIG = BigInt(500000000);
+    // Placeholder values until NetworkParameters is implemented
+    public static get REFERENCE_DEFAULT_MIN_TX_FEE(): Coin {
+        return Coin.ZERO;
+    }
+    public static get MIN_NONDUST_OUTPUT(): Coin {
+        return Coin.ZERO;
+    }
+
+    private version: number = 1;
+    private inputs: TransactionInput[] = [];
+    private outputs: TransactionOutput[] = [];
+    private lockTime: number = 0;
+    private hash: Sha256Hash | null = null;
+    private appearsInHashes: Map<Sha256Hash, number> | null = null;
+    private optimalEncodingMessageSize: number = 0;
+    private purpose: Purpose = Purpose.UNKNOWN;
+    private memo: string | null = null;
+    private data: Buffer | null = null;
+    private dataSignature: Buffer | null = null;
+    private dataClassName: string | null = null;
+    private toAddressInSubtangle: Buffer | null = null;
+
+    public bitcoinSerialize(): Uint8Array {
+        const stream = new DataOutputStream();
+        this.bitcoinSerializeToStream(stream);
+        return stream.toByteArray();
+    }
+    
+    public getMessageSize(): number {
+        return this.length;
+    }
+    
+    private cached: boolean = false;
+
+    public isCached(): boolean {
+        return this.cached;
+    }
+
+    public unCache(): void {
+        this.hash = null;
+        this.cached = false;
+    }
+
+    public adjustLength(adjustment: number): void;
+    public adjustLength(newArraySize: number, adjustment: number): void;
+    public adjustLength(arg1: number, arg2?: number): void {
+        // Placeholder implementation
+        // Length adjustment logic would go here
+        // If called with one argument, treat as (adjustment)
+        // If called with two arguments, treat as (newArraySize, adjustment)
+    }
+
+    public length: number = 0;  // Add length property
+    
+    public constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
+        super(params, payload, offset, serializer);
+        this.inputs = [];
+        this.outputs = [];
+        this.length = 8;
+    }
+    
+    public setPayloadAndOffset(payload: Buffer, offset: number = 0): void {
+        this.payload = payload;
+        this.offset = offset;
+    }
+
+    public parse(): void {
         if (!this.payload) {
             throw new Error('No payload to parse');
         }
-        let offset = 0;
+        this.cached = true;
+        let offset = this.offset;
         // Version (4 bytes, little endian)
         this.version = this.payload.readInt32LE(offset);
         offset += 4;
@@ -70,78 +153,7 @@ export class Transaction extends ChildMessage {
         this.lockTime = this.payload.readUInt32LE(offset);
         offset += 4;
 
-        this.length = offset;
-    }
-
-    // Helper to read a Bitcoin-style varint
-    private readVarIntFromBuffer(buffer: Buffer, offset: number): [number, number] {
-        const first = buffer[offset];
-        if (first < 0xfd) {
-            return [first, 1];
-        } else if (first === 0xfd) {
-            return [buffer.readUInt16LE(offset + 1), 3];
-        } else if (first === 0xfe) {
-            return [buffer.readUInt32LE(offset + 1), 5];
-        } else {
-            // 0xff
-            return [Number(buffer.readBigUInt64LE(offset + 1)), 9];
-        }
-    }
-    public static readonly LOCKTIME_THRESHOLD = 500000000;
-    public static readonly LOCKTIME_THRESHOLD_BIG = BigInt(500000000);
-    // Placeholder values until NetworkParameters is implemented
-    public static readonly REFERENCE_DEFAULT_MIN_TX_FEE = Coin.ZERO;
-    public static readonly MIN_NONDUST_OUTPUT = Coin.ZERO;
-
-    private version: number = 1;
-    private inputs: TransactionInput[] = [];
-    private outputs: TransactionOutput[] = [];
-    private lockTime: number = 0;
-    private hash: Sha256Hash | null = null;
-    private appearsInHashes: Map<Sha256Hash, number> | null = null;
-    private optimalEncodingMessageSize: number = 0;
-    private purpose: Purpose = Purpose.UNKNOWN;
-    private memo: string | null = null;
-    private data: Buffer | null = null;
-    private dataSignature: Buffer | null = null;
-    private dataClassName: string | null = null;
-    private toAddressInSubtangle: Buffer | null = null;
-
-    public bitcoinSerialize(): Uint8Array {
-        const stream = new DataOutputStream();
-        this.bitcoinSerializeToStream(stream);
-        return stream.toByteArray();
-    }
-    
-    public getMessageSize(): number {
-        return this.length;
-    }
-    
-    public unCache(): void {
-        this.hash = null;
-    }
-
-    public adjustLength(adjustment: number): void;
-    public adjustLength(newArraySize: number, adjustment: number): void;
-    public adjustLength(arg1: number, arg2?: number): void {
-        // Placeholder implementation
-        // Length adjustment logic would go here
-        // If called with one argument, treat as (adjustment)
-        // If called with two arguments, treat as (newArraySize, adjustment)
-    }
-
-    public length: number = 0;  // Add length property
-    
-    constructor(params?: NetworkParameters, bytes?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
-        if (!params) {
-            throw new Error("NetworkParameters must be provided");
-        }
-        super(params, bytes, offset, serializer);
-        if (!bytes) {
-            this.inputs = [];
-            this.outputs = [];
-            this.length = 8;
-        }
+        this.length = offset - this.offset;
     }
 
     public getHash(): Sha256Hash {

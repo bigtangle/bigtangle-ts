@@ -4,11 +4,16 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Sha256Hash } from './Sha256Hash.js';
 import { AddressFormatException } from '../exception/AddressFormatException.js';
 import { WrongNetworkException } from '../exception/WrongNetworkException.js';
+import { ECKey } from './ECKey';
 
 export class Address {
     private readonly params: NetworkParameters;
     private readonly version: number;
     private readonly hash160: Buffer;
+
+    public static fromKey(params: NetworkParameters, key: ECKey): Address {
+        return Address.fromP2PKH(params, Buffer.from(key.getPubKeyHash()));
+    }
 
     constructor(params: NetworkParameters, version: number, hash160: Buffer) {
         this.params = params;

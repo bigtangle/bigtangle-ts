@@ -10,8 +10,8 @@ import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput'
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { OP_0 } from '../../src/net/bigtangle/script/ScriptOpCodes';
-import { ScriptException } from '../../src/net/bigtangle/exception';
-import { BigInteger } from '../../src/net/bigtangle/core/BigInteger';
+import { ScriptException } from '../../src/net/bigtangle/exception/ScriptException';
+import bigInt, { BigInteger } from 'big-integer';
 
 describe('ScriptTest', () => {
     const sigProg =
@@ -22,8 +22,8 @@ describe('ScriptTest', () => {
     test('testScriptSig', () => {
         const sigProgBytes = Utils.HEX.decode(sigProg);
         const script = new Script(sigProgBytes);
-        const hash160 = Utils.sha256hash160(script.getPubKey());
-        const a = new Address(PARAMS, hash160);
+        const hash160 = Utils.sha256hash160(script.getPubKey()!);
+        const a = new Address(PARAMS, PARAMS.addressHeader, Buffer.from(hash160));
         expect(a.toString()).toBe('15jTWe6r9zqxkjjLFntAWADZosAwiuw4U5');
     });
 
@@ -33,12 +33,12 @@ describe('ScriptTest', () => {
         expect(pubkey.toString()).toBe(
             'DUP HASH160 PUSHDATA(20)[33e81a941e64cda12c6a299ed322ddbdd03f8d0e] EQUALVERIFY CHECKSIG',
         );
-        const toAddr = new Address(PARAMS, pubkey.getPubKeyHash());
+        const toAddr = new Address(PARAMS, PARAMS.addressHeader, Buffer.from(pubkey.getPubKeyHash()!));
         expect(toAddr.toString()).toBe('15jTWe6r9zqxkjjLFntAWADZosAwiuw4U5');
     });
 
     test('testMultiSig', () => {
-        const keys = [ECKey.fromPrivate(new BigInteger('1')), ECKey.fromPrivate(new BigInteger('2')), ECKey.fromPrivate(new BigInteger('3'))];
+        const keys = [ECKey.fromPrivate(bigInt('1')), ECKey.fromPrivate(bigInt('2')), ECKey.fromPrivate(bigInt('3'))];
         expect(
             ScriptBuilder.createMultiSigOutputScript(2, keys).isSentToMultiSig(),
         ).toBe(true);
@@ -46,20 +46,21 @@ describe('ScriptTest', () => {
         expect(script.isSentToMultiSig()).toBe(true);
         const pubkeys: ECKey[] = [];
         for (const key of keys) {
-            pubkeys.push(ECKey.fromPublic(key.getPubKeyPoint()));
+            pubkeys.push(ECKey.fromPublic(key.getPubKey()!));
         }
         expect(script.getPubKeys()).toEqual(pubkeys);
         expect(
-            ScriptBuilder.createOutputScript(ECKey.fromPrivate(new BigInteger('4'))).isSentToMultiSig(),
+            ScriptBuilder.createOutputScript(ECKey.fromPrivate(bigInt('4'))).isSentToMultiSig(),
         ).toBe(false);
         try {
-            Script.createMultiSigOutputScript(4, keys);
-            fail();
+            ScriptBuilder.createMultiSigOutputScript(4, keys);
+            throw new Error('fail');
         } catch (e) {
             // Expected.
         }
         try {
-            Script.createMultiSigOutputScript(0, keys);
+            ScriptBuilder.createMultiSigOutputScript(0, keys);
+            throw new Error('fail');
         } catch (e) {
             // Expected.
         }
@@ -85,12 +86,12 @@ describe('ScriptTest', () => {
 
     test('createAndUpdateEmptyInputScript', () => {
         const dummySig = TransactionSignature.dummy();
-        const key = new ECKey();
+        const key = ECKey.fromPrivate(bigInt('1'));
 
         let inputScript = ScriptBuilder.createInputScript(dummySig);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[0].data,
+                inputScript.getChunks()[0].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
@@ -100,17 +101,17 @@ describe('ScriptTest', () => {
         inputScript = ScriptBuilder.createInputScript(dummySig, key);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[0].data,
+                inputScript.getChunks()[0].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         inputScript = ScriptBuilder.createInputScript(null, key);
         expect(inputScript.getChunks()[0].opcode).toBe(OP_0);
-        expect(Buffer.compare(inputScript.getChunks()[1].data, key.getPubKey())).toBe(
+        expect(Buffer.compare(inputScript.getChunks()[1].data!, key.getPubKey()!)).toBe(
             0,
         );
 
-        const key2 = new ECKey();
+        const key2 = ECKey.fromPrivate(bigInt('2'));
         const multisigScript = ScriptBuilder.createMultiSigOutputScript(2, [
             key,
             key2,
@@ -122,19 +123,19 @@ describe('ScriptTest', () => {
         expect(inputScript.getChunks()[0].opcode).toBe(OP_0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[1].data,
+                inputScript.getChunks()[1].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[2].data,
+                inputScript.getChunks()[2].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[3].data,
+                inputScript.getChunks()[3].data!,
                 multisigScript.getProgram(),
             ),
         ).toBe(0);
@@ -148,7 +149,7 @@ describe('ScriptTest', () => {
         expect(inputScript.getChunks()[2].opcode).toBe(OP_0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[3].data,
+                inputScript.getChunks()[3].data!,
                 multisigScript.getProgram(),
             ),
         ).toBe(0);
@@ -163,14 +164,14 @@ describe('ScriptTest', () => {
         expect(inputScript.getChunks()[0].opcode).toBe(OP_0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[1].data,
+                inputScript.getChunks()[1].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         expect(inputScript.getChunks()[2].opcode).toBe(OP_0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[3].data,
+                inputScript.getChunks()[3].data!,
                 multisigScript.getProgram(),
             ),
         ).toBe(0);
@@ -185,19 +186,19 @@ describe('ScriptTest', () => {
         expect(inputScript.getChunks()[0].opcode).toBe(OP_0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[1].data,
+                inputScript.getChunks()[1].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[2].data,
+                inputScript.getChunks()[2].data!,
                 dummySig.encodeToBitcoin(),
             ),
         ).toBe(0);
         expect(
             Buffer.compare(
-                inputScript.getChunks()[3].data,
+                inputScript.getChunks()[3].data!,
                 multisigScript.getProgram(),
             ),
         ).toBe(0);
@@ -225,15 +226,15 @@ describe('ScriptTest', () => {
 
     test('testCLTVPaymentChannelOutput', () => {
         const script = ScriptBuilder.createCLTVPaymentChannelOutput(
-            BigInt(20),
-            new ECKey(),
-            new ECKey(),
+            bigInt('20'),
+            ECKey.fromPrivate(bigInt('1')),
+            ECKey.fromPrivate(bigInt('2')),
         );
         expect(script.isSentToCLTVPaymentChannel()).toBe(true);
     });
 
     test('getToAddress', () => {
-        const toKey = new ECKey();
+        const toKey = ECKey.fromPrivate(bigInt('1'));
         const toAddress = toKey.toAddress(PARAMS);
         expect(
             ScriptBuilder.createOutputScript(toKey).getToAddress(PARAMS, true),
@@ -242,13 +243,13 @@ describe('ScriptTest', () => {
             ScriptBuilder.createOutputScript(toAddress).getToAddress(PARAMS, true),
         ).toEqual(toAddress);
         const p2shScript = ScriptBuilder.createP2SHOutputScript(Buffer.alloc(20));
-        const scriptAddress = Address.fromP2SHScript(PARAMS, p2shScript);
+        const scriptAddress = new Address(PARAMS, PARAMS.p2shHeader, Buffer.from(p2shScript.getPubKeyHash()!));
         expect(p2shScript.getToAddress(PARAMS, true)).toEqual(scriptAddress);
     });
 
     test('getToAddressNoPubKey', () => {
         expect(() => {
-            ScriptBuilder.createOutputScript(new ECKey()).getToAddress(PARAMS, false);
+            ScriptBuilder.createOutputScript(new ECKey(null, null)).getToAddress(PARAMS, false);
         }).toThrow(ScriptException);
     });
 
@@ -306,10 +307,10 @@ describe('ScriptTest', () => {
     test('numberBuilder16', () => {
         const builder = new ScriptBuilder();
         builder.number(15).number(16).number(17);
-        builder.number(0, 17).number(1, 16).number(2, 15);
+        builder.number(0).number(17).number(1).number(16).number(2).number(15);
         const script = builder.build();
         expect(script.toString()).toBe(
-            'PUSHDATA(1)[11] 16 15 15 16 PUSHDATA(1)[11]',
+            'PUSHDATA(1)[11] 16 15 0 16 1 15 2 PUSHDATA(1)[11]',
         );
     });
 });

@@ -2,7 +2,7 @@
 import { Buffer } from 'buffer';
 
 export class ByteResp {
-    private data: Buffer;
+    private data: Buffer = Buffer.alloc(0);
 
     public getData(): Buffer {
         return this.data;

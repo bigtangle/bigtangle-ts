@@ -101,21 +101,9 @@ describe('AddressTest', () => {
 
     test('p2shAddressCreationFromKeys', () => {
         // import some keys from this example: https://gist.github.com/gavinandresen/3966071
-        let key1 = DumpedPrivateKey.fromBase58(
-            mainParams,
-            '5JaTXbAUmfPYZFRwrYaALK48fN6sFJp4rHqq2QSXs8ucfpE4yQU',
-        ).getKey();
-        key1 = ECKey.fromPrivate(key1.getPrivKey());
-        let key2 = DumpedPrivateKey.fromBase58(
-            mainParams,
-            '5Jb7fCeh1Wtm4yBBg3q3XbT6B525i17kVhy3vMC9AqfR6FH2qGk',
-        ).getKey();
-        key2 = ECKey.fromPrivate(key2.getPrivKey());
-        let key3 = DumpedPrivateKey.fromBase58(
-            mainParams,
-            '5JFjmGo5Fww9p8gvx48qBYDJNAzR9pmH5S389axMtDyPT8ddqmw',
-        ).getKey();
-        key3 = ECKey.fromPrivate(key3.getPrivKey());
+        const key1 = new DumpedPrivateKey('5JaTXbAUmfPYZFRwrYaALK48fN6sFJp4rHqq2QSXs8ucfpE4yQU').getKey();
+        const key2 = new DumpedPrivateKey('5Jb7fCeh1Wtm4yBBg3q3XbT6B525i17kVhy3vMC9AqfR6FH2qGk').getKey();
+        const key3 = new DumpedPrivateKey('5JFjmGo5Fww9p8gvx48qBYDJNAzR9pmH5S389axMtDyPT8ddqmw').getKey();
 
         // Print private and public key hex for each key
         const keys = [key1, key2, key3];

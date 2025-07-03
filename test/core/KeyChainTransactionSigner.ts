@@ -2,10 +2,7 @@
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
-import {
-    CustomTransactionSigner,
-    SignatureAndKey,
-} from '../../src/net/bigtangle/signers/CustomTransactionSigner';
+import { CustomTransactionSigner } from '../../src/net/bigtangle/signers/CustomTransactionSigner';
 import { DeterministicKeyChain } from '../../src/net/bigtangle/wallet/DeterministicKeyChain';
 
 /**
@@ -17,22 +14,20 @@ import { DeterministicKeyChain } from '../../src/net/bigtangle/wallet/Determinis
 export class KeyChainTransactionSigner extends CustomTransactionSigner {
     private keyChain: DeterministicKeyChain;
 
-    public constructor(keyChain?: DeterministicKeyChain) {
+    public constructor(keyChain: DeterministicKeyChain) {
         super();
-        if (keyChain) {
-            this.keyChain = keyChain;
-        }
+        this.keyChain = keyChain;
     }
 
     protected getSignature(
         sighash: Sha256Hash,
         derivationPath: ChildNumber[],
-    ): SignatureAndKey {
+    ): { sig: any; pubKey: any } {
         const keyPath = [...derivationPath];
-        const key = this.keyChain.getKeyByPath(keyPath, true);
-        return new SignatureAndKey(
-            key.sign(sighash),
-            key.dropPrivateBytes().dropParent(),
-        );
+        const key = this.keyChain.getKeyByPath(keyPath);
+        return {
+            sig: key.sign(sighash.getBytes()),
+            pubKey: key.dropPrivateBytes().dropParent(),
+        };
     }
 }

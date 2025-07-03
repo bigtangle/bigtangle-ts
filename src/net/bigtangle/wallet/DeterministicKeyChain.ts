@@ -90,7 +90,7 @@ export class DeterministicKeyChain {
     }
 
     private addToBasicChain(key: DeterministicKey): void {
-        this.basicKeyChain.importKey(key);
+        this.basicKeyChain.importKeys(key);
     }
 
     public getKey(purpose: KeyPurpose): DeterministicKey {
