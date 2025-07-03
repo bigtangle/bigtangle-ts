@@ -5,21 +5,18 @@ import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParamet
 
 // Minimal mock network parameters for testing
 class MockNetworkParameters extends NetworkParameters {
-    constructor() {
-        super();
-        this.id = 'mock';
-    }
-    
-    getPort(): number { return 0; }
-    getPacketMagic(): number { return 0; }
-    getAddressHeader(): number { return 0; }
     getP2SHHeader(): number { return 0; }
-    getDumpedPrivateKeyHeader(): number { return 0; }
-    getGenesisBlock(): any { return null; }
-    getInterval(): number { return 0; }
-    getTargetTimespan(): number { return 0; }
-    getMaxTarget(): any { return null; }
+    getAddressHeader(): number { return 0; }
+    getAcceptableAddressCodes(): number[] { return [0]; }
+    getId(): string { return 'mock'; }
+    getMaxTarget(): bigint { return BigInt(0); }
+    getDefaultSerializer(): any { return null; }
+    getProtocolVersionNum(version: number): number { return version; }
+    getBip32HeaderPub(): number { return 0; }
+    getBip32HeaderPriv(): number { return 0; }
+    getDumpedPrivateKeyHeader(): number { return 128; }
     serverSeeds(): string[] { return []; }
+    getGenesisPub(): string { return ""; }
 }
 
 describe('DumpedPrivateKeyTest', () => {

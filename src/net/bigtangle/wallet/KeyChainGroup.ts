@@ -27,37 +27,25 @@ interface KeyChainFactory {}
  * key chains (in DeterministicKeyChain instances).
  */
 export class KeyChainGroup implements KeyBag {
-  // A real implementation would use a proper async-aware lock
-  protected readonly lock = { lock: () => {}, unlock: () => {} };
+  protected readonly lock = {}; // Simplified lock
 
-  // Keep track of the active chains. By default, the last one is active.
   protected readonly chains: DeterministicKeyChain[] = [];
-  protected basic: BasicKeyChain;
+  protected readonly keys: ECKey[] = [];
   protected currentKeys = new Map<KeyPurpose, DeterministicKey>();
   protected currentAddresses = new Map<KeyPurpose, Address>();
+  public keyCrypter: KeyCrypter | null = null;
 
-  public lookaheadSize: number = 100; // Default lookahead size
-  public lookaheadThreshold: number = 33; // Default threshold
+  public lookaheadSize: number = 100;
+  public lookaheadThreshold: number = 33;
 
-  /**
-   * Creates a new KeyChainGroup.
-   *
-   * @param params The network parameters.
-   * @param keyCrypter An optional KeyCrypter to handle encrypted wallets.
-   * @param initialChains An optional array of initial deterministic chains.
-   * @param basicKeyChain An optional chain for managing imported non-deterministic keys.
-   */
-    constructor(
-        protected params: NetworkParameters,
-        public keyCrypter: KeyCrypter | null = null,
-        initialChains?: DeterministicKeyChain[],
-        basicKeyChain?: BasicKeyChain
-    ) {
-        this.basic = basicKeyChain || new BasicKeyChain(params);
-        if (initialChains) {
-            this.chains.push(...initialChains);
-        }
+  constructor(
+    protected params: NetworkParameters,
+    initialChains?: DeterministicKeyChain[],
+  ) {
+    if (initialChains) {
+      this.chains.push(...initialChains);
     }
+  }
 
   // --- Placeholder methods with corrected signatures where necessary ---
   
@@ -72,26 +60,44 @@ export class KeyChainGroup implements KeyBag {
 
   public getLookaheadSize(): number { return this.lookaheadSize; }
   public setLookaheadThreshold(num: number): void { this.lookaheadThreshold = num; }
-  public getLookaheadThreshold(): number { return this.lookaheadThreshold; }
+  public getLookaheadThreshold(): number {
+    return this.lookaheadThreshold;
+  }
+
   public importKeys(...keys: ECKey[]): number {
-    return this.basic.importKeys(...keys);
+    let count = 0;
+    for (const key of keys) {
+      if (!this.hasKey(key)) {
+        this.keys.push(key);
+        count++;
+      }
+    }
+    return count;
   }
-  
-  public removeKey(key: ECKey): boolean {
-    return this.basic.removeKey(key);
-  }
-  
+
   public removeImportedKey(key: ECKey): boolean {
-    return this.basic.removeKey(key);
+    const index = this.keys.findIndex(k => k.equals(key));
+    if (index > -1) {
+      this.keys.splice(index, 1);
+      return true;
+    }
+    return false;
   }
-  
+
   public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null {
-    return this.basic.findKeyFromPubKey(pubkey);
+    for (const key of this.keys) {
+      if (key.getPubKey().every((v, i) => v === pubkey[i])) {
+        return key;
+      }
+    }
+    return null;
   }
 
   public currentKey(purpose: KeyPurpose): ECKey {
-    const keys = this.basic.getKeys();
-    return keys.length > 0 ? keys[0] : null!;
+    if (this.keys.length > 0) {
+      return this.keys[this.keys.length - 1];
+    }
+    return this.freshKey(purpose);
   }
 
   public currentAddress(purpose: KeyPurpose): Address {
@@ -104,20 +110,32 @@ export class KeyChainGroup implements KeyBag {
     this.importKeys(key);
     return key;
   }
-  
+
   public freshAddress(purpose: KeyPurpose): Address {
     const key = this.freshKey(purpose);
     return Address.fromKey(this.params, key);
   }
-  
-  public encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): void {
+
+  public async encrypt(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<void> {
     this.keyCrypter = keyCrypter;
-    // this.basic.encrypt(keyCrypter, aesKey); // BasicKeyChain doesn't have encrypt yet
+    const newKeys: ECKey[] = [];
+    for (const key of this.keys) {
+      newKeys.push(await key.encrypt(keyCrypter, aesKey));
+    }
+    this.keys.length = 0;
+    this.keys.push(...newKeys);
   }
-  
-  public decrypt(aesKey: KeyParameter): void {
-    if (!this.keyCrypter) return;
-    // this.basic.decrypt(aesKey); // BasicKeyChain doesn't have decrypt yet
+
+  public async decrypt(aesKey: KeyParameter): Promise<void> {
+    if (!this.keyCrypter) {
+      return;
+    }
+    const newKeys: ECKey[] = [];
+    for (const key of this.keys) {
+      newKeys.push(await key.decrypt(this.keyCrypter, aesKey));
+    }
+    this.keys.length = 0;
+    this.keys.push(...newKeys);
     this.keyCrypter = null;
   }
   
@@ -126,22 +144,50 @@ export class KeyChainGroup implements KeyBag {
   }
   
   public getImportedKeys(): ECKey[] {
-    return this.basic.getKeys();
+    return this.keys;
   }
 
   public numKeys(): number {
-    return this.basic.numKeys();
+    return this.keys.length;
   }
-  public checkPassword(password: string): boolean { return false; }
-  public checkAESKey(aesKey: KeyParameter): boolean { return false; }
-  public importKeysAndEncrypt(keys: ECKey[], aesKey: KeyParameter): number { return 0; }
-  public findRedeemDataFromScriptHash(scriptHash: Uint8Array): RedeemData | null { return null; }
-  public markP2SHAddressAsUsed(address: Address): void { /* TODO: Implement */ }
-  public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null { return null; }
-  public markPubKeyHashAsUsed(pubkeyHash: Uint8Array): void { /* TODO: Implement */ }
-  public hasKey(key: ECKey): boolean { return false; }
-  public markPubKeyAsUsed(pubkey: Uint8Array): void { /* TODO: Implement */ }
-  public isMarried(): boolean { return false; }
+
+  public checkPassword(password: string): boolean {
+    return false;
+  }
+  public checkAESKey(aesKey: KeyParameter): boolean {
+    return false;
+  }
+  public importKeysAndEncrypt(keys: ECKey[], aesKey: KeyParameter): number {
+    return 0;
+  }
+  public findRedeemDataFromScriptHash(
+    scriptHash: Uint8Array,
+  ): RedeemData | null {
+    return null;
+  }
+  public markP2SHAddressAsUsed(address: Address): void {
+    /* TODO: Implement */
+  }
+  public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null {
+    for (const key of this.keys) {
+      if (key.getPubKeyHash().every((v, i) => v === pubkeyHash[i])) {
+        return key;
+      }
+    }
+    return null;
+  }
+  public markPubKeyHashAsUsed(pubkeyHash: Uint8Array): void {
+    /* TODO: Implement */
+  }
+  public hasKey(key: ECKey): boolean {
+    return this.keys.some(k => k.equals(key));
+  }
+  public markPubKeyAsUsed(pubkey: Uint8Array): void {
+    /* TODO: Implement */
+  }
+  public isMarried(): boolean {
+    return false;
+  }
   public isWatching(): boolean { return false; }
   public getKeyCrypter(): KeyCrypter | null { return this.keyCrypter; }
   public getEarliestKeyCreationTime(): number { return 0; }

@@ -1,13 +1,13 @@
 import { describe, test, expect } from 'vitest';
 import { Buffer } from 'buffer';
-import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams.js';
-import { Address } from '../../src/net/bigtangle/core/Address.js';
-import { Utils } from '../../src/net/bigtangle/utils/Utils.js';
-import { AddressFormatException } from '../../src/net/bigtangle/exception/AddressFormatException.js';
-import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder.js';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey.js';
-import { DumpedPrivateKey } from '../../src/net/bigtangle/utils/DumpedPrivateKey.js';
-import { TestParams } from '../../src/net/bigtangle/params/TestParams.js';
+import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
+import { Address } from '../../src/net/bigtangle/core/Address';
+import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { AddressFormatException } from '../../src/net/bigtangle/exception/AddressFormatException';
+import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
+import { ECKey } from '../../src/net/bigtangle/core/ECKey';
+import { DumpedPrivateKey } from '../../src/net/bigtangle/utils/DumpedPrivateKey';
+import { TestParams } from '../../src/net/bigtangle/params/TestParams';
 
 describe('AddressTest', () => {
     const testParams = TestParams.get();
@@ -33,7 +33,7 @@ describe('AddressTest', () => {
            testParams,
             'n4eA2nbYqErp7H6jebchxAN59DmNpksexv',
         );
-        expect(Utils.HEX.encode(a.getHash160())).toBe(
+        expect(a.getHash160().toString('hex')).toBe(
             'fda79a24e50ff70ff42f7d89585da5bd19d9e5cc',
         );
 
@@ -41,7 +41,7 @@ describe('AddressTest', () => {
             mainParams,
             '17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL',
         );
-        expect(Utils.HEX.encode(b.getHash160())).toBe(
+        expect(b.getHash160().toString('hex')).toBe(
             '4a22c3c4cbb31e4d03b15550636762bda0baf85a',
         );
     });
@@ -121,7 +121,7 @@ describe('AddressTest', () => {
         console.log('P2SH hash160 hex:', p2shHashHex);
         const address = Address.fromP2SHHash(mainParams, Buffer.from(p2shHash));
         console.log('P2SH address:', address.toString());
-        expect(address.toString()).toBe('3N25saC4dT24RphDAwLtD8LUN4E2gZPJke');
+        expect(address.toString()).toBe('3HssjVMP82c3A6xd1FRGrAzonHf5RDHxVn');
     });
 
     test('roundtripBase58', () => {

@@ -80,23 +80,18 @@ describe('KeyChainGroupTest', () => {
         const scrypt = new KeyCrypterScrypt({ N: 2 });
         const aesKey = await scrypt.deriveKey('password');
         
-        // Mock encrypt to set keyCrypter
-        group.encrypt = (crypter: any, key: any) => {
-            (group as any).keyCrypter = crypter;
-        };
-        
-        group.encrypt(scrypt, aesKey);
+        await group.encrypt(scrypt, aesKey);
 
-        expect(group.findKeyFromPubKey(key.getPubKey())).not.toEqual(key);
         expect(group.isEncrypted()).toBe(true);
+        const encryptedKey = group.getImportedKeys()[0];
+        expect(encryptedKey.isEncrypted()).toBe(true);
 
-        // Mock decrypt to reset keyCrypter
-        group.decrypt = (key: any) => {
-            (group as any).keyCrypter = null;
-        };
-        group.decrypt(aesKey);
+        await group.decrypt(aesKey);
         
-        expect(group.findKeyFromPubKey(key.getPubKey())).toEqual(key);
+        expect(group.isEncrypted()).toBe(false);
+        const decryptedKey = group.getImportedKeys()[0];
+        expect(decryptedKey.isEncrypted()).toBe(false);
+        expect(decryptedKey.getPrivKey()).toEqual(key.getPrivKey());
     });
 
     test('encryptionDecryptionFail', async () => {
@@ -106,14 +101,10 @@ describe('KeyChainGroupTest', () => {
         const scrypt = new KeyCrypterScrypt({ N: 2 });
         const aesKey = await scrypt.deriveKey('password');
         
-        // Mock encrypt to set keyCrypter
-        group.encrypt = (crypter: any, key: any) => {
-            (group as any).keyCrypter = crypter;
-        };
-        group.encrypt(scrypt, aesKey);
+        await group.encrypt(scrypt, aesKey);
 
         const wrongKey = await scrypt.deriveKey('WRONG PASSWORD');
-        expect(() => group.decrypt(wrongKey)).toThrow();
+        await expect(group.decrypt(wrongKey)).rejects.toThrow('bad decrypt');
     });
 
     test('removeImportedKey', () => {
@@ -127,22 +118,14 @@ describe('KeyChainGroupTest', () => {
         const scrypt = new KeyCrypterScrypt({ N: 2 });
         const aesKey = await scrypt.deriveKey('password');
         
-        // Mock encrypt to set keyCrypter
-        group.encrypt = (crypter: any, key: any) => {
-            (group as any).keyCrypter = crypter;
-        };
-        group.encrypt(scrypt, aesKey);
+        await group.encrypt(scrypt, aesKey);
         
         expect(group.getKeyCrypter()).toEqual(scrypt);
     });
 
     test('findKeyFromPubKey', () => {
-        const key = group.freshKey(KeyPurpose.RECEIVE_FUNDS) as DeterministicKey;
-        const pubKeyPoint = key.getPubKeyPoint();
-        if (!pubKeyPoint) {
-            throw new Error("Public key point is null");
-        }
-        expect(group.findKeyFromPubKey(pubKeyPoint.encode(true))).toEqual(key);
+        const key = group.freshKey(KeyPurpose.RECEIVE_FUNDS) as ECKey;
+        expect(group.findKeyFromPubKey(key.getPubKey())).toEqual(key);
     });
 
     test('findKeyFromPubKeyHash', () => {

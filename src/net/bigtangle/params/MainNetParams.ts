@@ -1,39 +1,61 @@
-// MainNetParams: Parameters for the main production network
-// Adapted from Java: net.bigtangle.params.MainNetParams
-
-import { NetworkParameters } from './NetworkParameters';
+import { NetworkParameters } from './NetworkParameters.js';
 
 export class MainNetParams extends NetworkParameters {
-    private static instance: MainNetParams | undefined;
-
-    private constructor() {
-        super();
-        this.maxTarget = BigInt('578960377169117509212217050695880916496095398817113098493422368414323410');
-        this.maxTargetReward = BigInt('5789603771691175092122170506958809164960953988171130984934223684143236');
-        this.dumpedPrivateKeyHeader = 128;
-        this.addressHeader = 0;
-        this.p2shHeader = 5;
-        this.acceptableAddressCodes = [this.addressHeader, this.p2shHeader];
-        this.packetMagic = 0xf9beb4d9;
-        this.bip32HeaderPub = 0x0488B21E;
-        this.bip32HeaderPriv = 0x0488ADE4;
-        this.genesisPub = '03d6053241c5abca6621c238922e7473977320ef310be0a8538cc2df7ee5a0187c';
-        this.permissionDomainname = [
-            '0222c35110844bf00afd9b7f08788d79ef6edc0dce19be6182b44e07501e637a58'
-        ];
-        this.id = NetworkParameters.ID_MAINNET;
-        this.spendableCoinbaseDepth = 100;
-        this.dnsSeeds = [];
+    getP2SHHeader(): number {
+        return 5;
     }
 
-    static get(): MainNetParams {
-        if (!MainNetParams.instance) {
-            MainNetParams.instance = new MainNetParams();
-        }
-        return MainNetParams.instance;
+    getAddressHeader(): number {
+        return 0;
+    }
+
+    getAcceptableAddressCodes(): number[] {
+        return [this.getAddressHeader(), this.getP2SHHeader()];
+    }
+    
+    getId(): string {
+        return NetworkParameters.ID_MAINNET;
+    }
+
+    getSerializer(): any {
+        // Placeholder implementation
+        return null;
+    }
+
+    getMaxTarget(): bigint {
+        return BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+    }
+
+    getDefaultSerializer(): any {
+        // Placeholder implementation
+        return null;
+    }
+
+    getProtocolVersionNum(version: number): number {
+        return version;
+    }
+
+    getBip32HeaderPub(): number {
+        return 0x0488B21E;
+    }
+
+    getBip32HeaderPriv(): number {
+        return 0x0488ADE4;
+    }
+
+    getDumpedPrivateKeyHeader(): number {
+        return 128;
     }
 
     serverSeeds(): string[] {
-        return ['https://81.169.156.203:8089/'];
+        return ["seed1.bigtangle.org", "seed2.bigtangle.org"];
+    }
+
+    getGenesisPub(): string {
+        return "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f";
+    }
+
+    static get(): MainNetParams {
+        return new MainNetParams();
     }
 }

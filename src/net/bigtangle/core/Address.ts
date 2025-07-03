@@ -2,8 +2,8 @@ import { Buffer } from 'buffer';
 import { Utils } from './Utils.js';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Sha256Hash } from './Sha256Hash.js';
-import { AddressFormatException } from '../exception/AddressFormatException.js';
-import { WrongNetworkException } from '../exception/WrongNetworkException.js';
+import { AddressFormatException } from '../exception/AddressFormatException';
+import { WrongNetworkException } from '../exception/WrongNetworkException';
 import { ECKey } from './ECKey';
 
 export class Address {
@@ -48,22 +48,23 @@ export class Address {
         } catch (e) {
             throw new AddressFormatException(e instanceof Error ? e.message : String(e));
         }
-        if (bytes.length !== 25) {
-            throw new AddressFormatException('Address has wrong length');
+        if (bytes.length < 5) {
+            throw new AddressFormatException('Address is too short');
         }
 
         const version = bytes[0] & 0xFF;
+        const hash160 = bytes.slice(1, bytes.length - 4);
+
         if (!Address.isAcceptableVersion(params, version)) {
             throw new WrongNetworkException(version, params.getAcceptableAddressCodes());
         }
 
-        // Use .toBuffer() to get Buffer, then .subarray(0, 4) for checksum
-        const checksum = Sha256Hash.hashTwice(Buffer.from(bytes.slice(0, 21))).toBuffer().subarray(0, 4);
-        if (!Buffer.from(bytes.slice(21, 25)).equals(checksum)) {
+        const checksum = Sha256Hash.hashTwice(Buffer.from(bytes.slice(0, bytes.length - 4))).toBuffer().subarray(0, 4);
+        if (!Buffer.from(bytes.slice(bytes.length - 4)).equals(checksum)) {
             throw new AddressFormatException('Checksum does not validate');
         }
 
-        return new Address(params, version, Buffer.from(bytes.slice(1, 21)));
+        return new Address(params, version, Buffer.from(hash160));
     }
 
     public toBase58(): string {

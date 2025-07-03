@@ -23,7 +23,7 @@ describe('ScriptTest', () => {
         const sigProgBytes = Utils.HEX.decode(sigProg);
         const script = new Script(sigProgBytes);
         const hash160 = Utils.sha256hash160(script.getPubKey()!);
-        const a = new Address(PARAMS, PARAMS.addressHeader, Buffer.from(hash160));
+        const a = new Address(PARAMS, PARAMS.getAddressHeader(), Buffer.from(hash160));
         expect(a.toString()).toBe('15jTWe6r9zqxkjjLFntAWADZosAwiuw4U5');
     });
 
@@ -33,7 +33,7 @@ describe('ScriptTest', () => {
         expect(pubkey.toString()).toBe(
             'DUP HASH160 PUSHDATA(20)[33e81a941e64cda12c6a299ed322ddbdd03f8d0e] EQUALVERIFY CHECKSIG',
         );
-        const toAddr = new Address(PARAMS, PARAMS.addressHeader, Buffer.from(pubkey.getPubKeyHash()!));
+        const toAddr = new Address(PARAMS, PARAMS.getAddressHeader(), Buffer.from(pubkey.getPubKeyHash()!));
         expect(toAddr.toString()).toBe('15jTWe6r9zqxkjjLFntAWADZosAwiuw4U5');
     });
 
@@ -243,7 +243,7 @@ describe('ScriptTest', () => {
             ScriptBuilder.createOutputScript(toAddress).getToAddress(PARAMS, true),
         ).toEqual(toAddress);
         const p2shScript = ScriptBuilder.createP2SHOutputScript(Buffer.alloc(20));
-        const scriptAddress = new Address(PARAMS, PARAMS.p2shHeader, Buffer.from(p2shScript.getPubKeyHash()!));
+        const scriptAddress = new Address(PARAMS, PARAMS.getP2SHHeader(), Buffer.from(p2shScript.getPubKeyHash()!));
         expect(p2shScript.getToAddress(PARAMS, true)).toEqual(scriptAddress);
     });
 

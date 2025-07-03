@@ -66,7 +66,7 @@ export class UtilGeneseBlock {
         // Use the Block factory method to create a genesis block
         // Convert bigint to BigInteger
         const maxTargetBigInt = bigInt(params.getMaxTarget().toString());
-        const maxTargetRewardBigInt = bigInt(params.getMaxTargetReward().toString());
+        const maxTargetRewardBigInt = bigInt(params.getMaxTarget().toString());
         
         // Now convert to compact bits
         const maxTarget = Number(Utils.encodeCompactBits(maxTargetBigInt));
@@ -95,7 +95,7 @@ export class UtilGeneseBlock {
         );
 
         coinbase.setData(Buffer.from(rewardInfo.toByteArray()));
-        this.add(params, bigInt(NetworkParameters.BigtangleCoinTotal.toString()), params.genesisPub, coinbase);
+        this.add(params, bigInt(NetworkParameters.BigtangleCoinTotal.toString()), params.getGenesisPub(), coinbase);
         genesisBlock.addTransaction(coinbase);
         genesisBlock.setNonce(0); // Use number instead of BigInteger
         genesisBlock.setHeight(0);

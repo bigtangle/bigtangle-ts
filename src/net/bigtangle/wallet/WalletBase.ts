@@ -54,14 +54,6 @@ export abstract class WalletBase implements KeyBag {
         }
     }
 
-  public removeKey(key: ECKey): boolean {
-    this.keyChainGroupLock.lock();
-    try {
-      return this.keyChainGroup.removeKey(key);
-    } finally {
-      this.keyChainGroupLock.unlock();
-    }
-  }
   
   public removeImportedKey(key: ECKey): boolean {
     this.keyChainGroupLock.lock();
