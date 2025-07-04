@@ -9,7 +9,7 @@ export class ContactInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
+        const dos = new DataOutputStream(baos);
         try {
             dos.write(Buffer.from(super.toByteArray()));
             dos.writeInt(this.contactList.length);

@@ -2,9 +2,12 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty } from 'jackson-js';
 
 export class KeyValue {
+    @JsonProperty()
     private key: string;
+    @JsonProperty()
     private value: string;
 
     constructor(key: string = '', value: string = '') {
@@ -30,7 +33,7 @@ export class KeyValue {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
+        const dos = new DataOutputStream(baos); // Pass baos to DataOutputStream
         try {
             dos.writeNBytesString(this.key);
             dos.writeNBytesString(this.value);

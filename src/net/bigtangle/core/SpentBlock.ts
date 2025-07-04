@@ -4,12 +4,18 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty } from 'jackson-js';
 
 export class SpentBlock extends DataClass {
+    @JsonProperty({ class: () => Sha256Hash })
     private blockHash: Sha256Hash | null = null;
+    @JsonProperty()
     private confirmed: boolean = false;
+    @JsonProperty()
     private spent: boolean = false;
+    @JsonProperty({ class: () => Sha256Hash })
     private spenderBlockHash: Sha256Hash | null = null;
+    @JsonProperty()
     private time: number = 0;
 
     public setDefault(): void {
@@ -23,8 +29,9 @@ export class SpentBlock extends DataClass {
         return this.blockHash !== null ? Utils.HEX.encode(this.blockHash.getBytes()) : "";
     }
 
-    public toByteArray(): Buffer {
-        const dos = new DataOutputStream();
+    public toByteArray(): Uint8Array { // Change return type to Uint8Array
+        const baos = new UnsafeByteArrayOutputStream(); // Use UnsafeByteArrayOutputStream
+        const dos = new DataOutputStream(baos); // Pass baos to DataOutputStream
         try {
             dos.write(Buffer.from(super.toByteArray()));
             dos.writeBytes(this.blockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.blockHash.getBytes());
@@ -36,7 +43,7 @@ export class SpentBlock extends DataClass {
         } catch (e: any) {
             throw new Error(e);
         }
-        return dos.toByteArray();
+        return baos.toByteArray(); // Return from baos
     }
 
     public parseDIS(dis: DataInputStream): SpentBlock {

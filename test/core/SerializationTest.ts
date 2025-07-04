@@ -115,7 +115,7 @@ describe('SerializationTest', () => {
 
         expect(Buffer.compare(info1.toByteArray(), info2.toByteArray())).toBe(0);
         expect(info1.getBeneficiaryAddress()).toBe(info2.getBeneficiaryAddress());
-        expect(info1.getOfferValue()).toBe(info2.getOfferValue());
+        expect(info1.getOfferValue()).toStrictEqual(info2.getOfferValue());
         expect(info1.getOfferTokenid()).toBe(info2.getOfferTokenid());
         expect(info1.getOfferSystem()).toBe(info2.getOfferSystem());
         expect(info1.getContractTokenid()).toBe(info2.getContractTokenid());

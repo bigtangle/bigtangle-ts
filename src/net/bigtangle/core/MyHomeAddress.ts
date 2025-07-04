@@ -13,23 +13,14 @@ export class MyHomeAddress {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
+        const dos = new DataOutputStream(baos);
         try {
-            const writeOptionalString = (str: string | null) => {
-                dos.writeBoolean(str !== null);
-                if (str !== null) {
-                    const bytes = new TextEncoder().encode(str);
-                    dos.writeInt(bytes.length);
-                    dos.write(Buffer.from(bytes));
-                }
-            };
-
-            writeOptionalString(this.country);
-            writeOptionalString(this.province);
-            writeOptionalString(this.city);
-            writeOptionalString(this.street);
-            writeOptionalString(this.email);
-            writeOptionalString(this.remark);
+            dos.writeNBytesString(this.country);
+            dos.writeNBytesString(this.province);
+            dos.writeNBytesString(this.city);
+            dos.writeNBytesString(this.street);
+            dos.writeNBytesString(this.email);
+            dos.writeNBytesString(this.remark);
             
             dos.close();
         } catch (e: any) {

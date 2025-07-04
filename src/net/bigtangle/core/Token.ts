@@ -7,6 +7,7 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { KeyValue } from './KeyValue';
 import { UtilGeneseBlock } from './../utils/UtilGeneseBlock';
+import { JsonProperty } from 'jackson-js';
 
 export class Token extends SpentBlock {
     public static readonly TOKEN_MAX_NAME_LENGTH = 100;
@@ -16,21 +17,37 @@ export class Token extends SpentBlock {
     public static readonly TOKEN_MAX_LANGUAGE_LENGTH = 2;
     public static readonly TOKEN_MAX_CLASSIFICATION_LENGTH = 100;
 
+    @JsonProperty()
     private tokenid: string | null = null;
+    @JsonProperty()
     private tokenindex: number = 0;
+    @JsonProperty()
     private tokenname: string | null = null;
+    @JsonProperty()
     private description: string | null = null;
+    @JsonProperty()
     private domainName: string = "";
+    @JsonProperty()
     private domainNameBlockHash: string | null = null;
+    @JsonProperty()
     private signnumber: number = 0;
+    @JsonProperty()
     private tokentype: number = 0;
+    @JsonProperty()
     private tokenstop: boolean = false;
+    @JsonProperty({ class: () => Sha256Hash })
     private prevblockhash: Sha256Hash | null = null;
+    @JsonProperty({ type: 'BigInt' }) // Specify BigInt type for Jackson-js
     private amount: bigint | null = null;
+    @JsonProperty()
     private decimals: number = 0;
+    @JsonProperty()
     private classification: string | null = null;
+    @JsonProperty()
     private language: string | null = null;
+    @JsonProperty()
     private revoked: boolean = false;
+    @JsonProperty({ class: () => TokenKeyValues })
     private tokenKeyValues: TokenKeyValues | null = null;
 
     public addKeyvalue(kv: KeyValue): void {

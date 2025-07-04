@@ -24,7 +24,7 @@ export class Contact {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
+        const dos = new DataOutputStream(baos);
         try {
             dos.writeNBytesString(this.name);
             dos.writeNBytesString(this.address);

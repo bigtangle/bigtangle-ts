@@ -54,6 +54,10 @@ export class Utils {
         return bytes;
     }
 
+    public static bytesToBigInt(bytes: Uint8Array): BigInteger {
+        return bigInt(Utils.HEX.encode(bytes), 16);
+    }
+
     public static uint32ToByteArrayBE(val: number, out: Uint8Array, offset: number): void {
         out[offset] = (val >>> 24) & 0xFF;
         out[offset + 1] = (val >>> 16) & 0xFF;

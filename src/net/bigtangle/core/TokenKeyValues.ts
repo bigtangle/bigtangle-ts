@@ -1,7 +1,9 @@
 import { KeyValue } from './KeyValue';
 import { Json } from '../utils/Json';
+import { JsonProperty } from 'jackson-js';
 
 export class TokenKeyValues {
+    @JsonProperty({ class: () => [KeyValue] })
     private keyvalues: KeyValue[] | null = null;
 
     public addKeyvalue(kv: KeyValue): void {

@@ -1,13 +1,26 @@
+import { UnsafeByteArrayOutputStream } from "../core/UnsafeByteArrayOutputStream";
+
 export class DataOutputStream {
     private buffer: number[] = [];
+    private out: UnsafeByteArrayOutputStream | null = null;
 
-    writeByte(byte: number): void {
-        this.buffer.push(byte);
+    constructor(out?: UnsafeByteArrayOutputStream) {
+        if (out) {
+            this.out = out;
+        }
+    }
+
+    public writeByte(byte: number): void {
+        if (this.out) {
+            this.out.write(byte);
+        } else {
+            this.buffer.push(byte);
+        }
     }
 
     writeBytes(data: Uint8Array): void {
         for (let i = 0; i < data.length; i++) {
-            this.buffer.push(data[i]);
+            this.writeByte(data[i]);
         }
     }
 
@@ -38,11 +51,16 @@ export class DataOutputStream {
         this.writeInt(val & 0xFFFFFFFF);
     }
 
-    writeNBytesString(s: string): void {
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(s);
-        this.writeInt(bytes.length);
-        this.writeBytes(bytes);
+    writeNBytesString(s: string | null | undefined): void {
+        if (s === null || s === undefined) {
+            this.writeBoolean(false);
+        } else {
+            this.writeBoolean(true);
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(s);
+            this.writeInt(bytes.length);
+            this.writeBytes(bytes);
+        }
     }
 
     close(): void {

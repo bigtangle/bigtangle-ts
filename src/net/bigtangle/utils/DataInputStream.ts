@@ -47,11 +47,13 @@ export class DataInputStream {
         const hasValue = this.readBoolean();
         if (hasValue) {
             const length = this.readInt();
+            if (length < 0) {
+                return null;
+            }
             const buf = this.readBytes(length);
             return buf.toString('utf-8');
-        } else {
-            return null;
         }
+        return null;
     }
 
     public close(): void {
