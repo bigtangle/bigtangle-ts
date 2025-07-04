@@ -19,8 +19,8 @@ describe('BasicKeyChainTest', () => {
     });
 
     test('importKeys', () => {
-        const now = Utils.currentTimeSeconds();
         Utils.setMockClock();
+        const now = Utils.currentTimeSeconds();
         const key1 = ECKey.fromPrivate(bigInt('1'));
         Utils.rollMockClock(86400);
         const key2 = ECKey.fromPrivate(bigInt('2'));

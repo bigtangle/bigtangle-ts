@@ -167,14 +167,14 @@ describe('HDUtilsTest', () => {
                 new ChildNumber(1, true),
             ],
 
-            '1 H / 2 H / 3 H /',
+            'M/1H/2H/3H',
             [
                 new ChildNumber(1, true),
                 new ChildNumber(2, true),
                 new ChildNumber(3, true),
             ],
 
-            '1 / 2 / 3 /',
+            'M/1/2/3',
             [
                 new ChildNumber(1, false),
                 new ChildNumber(2, false),

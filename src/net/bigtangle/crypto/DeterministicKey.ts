@@ -360,6 +360,9 @@ export class DeterministicKey extends ECKey {
         if (cursor === null) {
             return null;
         }
+        if (cursor === this) {
+            return this.priv;
+        }
         return this.derivePrivateKeyDownwards(cursor, DeterministicKey.bigIntegerToBytes(cursor.priv!, 32));
     }
 
@@ -526,6 +529,8 @@ export class DeterministicKey extends ECKey {
             if (parentFingerprint === 0) {
                 throw new Error("Parent was provided but this key doesn't have one");
             }
+            console.log("parent.getFingerprint()", parent.getFingerprint());
+            console.log("parentFingerprint", parentFingerprint);
             if (parent.getFingerprint() !== parentFingerprint) {
                 throw new Error("Parent fingerprints don't match");
             }

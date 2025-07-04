@@ -91,7 +91,7 @@ export class DeterministicHierarchy {
                 throw new Error("Can't derive the master key: nothing to derive from.");
             }
             const parentPath = absolutePath.slice(0, absolutePath.length - 1);
-            const parent = this.get(parentPath, false, true);
+            const parent = this.get(parentPath, false, create);
             this.putKey(HDKeyDerivation.deriveChildKey(parent, absolutePath[absolutePath.length - 1]));
         }
         return this.keys.get(absolutePathStr)!;

@@ -10,7 +10,7 @@ describe('Test', () => {
         privateKey: crypto.KeyObject;
     } {
         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-            modulusLength: 512,
+            modulusLength: 2048,
         });
         return { publicKey, privateKey };
     }

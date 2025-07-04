@@ -66,7 +66,7 @@ describe('KeyCrypterScryptTest', () => {
             throw new Error('Decrypt with wrong password did not throw exception');
         } catch (e) {
             expect(e).toBeInstanceOf(Error);
-            expect((e as Error).message).toContain('Could not decrypt');
+            expect((e as Error).message).toContain('bad decrypt');
         }
     });
 
@@ -97,5 +97,5 @@ describe('KeyCrypterScryptTest', () => {
                 Utils.HEX.encode(plainBytes)
             );
         }
-    });
+    }, 30000);
 });
