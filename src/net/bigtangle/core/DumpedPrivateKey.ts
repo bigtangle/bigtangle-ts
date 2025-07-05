@@ -9,8 +9,8 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
     private params: NetworkParameters;
 
     constructor(params: NetworkParameters, bytes: Uint8Array, compressed: boolean = false) {
-        // Use the address header from network parameters as the version
-        super(params.getAddressHeader(), bytes);
+        // Use the dumped private key header from network parameters as the version
+        super(params.getDumpedPrivateKeyHeader(), bytes);
         this.params = params;
         this.compressed = compressed;
     }
@@ -78,5 +78,13 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
 
     public toString(): string {
         return super.toString();
+    }
+    
+    public clone(): DumpedPrivateKey {
+        return new DumpedPrivateKey(
+            this.params,
+            new Uint8Array(this.getBytes()),
+            this.compressed
+        );
     }
 }

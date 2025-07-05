@@ -1,138 +1,161 @@
-import { DataClass } from './DataClass';
-import { Sha256Hash } from './Sha256Hash';
-import { Util } from '../utils/Util';
-import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
-import { JsonProperty } from 'jackson-js';
+import { DataClass } from "./DataClass";
+import { Sha256Hash } from "./Sha256Hash";
+import { Utils } from "../utils/Utils";
+import { DataInputStream } from "../utils/DataInputStream";
+import { DataOutputStream } from "../utils/DataOutputStream";
+import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
+import { JsonProperty } from "jackson-js";
 
 export class SpentBlock extends DataClass {
-    @JsonProperty({ class: () => Sha256Hash })
-    private blockHash: Sha256Hash | null = null;
-    @JsonProperty()
-    private confirmed: boolean = false;
-    @JsonProperty()
-    private spent: boolean = false;
-    @JsonProperty({ class: () => Sha256Hash })
-    private spenderBlockHash: Sha256Hash | null = null;
-    @JsonProperty()
-    private time: number = 0;
+  @JsonProperty({ type: () => Sha256Hash })
+  private blockHash: Sha256Hash | null = null;
+  @JsonProperty()
+  private confirmed: boolean = false;
+  @JsonProperty()
+  private spent: boolean = false;
+  @JsonProperty({ type: () => Sha256Hash })
+  private spenderBlockHash: Sha256Hash | null = null;
+  @JsonProperty()
+  private time: number = 0;
 
-    public setDefault(): void {
-        this.spent = false;
-        this.confirmed = false;
-        this.spenderBlockHash = null;
-        this.time = Math.floor(Date.now() / 1000);
-    }
+  public setDefault(): void {
+    this.spent = false;
+    this.confirmed = false;
+    this.spenderBlockHash = null;
+    this.time = Math.floor(Date.now() / 1000);
+  }
 
-    public getBlockHashHex(): string {
-        return this.blockHash !== null ? Util.HEX.encode(this.blockHash.getBytes()) : "";
-    }
+  public getBlockHashHex(): string {
+    return this.blockHash !== null
+      ? Utils.HEX.encode(this.blockHash.getBytes())
+      : "";
+  }
 
-    public toByteArray(): Uint8Array { // Change return type to Uint8Array
-        const baos = new UnsafeByteArrayOutputStream(); // Use UnsafeByteArrayOutputStream
-        const dos = new DataOutputStream(baos); // Pass baos to DataOutputStream
-        try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeBytes(this.blockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.blockHash.getBytes());
-            dos.writeBoolean(this.confirmed);
-            dos.writeBoolean(this.spent);
-            dos.writeBytes(this.spenderBlockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.spenderBlockHash.getBytes());
-            dos.writeLong(this.time);
-            dos.close();
-        } catch (e: any) {
-            throw new Error(e);
-        }
-        return baos.toByteArray(); // Return from baos
-    }
+  public toByteArray(): Uint8Array {
+    const baos = new UnsafeByteArrayOutputStream();
+    const dos = new DataOutputStream(baos);
 
-    public parseDIS(dis: DataInputStream): SpentBlock {
-        super.parseDIS(dis);
-        this.blockHash = Sha256Hash.wrap(dis.readBytes(32));
-        this.confirmed = dis.readBoolean();
-        this.spent = dis.readBoolean();
-        this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
-        if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
-            this.spenderBlockHash = null;
-        }
-        this.time = dis.readLong();
-        return this;
-    }
+    // Write superclass data
+    const superBytes = super.toByteArray();
+    dos.write(superBytes);
 
-    public parse(buf: Uint8Array): SpentBlock {
-        const bain = new DataInputStream(Buffer.from(buf));
-        try {
-            this.parseDIS(bain);
-            bain.close();
-        } catch (e: any) {
-            throw new Error(e);
-        }
-        return this;
-    }
+    // Write class-specific data
+    dos.writeBytes(
+      this.blockHash === null
+        ? Sha256Hash.ZERO_HASH.getBytes()
+        : this.blockHash.getBytes()
+    );
+    dos.writeBoolean(this.confirmed);
+    dos.writeBoolean(this.spent);
+    dos.writeBytes(
+      this.spenderBlockHash === null
+        ? Sha256Hash.ZERO_HASH.getBytes()
+        : this.spenderBlockHash.getBytes()
+    );
+    dos.writeLong(this.time);
 
-    public getBlockHash(): Sha256Hash | null {
-        return this.blockHash;
-    }
+    return baos.toByteArray();
+  }
 
-    public setBlockHash(blockHash: Sha256Hash | null): void {
-        this.blockHash = blockHash;
+  public parseDIS(dis: DataInputStream): SpentBlock {
+    super.parseDIS(dis);
+    this.blockHash = Sha256Hash.wrap(dis.readBytes(32));
+    this.confirmed = dis.readBoolean();
+    this.spent = dis.readBoolean();
+    this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
+    if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
+      this.spenderBlockHash = null;
     }
+    this.time = dis.readLong();
+    return this;
+  }
 
-    public isConfirmed(): boolean {
-        return this.confirmed;
+  public parse(buf: Uint8Array): SpentBlock {
+    const bain = new DataInputStream(Buffer.from(buf));
+    try {
+      this.parseDIS(bain);
+      bain.close();
+    } catch (e: any) {
+      throw new Error(e);
     }
+    return this;
+  }
 
-    public setConfirmed(confirmed: boolean): void {
-        this.confirmed = confirmed;
-    }
+  public getBlockHash(): Sha256Hash | null {
+    return this.blockHash;
+  }
 
-    public isSpent(): boolean {
-        return this.spent;
-    }
+  public setBlockHash(blockHash: Sha256Hash | null): void {
+    this.blockHash = blockHash;
+  }
 
-    public setSpent(spent: boolean): void {
-        this.spent = spent;
-    }
+  public isConfirmed(): boolean {
+    return this.confirmed;
+  }
 
-    public getSpenderBlockHash(): Sha256Hash | null {
-        return this.spenderBlockHash;
-    }
+  public setConfirmed(confirmed: boolean): void {
+    this.confirmed = confirmed;
+  }
 
-    public setSpenderBlockHash(spenderBlockHash: Sha256Hash | null): void {
-        this.spenderBlockHash = spenderBlockHash;
-    }
+  public isSpent(): boolean {
+    return this.spent;
+  }
 
-    public getTime(): number {
-        return this.time;
-    }
+  public setSpent(spent: boolean): void {
+    this.spent = spent;
+  }
 
-    public setTime(time: number): void {
-        this.time = time;
-    }
+  public getSpenderBlockHash(): Sha256Hash | null {
+    return this.spenderBlockHash;
+  }
 
-    public hashCode(): number {
-        let result = 17;
-        result = 31 * result + (this.blockHash ? this.blockHash.hashCode() : 0);
-        result = 31 * result + (this.confirmed ? 1 : 0);
-        result = 31 * result + (this.spent ? 1 : 0);
-        result = 31 * result + (this.spenderBlockHash ? this.spenderBlockHash.hashCode() : 0);
-        result = 31 * result + this.time;
-        return result;
-    }
+  public setSpenderBlockHash(spenderBlockHash: Sha256Hash | null): void {
+    this.spenderBlockHash = spenderBlockHash;
+  }
 
-    public equals(obj: any): boolean {
-        if (this === obj) return true;
-        if (obj == null || this.constructor !== obj.constructor) return false;
-        const other = obj as SpentBlock;
-        return (this.blockHash === other.blockHash || (this.blockHash !== null && other.blockHash !== null && this.blockHash.equals(other.blockHash))) &&
-               this.confirmed === other.confirmed &&
-               (this.spenderBlockHash === other.spenderBlockHash || (this.spenderBlockHash !== null && other.spenderBlockHash !== null && this.spenderBlockHash.equals(other.spenderBlockHash))) &&
-               this.spent === other.spent &&
-               this.time === other.time;
-    }
+  public getTime(): number {
+    return this.time;
+  }
 
-    public toString(): string {
-        return ` [blockHash=${this.blockHash}, confirmed=${this.confirmed}, spent=${this.spent}` +
-               `, spenderBlockHash=${this.spenderBlockHash}, time=${this.time}]`;
-    }
+  public setTime(time: number): void {
+    this.time = time;
+  }
+
+  public hashCode(): number {
+    let result = 17;
+    result = 31 * result + (this.blockHash ? this.blockHash.hashCode() : 0);
+    result = 31 * result + (this.confirmed ? 1 : 0);
+    result = 31 * result + (this.spent ? 1 : 0);
+    result =
+      31 * result +
+      (this.spenderBlockHash ? this.spenderBlockHash.hashCode() : 0);
+    result = 31 * result + this.time;
+    return result;
+  }
+
+  public equals(obj: any): boolean {
+    if (this === obj) return true;
+    if (obj == null || this.constructor !== obj.constructor) return false;
+    const other = obj as SpentBlock;
+    return (
+      (this.blockHash === other.blockHash ||
+        (this.blockHash !== null &&
+          other.blockHash !== null &&
+          this.blockHash.equals(other.blockHash))) &&
+      this.confirmed === other.confirmed &&
+      (this.spenderBlockHash === other.spenderBlockHash ||
+        (this.spenderBlockHash !== null &&
+          other.spenderBlockHash !== null &&
+          this.spenderBlockHash.equals(other.spenderBlockHash))) &&
+      this.spent === other.spent &&
+      this.time === other.time
+    );
+  }
+
+  public toString(): string {
+    return (
+      ` [blockHash=${this.blockHash}, confirmed=${this.confirmed}, spent=${this.spent}` +
+      `, spenderBlockHash=${this.spenderBlockHash}, time=${this.time}]`
+    );
+  }
 }

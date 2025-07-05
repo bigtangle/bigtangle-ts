@@ -2,7 +2,7 @@ import { Sha256Hash } from './Sha256Hash';
 import { JsonProperty } from 'jackson-js';
 
 export class MultiSignAddress {
-    @JsonProperty({ class: () => Sha256Hash })
+    @JsonProperty({ type: () => Sha256Hash })
     private blockhash: Sha256Hash | null = null;
     @JsonProperty()
     private tokenid: string | null = null;

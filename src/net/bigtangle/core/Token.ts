@@ -35,7 +35,7 @@ export class Token extends SpentBlock {
     private tokentype: number = 0;
     @JsonProperty()
     private tokenstop: boolean = false;
-    @JsonProperty({ class: () => Sha256Hash })
+    @JsonProperty({ type: () => Sha256Hash })
     private prevblockhash: Sha256Hash | null = null;
     @JsonProperty({ type: 'BigInt' }) // Specify BigInt type for Jackson-js
     private amount: bigint | null = null;

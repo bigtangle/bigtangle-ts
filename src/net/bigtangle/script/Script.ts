@@ -7,6 +7,7 @@ import { TransactionSignature } from '../crypto/TransactionSignature.js';
 import { ScriptException } from '../exception/ScriptException.js';
 import { Utils } from '../utils/Utils.js';
 import { ScriptChunk } from './ScriptChunk.js';
+import { ScriptUtils } from './ScriptUtils.js';
 import BigInteger from 'big-integer';
 import { ECDSASignature } from '../core/ECDSASignature.js'; // Added ECDSASignature import
 import {
@@ -657,21 +658,62 @@ export class Script {
      */
     isSentToMultiSig(): boolean {
         if (this.chunks.length < 4) return false;
-        const chunk = this.chunks[this.chunks.length - 1];
-        // Must end in OP_CHECKMULTISIG[VERIFY].
-        if (!chunk.isOpCode()) return false;
-        if (!(chunk.equalsOpCode(OP_CHECKMULTISIG) || chunk.equalsOpCode(OP_CHECKMULTISIGVERIFY))) return false;
+        const lastChunk = this.chunks[this.chunks.length - 1];
+        // Must end in OP_CHECKMULTISIG or OP_CHECKMULTISIGVERIFY.
+        if (!lastChunk.isOpCode()) return false;
+        if (lastChunk.opcode !== OP_CHECKMULTISIG && lastChunk.opcode !== OP_CHECKMULTISIGVERIFY) return false;
         try {
-            // Second to last chunk must be an OP_N opcode and there should be that many data chunks (keys).
-            const m = this.chunks[this.chunks.length - 2];
-            if (!m.isOpCode()) return false;
-            const numKeys = Script.decodeFromOpN(m.opcode);
-            if (numKeys < 1 || this.chunks.length !== 3 + numKeys) return false;
-            for (let i = 1; i < this.chunks.length - 2; i++) {
+            // Second to last chunk must be an OP_N opcode representing the number of keys
+            const numKeysChunk = this.chunks[this.chunks.length - 2];
+            if (!numKeysChunk.isOpCode()) return false;
+            const numKeys = Script.decodeFromOpN(numKeysChunk.opcode);
+            if (numKeys < 1) return false; // Must have at least 1 key
+        // Correct chunk count: threshold (1) + numKeys (pubkeys) + numKeys opcode (1) + OP_CHECKMULTISIG (1) = 3 + numKeys
+        if (this.chunks.length !== 3 + numKeys) return false;
+        
+        // Check pubkey chunks (all chunks between threshold and numKeys opcode)
+        for (let i = 1; i < this.chunks.length - 2; i++) {
+            if (this.chunks[i].isOpCode()) return false;
+        }
+        
+        // First chunk must be an OP_N opcode representing the threshold
+        const thresholdChunk = this.chunks[0];
+        if (!thresholdChunk.isOpCode()) return false;
+        const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
+        if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
+        return true;
+    } catch (e) { // thrown by decodeFromOpN()
+        return false;   // Not an OP_N opcode.
+    }
+    return true;
+        // Correct chunk count: threshold (1) + numKeys (pubkeys) + numKeys opcode (1) + OP_CHECKMULTISIG (1) = 3 + numKeys
+        if (this.chunks.length !== 3 + numKeys) return false;
+        
+        // Check pubkey chunks (all chunks between threshold and numKeys opcode)
+        for (let i = 1; i < this.chunks.length - 2; i++) {
+            if (this.chunks[i].isOpCode()) return false;
+        }
+        
+        // First chunk must be an OP_N opcode representing the threshold
+        const thresholdChunk = this.chunks[0];
+        if (!thresholdChunk.isOpCode()) return false;
+        const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
+        if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
+    } catch (e) { // thrown by decodeFromOpN()
+        return false;   // Not an OP_N opcode.
+    }
+    return true;
+            
+            // Check pubkey chunks (all chunks between threshold and numKeys opcode)
+            for (let i = 1; i <= this.chunks.length - 3; i++) {
                 if (this.chunks[i].isOpCode()) return false;
             }
-            // First chunk must be an OP_N opcode too.
-            if (Script.decodeFromOpN(this.chunks[0].opcode) < 1) return false;
+            
+            // First chunk must be an OP_N opcode representing the threshold
+            const thresholdChunk = this.chunks[0];
+            if (!thresholdChunk.isOpCode()) return false;
+            const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
+            if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
         } catch (e) { // thrown by decodeFromOpN()
             return false;   // Not an OP_N opcode.
         }

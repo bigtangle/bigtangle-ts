@@ -19,7 +19,7 @@ export abstract class DataClass {
             dos.writeInt(this.version);
             dos.close();
         } catch (e: any) {
-            throw new Error(e);
+            throw new Error(e.message || 'Error during serialization');
         }
         return baos.toByteArray();
     }

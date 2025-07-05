@@ -59,7 +59,13 @@ export class VersionedChecksummedBytes {
     }
 
     public clone(): VersionedChecksummedBytes {
-        const cloned = new (this.constructor as any)(this.version, new Uint8Array(this.bytes));
+        // Create a new instance of the same class
+        const cloned = Object.create(Object.getPrototypeOf(this));
+        
+        // Copy the version and bytes
+        cloned.version = this.version;
+        cloned.bytes = new Uint8Array(this.bytes);
+        
         return cloned;
     }
 

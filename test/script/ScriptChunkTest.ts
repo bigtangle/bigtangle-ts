@@ -60,5 +60,14 @@ describe('ScriptChunkTest', () => {
                 Buffer.alloc(65535),
             ).isShortestPossiblePushData(),
         ).toBe(false);
+        
+        // Test for opcode chunk without data (should be valid)
+        const opcodeChunk = new ScriptChunk(42, null);
+        expect(opcodeChunk.isOpCode()).toBe(true);
+        expect(() => {
+            const builder = new ScriptBuilder();
+            builder.addChunk(opcodeChunk);
+            builder.build();
+        }).not.toThrow();
     });
 });

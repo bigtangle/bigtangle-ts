@@ -3,7 +3,7 @@ import {
     getOpCodeName, getPushDataName
 } from './ScriptOpCodes';
 import { Utils } from '../utils/Utils';
-import { Script } from './Script'; // Import Script for static methods and constants
+import { ScriptUtils } from './ScriptUtils'; // Use ScriptUtils instead of Script
 import { DataOutputStream } from '../utils/DataOutputStream'; // For OutputStream equivalent
 
 /**
@@ -30,17 +30,26 @@ export class ScriptChunk {
     }
 
     /**
+     * Returns true if this opcode represents a small number (OP_0 to OP_16, OP_1NEGATE)
+     */
+    private isSmallNumOpCode(opcode: number): boolean {
+        return opcode === OP_0 || 
+               opcode === OP_1NEGATE || 
+               (opcode >= OP_1 && opcode <= OP_16);
+    }
+
+    /**
      * If this chunk is a single byte of non-pushdata content (could be OP_RESERVED or some invalid Opcode)
      */
     isOpCode(): boolean {
-        return this.opcode > OP_PUSHDATA4;
+        return this.opcode > OP_PUSHDATA4 && !this.isSmallNumOpCode(this.opcode);
     }
 
     /**
      * Returns true if this chunk is pushdata content, including the single-byte pushdatas.
      */
     isPushData(): boolean {
-        return this.opcode <= OP_16;
+        return this.opcode <= OP_PUSHDATA4 || this.isSmallNumOpCode(this.opcode);
     }
 
     getStartLocationInProgram(): number {
@@ -55,7 +64,7 @@ export class ScriptChunk {
         if (!this.isOpCode()) {
             throw new Error("decodeOpN called on a non-opcode chunk.");
         }
-        return Script.decodeFromOpN(this.opcode);
+        return ScriptUtils.decodeFromOpN(this.opcode);
     }
 
     /**
@@ -120,7 +129,7 @@ export class ScriptChunk {
                 stream.writeByte(this.data.length & 0xFF);
                 stream.writeByte((this.data.length >> 8) & 0xFF);
             } else if (this.opcode === OP_PUSHDATA4) {
-                if (this.data.length > Script.MAX_SCRIPT_ELEMENT_SIZE) { // Use Script.MAX_SCRIPT_ELEMENT_SIZE
+                if (this.data.length > ScriptUtils.MAX_SCRIPT_ELEMENT_SIZE) { // Use ScriptUtils.MAX_SCRIPT_ELEMENT_SIZE
                     throw new Error("Data length too large for OP_PUSHDATA4.");
                 }
                 stream.writeByte(OP_PUSHDATA4);
@@ -144,7 +153,7 @@ export class ScriptChunk {
             buf += getPushDataName(this.opcode) + "[" + Utils.HEX.encode(this.data) + "]";
         } else {
             // Small num (e.g., OP_0, OP_1, OP_1NEGATE)
-            buf += Script.decodeFromOpN(this.opcode);
+            buf += ScriptUtils.decodeFromOpN(this.opcode);
         }
         return buf;
     }

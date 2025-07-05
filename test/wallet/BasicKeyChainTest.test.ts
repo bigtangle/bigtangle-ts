@@ -1,7 +1,7 @@
 import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { BloomFilter, BloomUpdate } from '../../src/net/bigtangle/core/BloomFilter';
-import { MockNetworkParameters } from '../utils/MockNetworkParameters';
+import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { expect } from 'vitest';
 
 // Helper function to create test keys
@@ -13,7 +13,7 @@ describe('BasicKeyChain', () => {
     let keyChain: BasicKeyChain;
     let key1: ECKey;
     let key2: ECKey;
-    const networkParams = new MockNetworkParameters();
+    const networkParams = MainNetParams.get();
 
     beforeEach(() => {
         keyChain = new BasicKeyChain(networkParams);
