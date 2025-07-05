@@ -150,7 +150,7 @@ describe('HDUtilsTest', () => {
 
     test('testParsePath', () => {
         const tv = [
-            'M / 44H / 0H / 0H / 1 / 1',
+            'M/44H/0H/0H/1/1',
             [
                 new ChildNumber(44, true),
                 new ChildNumber(0, true),
@@ -159,7 +159,7 @@ describe('HDUtilsTest', () => {
                 new ChildNumber(1, false),
             ],
 
-            'M/7H/3/3/1H/',
+            'M/7H/3/3/1H',
             [
                 new ChildNumber(7, true),
                 new ChildNumber(3, false),

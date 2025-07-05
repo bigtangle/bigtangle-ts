@@ -151,8 +151,8 @@ export class DeterministicKey extends ECKey {
     /** Returns the first 32 bits of the result of {@link #getIdentifier()}. */
     public getFingerprint(): number {
         const identifier = this.getIdentifier();
-        // Use DataView to read the first 4 bytes as an Int32 (big-endian by default for getInt32)
-        return new DataView(identifier.buffer, identifier.byteOffset, identifier.byteLength).getInt32(0, false);
+        // Use getUint32 instead of getInt32 since fingerprints are unsigned
+        return new DataView(identifier.buffer, identifier.byteOffset, identifier.byteLength).getUint32(0, false);
     }
 
     public getParent(): DeterministicKey | null {
