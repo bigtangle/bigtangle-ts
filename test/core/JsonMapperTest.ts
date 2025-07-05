@@ -17,13 +17,14 @@ describe('JsonMapperTest', () => {
         const jsonStr = JSON.stringify(byteListResp);
 
         console.log(jsonStr);
-        const parsedByteListResp = JSON.parse(jsonStr, (key, value) => {
-            if (value && value.type === 'Buffer') {
-                return Buffer.from(value.data);
-            }
-            return value;
-        }) as ByteListResp;
-
+        const parsedByteListResp = new ByteListResp();
+        const parsedJson = JSON.parse(jsonStr);
+        const list = parsedJson.list.map((item: any) => {
+            const byteResp = new ByteResp();
+            byteResp.setData(Buffer.from(item.data.data));
+            return byteResp;
+        });
+        parsedByteListResp.setList(list);
         const parsedByteResp = parsedByteListResp.getList()[0];
         for (const b of parsedByteResp.getData()) {
             console.log(b.toString(16).padStart(2, '0'));
@@ -39,12 +40,8 @@ describe('JsonMapperTest', () => {
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
         let jsonStr = JSON.stringify(sha256Hash);
 
-        sha256Hash = JSON.parse(jsonStr, (key, value) => {
-            if (value && value.type === 'Buffer') {
-                return Buffer.from(value.data);
-            }
-            return value;
-        }) as Sha256Hash;
+        const parsedJson2 = JSON.parse(jsonStr);
+        sha256Hash = Sha256Hash.wrap(Buffer.from(parsedJson2.bytes.data));
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
 
         let coin = Coin.valueOf(BigInt(10000), NetworkParameters.BIGTANGLE_TOKENID);
@@ -52,7 +49,8 @@ describe('JsonMapperTest', () => {
 
         console.log(jsonStr);
 
-        coin = JSON.parse(jsonStr) as Coin;
+        const parsedCoin = JSON.parse(jsonStr);
+        coin = Coin.valueOf(BigInt(parsedCoin.value), parsedCoin.tokenid);
         console.log(coin);
     });
 

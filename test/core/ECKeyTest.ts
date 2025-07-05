@@ -47,12 +47,12 @@ test('sValue', async () => {
 
     test('base58Encoding', () => {
         const privkey = '92shANodC6Y4evT5kFzjNFQAdjqTtHAnDTLzqBBq4BbKUPyx6CD';
-        const key = DumpedPrivateKey.fromBase58(privkey).toECKey();
+        const key = DumpedPrivateKey.fromBase58WithParams(privkey, MainNetParams.get()).toECKey();
         // With compressed keys, the WIF representation changes so we don't expect the same string
         expect(key.getPrivateKeyEncoded(MainNetParams.get()).toString()).not.toBe(privkey);
         // Instead, verify we can round-trip the key
         const dumped = key.getPrivateKeyEncoded(MainNetParams.get()).toString();
-        const key2 = DumpedPrivateKey.fromBase58(dumped).toECKey();
+        const key2 = DumpedPrivateKey.fromBase58WithParams(dumped, MainNetParams.get()).toECKey();
         expect(Utils.HEX.encode(key.getPrivKeyBytes())).toBe(
             Utils.HEX.encode(key2.getPrivKeyBytes()),
         );
@@ -60,7 +60,7 @@ test('sValue', async () => {
 
     test('base58Encoding_leadingZero', () => {
         const privkey = '91axuYLa8xK796DnBXXsMbjuc8pDYxYgJyQMvFzrZ6UfXaGYuqL';
-        const key = DumpedPrivateKey.fromBase58(privkey).toECKey();
+        const key = DumpedPrivateKey.fromBase58WithParams(privkey, MainNetParams.get()).toECKey();
         // With compressed keys, the WIF representation changes
         expect(key.getPrivateKeyEncoded(MainNetParams.get()).toString()).not.toBe(privkey);
         expect(key.getPrivKeyBytes()[0]).toBe(0);
@@ -70,7 +70,7 @@ test('sValue', async () => {
         for (let i = 0; i < 20; i++) {
             const key = ECKey.createNewKey();
             const dumpedKey = key.getPrivateKeyEncoded(MainNetParams.get());
-            const key1 = DumpedPrivateKey.fromBase58(dumpedKey.toString()).toECKey();
+            const key1 = DumpedPrivateKey.fromBase58WithParams(dumpedKey.toString(), MainNetParams.get()).toECKey();
             expect(Utils.HEX.encode(key.getPrivKeyBytes())).toBe(
                 Utils.HEX.encode(key1.getPrivKeyBytes()),
             );
@@ -218,7 +218,7 @@ test('sValue', async () => {
         expect(key.isCompressed()).toBe(true);
         const params = MainNetParams.get();
         const base58 = key.getPrivateKeyEncoded(params).toString();
-        const key2 = DumpedPrivateKey.fromBase58(base58).toECKey();
+        const key2 = DumpedPrivateKey.fromBase58WithParams(base58, MainNetParams.get()).toECKey();
         expect(key2.isCompressed()).toBe(true);
         expect(Buffer.compare(key.getPrivKeyBytes(), key2.getPrivKeyBytes())).toBe(
             0,

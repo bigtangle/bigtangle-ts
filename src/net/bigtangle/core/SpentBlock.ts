@@ -1,6 +1,6 @@
 import { DataClass } from './DataClass';
 import { Sha256Hash } from './Sha256Hash';
-import { Utils } from '../utils/Utils';
+import { Util } from '../utils/Util';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
@@ -26,7 +26,7 @@ export class SpentBlock extends DataClass {
     }
 
     public getBlockHashHex(): string {
-        return this.blockHash !== null ? Utils.HEX.encode(this.blockHash.getBytes()) : "";
+        return this.blockHash !== null ? Util.HEX.encode(this.blockHash.getBytes()) : "";
     }
 
     public toByteArray(): Uint8Array { // Change return type to Uint8Array

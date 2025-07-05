@@ -48,11 +48,8 @@ export class ChildNumber {
 
     /** Returns the uint32 encoded form of the path element, including the most significant bit. */
     public getI(): number {
-        return this.i;
+        return this.i >>> 0;
     }
-
-    /** Returns the uint32 encoded form of the path element, including the most significant bit. */
-    public i_(): number { return this.i; } // Renamed to i_ to avoid conflict with 'i' property
 
     public isHardened(): boolean {
         return ChildNumber.hasHardenedBit(this.i);

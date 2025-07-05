@@ -172,6 +172,13 @@ export class Coin implements IMonetary, IComparable<Coin> {
     public getTokenid(): Buffer {
         return Buffer.from(this.tokenid);
     }
+
+    public toJSON() {
+        return {
+            value: this.value.toString(),
+            tokenid: this.tokenid.toString('hex')
+        };
+    }
 }
 
 interface IComparable<T> {

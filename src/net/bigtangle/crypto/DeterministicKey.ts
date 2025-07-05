@@ -529,8 +529,6 @@ export class DeterministicKey extends ECKey {
             if (parentFingerprint === 0) {
                 throw new Error("Parent was provided but this key doesn't have one");
             }
-            console.log("parent.getFingerprint()", parent.getFingerprint());
-            console.log("parentFingerprint", parentFingerprint);
             if (parent.getFingerprint() !== parentFingerprint) {
                 throw new Error("Parent fingerprints don't match");
             }
