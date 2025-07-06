@@ -35,32 +35,7 @@ export class ServerPool {
                     console.debug("", e);
                 }
             }
-        } else {
-            try {
-                const requestParam: { [key: string]: string } = {};
-                // Use Json.jsonmapper().stringify() instead of writeValueAsString()
-                const requestBody = Json.jsonmapper().stringify(requestParam);
-                OkHttp3Util.post([params.serverSeeds()[0] + ReqCmd.serverinfolist], requestBody).then(data => {
-                    const response = Json.jsonmapper().parse(new TextDecoder().decode(data));
-                    if (response.getServerInfoList() !== null) {
-                        for (const serverInfo of response.getServerInfoList()!) {
-                            if (serverInfo.getStatus() === "inactive") {
-                                continue;
-                            }
-                            try {
-                                this.addServer(serverInfo.getUrl()!);
-                            } catch (e: any) {
-                                console.debug("", e);
-                            }
-                        }
-                    }
-                }).catch(e => {
-                    console.debug("", e);
-                });
-            } catch (e: any) {
-                console.debug("", e);
-            }
-        }
+        } 
     }
 
     public serverSeeds(): void {
@@ -85,6 +60,32 @@ export class ServerPool {
         // serverState.setChainlength(chain.getChainLength()); // This needs getChainNumber to be implemented
         this.servers.push(serverState);
         // Collections.sort(servers, new SortbyChain()); // Sorting will be done separately
+    }
+
+    private initializeFromSeedServers(): void {
+        try {
+            const requestParam: { [key: string]: string } = {};
+            const requestBody = Json.jsonmapper().stringify(requestParam);
+            OkHttp3Util.post([this.params.serverSeeds()[0] + ReqCmd.serverinfolist], requestBody).then(data => {
+                const response = Json.jsonmapper().parse(new TextDecoder().decode(data));
+                if (response.getServerInfoList() !== null) {
+                    for (const serverInfo of response.getServerInfoList()!) {
+                        if (serverInfo.getStatus() === "inactive") {
+                            continue;
+                        }
+                        try {
+                            this.addServer(serverInfo.getUrl()!);
+                        } catch (e: any) {
+                            console.debug("", e);
+                        }
+                    }
+                }
+            }).catch(e => {
+                console.debug("", e);
+            });
+        } catch (e: any) {
+            console.debug("", e);
+        }
     }
 
     public checkServers(): void {

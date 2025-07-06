@@ -78,7 +78,7 @@ export class Wallet extends WalletBase {
             this.keyChainGroup.lookaheadSize=5;
         }
         // Check if there are any keys by accessing the keys array directly
-        if (this.keyChainGroup.getImportedKeys().length === 0) {
+        if (this.keyChainGroup.numKeys() === 0) {
             this.keyChainGroup.createAndActivateNewHDChain();
         }
         this.signers = [];

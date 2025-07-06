@@ -34,7 +34,7 @@ describe('MonetaryFormatTest', () => {
 
     test('testTooSmall', () => {
         expect(() => {
-            format(Coin.valueOf("0.00000001"), 0, 1, 2, 3);
+            format(Coin.valueOf(1n), 0, 1, 2, 3);
         }).toThrow();
     });
 
