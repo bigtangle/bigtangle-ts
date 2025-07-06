@@ -400,9 +400,26 @@ export class Script {
             return Script.createInputScript(new Uint8Array()); // Dummy signature
         } else if (this.isPayToScriptHash()) {
             if (redeemScript == null) throw new Error("Redeem script required to create P2SH input script");
-            // This needs ScriptBuilder.createP2SHMultiSigInputScript, which is not yet translated.
-            // For now, return a dummy script.
-            return new Script(new Uint8Array()); // Placeholder
+            // For P2SH, create a script with OP_0 followed by dummy signatures and the redeem script
+            const threshold = redeemScript.getNumberOfSignaturesRequiredToSpend();
+            const dummySig = new Uint8Array(Script.SIG_SIZE);
+            const dos = new DataOutputStream();
+            dos.writeByte(OP_0);
+            for (let i = 0; i < threshold; i++) {
+                Script.writeBytes(dos, dummySig);
+            }
+            Script.writeBytes(dos, redeemScript.getProgram());
+            return new Script(dos.toByteArray());
+        } else if (this.isSentToMultiSig()) {
+            // For multisig, create a script with OP_0 followed by dummy signatures
+            const threshold = this.getNumberOfSignaturesRequiredToSpend();
+            const dummySig = new Uint8Array(Script.SIG_SIZE);
+            const dos = new DataOutputStream();
+            dos.writeByte(OP_0);
+            for (let i = 0; i < threshold; i++) {
+                Script.writeBytes(dos, dummySig);
+            }
+            return new Script(dos.toByteArray());
         } else {
             throw new ScriptException("Do not understand script type: " + this.toString());
         }
@@ -593,12 +610,14 @@ export class Script {
     getNumberOfSignaturesRequiredToSpend(): number {
         if (this.isSentToMultiSig()) {
             // for N of M CHECKMULTISIG script we will need N signatures to spend
-            const nChunk = this.chunks[0];
-            return Script.decodeFromOpN(nChunk.opcode);
+            const thresholdChunk = this.chunks[0];
+            return Script.decodeFromOpN(thresholdChunk.opcode);
         } else if (this.isSentToAddress() || this.isSentToRawPubKey()) {
             // pay-to-address and pay-to-pubkey require single sig
             return 1;
         } else if (this.isPayToScriptHash()) {
+            // For P2SH, we need to look at the redeem script
+            // But in this context, we don't have it, so we can't determine
             throw new Error("For P2SH number of signatures depends on redeem script");
         } else {
             throw new Error("Unsupported script type");
@@ -659,63 +678,21 @@ export class Script {
     isSentToMultiSig(): boolean {
         if (this.chunks.length < 4) return false;
         const lastChunk = this.chunks[this.chunks.length - 1];
-        // Must end in OP_CHECKMULTISIG or OP_CHECKMULTISIGVERIFY.
         if (!lastChunk.isOpCode()) return false;
         if (lastChunk.opcode !== OP_CHECKMULTISIG && lastChunk.opcode !== OP_CHECKMULTISIGVERIFY) return false;
         try {
-            // Second to last chunk must be an OP_N opcode representing the number of keys
-            const numKeysChunk = this.chunks[this.chunks.length - 2];
-            if (!numKeysChunk.isOpCode()) return false;
-            const numKeys = Script.decodeFromOpN(numKeysChunk.opcode);
-            if (numKeys < 1) return false; // Must have at least 1 key
-        // Correct chunk count: threshold (1) + numKeys (pubkeys) + numKeys opcode (1) + OP_CHECKMULTISIG (1) = 3 + numKeys
-        if (this.chunks.length !== 3 + numKeys) return false;
-        
-        // Check pubkey chunks (all chunks between threshold and numKeys opcode)
-        for (let i = 1; i < this.chunks.length - 2; i++) {
-            if (this.chunks[i].isOpCode()) return false;
-        }
-        
-        // First chunk must be an OP_N opcode representing the threshold
-        const thresholdChunk = this.chunks[0];
-        if (!thresholdChunk.isOpCode()) return false;
-        const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
-        if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
-        return true;
-    } catch (e) { // thrown by decodeFromOpN()
-        return false;   // Not an OP_N opcode.
-    }
-    return true;
-        // Correct chunk count: threshold (1) + numKeys (pubkeys) + numKeys opcode (1) + OP_CHECKMULTISIG (1) = 3 + numKeys
-        if (this.chunks.length !== 3 + numKeys) return false;
-        
-        // Check pubkey chunks (all chunks between threshold and numKeys opcode)
-        for (let i = 1; i < this.chunks.length - 2; i++) {
-            if (this.chunks[i].isOpCode()) return false;
-        }
-        
-        // First chunk must be an OP_N opcode representing the threshold
-        const thresholdChunk = this.chunks[0];
-        if (!thresholdChunk.isOpCode()) return false;
-        const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
-        if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
-    } catch (e) { // thrown by decodeFromOpN()
-        return false;   // Not an OP_N opcode.
-    }
-    return true;
+            const m = this.chunks[this.chunks.length - 2];
+            const numKeys = Script.decodeFromOpN(m.opcode);
+            if (numKeys < 1 || this.chunks.length !== 3 + numKeys) return false;
             
-            // Check pubkey chunks (all chunks between threshold and numKeys opcode)
-            for (let i = 1; i <= this.chunks.length - 3; i++) {
+            const threshold = Script.decodeFromOpN(this.chunks[0].opcode);
+            if (threshold < 1 || threshold > numKeys) return false;
+
+            for (let i = 1; i < this.chunks.length - 2; i++) {
                 if (this.chunks[i].isOpCode()) return false;
             }
-            
-            // First chunk must be an OP_N opcode representing the threshold
-            const thresholdChunk = this.chunks[0];
-            if (!thresholdChunk.isOpCode()) return false;
-            const threshold = Script.decodeFromOpN(thresholdChunk.opcode);
-            if (threshold < 1 || threshold > numKeys) return false; // Threshold must be between 1 and numKeys
-        } catch (e) { // thrown by decodeFromOpN()
-            return false;   // Not an OP_N opcode.
+        } catch (e) {
+            return false;
         }
         return true;
     }
