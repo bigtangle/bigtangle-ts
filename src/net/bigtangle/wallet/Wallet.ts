@@ -77,7 +77,8 @@ export class Wallet extends WalletBase {
         if ((params as any).getId && (NetworkParameters as any).ID_UNITTESTNET && (params as any).getId() === (NetworkParameters as any).ID_UNITTESTNET) {
             this.keyChainGroup.lookaheadSize=5;
         }
-        if (this.keyChainGroup.numKeys() === 0) {
+        // Check if there are any keys by accessing the keys array directly
+        if (this.keyChainGroup.getImportedKeys().length === 0) {
             this.keyChainGroup.createAndActivateNewHDChain();
         }
         this.signers = [];

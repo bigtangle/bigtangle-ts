@@ -1,5 +1,5 @@
+import { createHash } from 'crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
-import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { MnemonicException } from './MnemonicException';
 import { Utils } from '../utils/Utils';
@@ -274,40 +274,30 @@ export class MnemonicCode {
             throw new MnemonicException.MnemonicLengthException("Word list is empty.");
         }
 
-        const concatLenBits = words.length * 11;
-        const concatBits = new Array<boolean>(concatLenBits);
-        let wordindex = 0;
-        for (const word of words) {
+        const concatBits = words.map(word => {
             const ndx = this.wordList.indexOf(word);
             if (ndx < 0) {
                 throw new MnemonicException.MnemonicWordException(word);
             }
+            return ndx.toString(2).padStart(11, '0');
+        }).join('');
 
-            for (let ii = 0; ii < 11; ++ii) {
-                concatBits[(wordindex * 11) + ii] = (ndx & (1 << (10 - ii))) !== 0;
-            }
-            wordindex++;
-        }
+        const checksumLengthBits = concatBits.length / 33;
+        const entropyLengthBits = concatBits.length - checksumLengthBits;
 
-        const checksumLengthBits = concatLenBits / 33;
-        const entropyLengthBits = concatLenBits - checksumLengthBits;
+        const entropyBits = concatBits.substring(0, entropyLengthBits);
+        const checksumBits = concatBits.substring(entropyLengthBits);
 
         const entropy = new Uint8Array(entropyLengthBits / 8);
-        for (let ii = 0; ii < entropy.length; ++ii) {
-            for (let jj = 0; jj < 8; ++jj) {
-                if (concatBits[(ii * 8) + jj]) {
-                    entropy[ii] |= 1 << (7 - jj);
-                }
-            }
+        for (let i = 0; i < entropy.length; i++) {
+            entropy[i] = parseInt(entropyBits.substring(i * 8, (i + 1) * 8), 2);
         }
 
-        const hash = sha256(entropy);
-        const hashBits = MnemonicCode.bytesToBits(hash);
+        const hash = createHash('sha256').update(entropy).digest();
+        const hashBits = MnemonicCode.bytesToBits(hash).substring(0, checksumLengthBits);
 
-        for (let i = 0; i < checksumLengthBits; ++i) {
-            if (concatBits[entropyLengthBits + i] !== hashBits[i]) {
-                throw new MnemonicException.MnemonicChecksumException();
-            }
+        if (hashBits !== checksumBits) {
+            throw new MnemonicException.MnemonicChecksumException();
         }
 
         return entropy;
@@ -325,30 +315,18 @@ export class MnemonicCode {
             throw new MnemonicException.MnemonicLengthException("Entropy is empty.");
         }
 
-        const hash = sha256(entropy);
-        const hashBits = MnemonicCode.bytesToBits(hash);
-        
         const entropyBits = MnemonicCode.bytesToBits(entropy);
         const checksumLengthBits = entropyBits.length / 32;
+        const hash = createHash('sha256').update(entropy).digest();
+        const hashBits = MnemonicCode.bytesToBits(hash);
+        const checksumBits = hashBits.substring(0, checksumLengthBits);
 
-        const concatBits = new Array<boolean>(entropyBits.length + checksumLengthBits);
-        for (let i = 0; i < entropyBits.length; i++) {
-            concatBits[i] = entropyBits[i];
-        }
-        for (let i = 0; i < checksumLengthBits; i++) {
-            concatBits[entropyBits.length + i] = hashBits[i];
-        }
+        const concatBits = entropyBits + checksumBits;
 
         const words: string[] = [];
         const nwords = concatBits.length / 11;
         for (let i = 0; i < nwords; ++i) {
-            let index = 0;
-            for (let j = 0; j < 11; ++j) {
-                index <<= 1;
-                if (concatBits[(i * 11) + j]) {
-                    index |= 0x1;
-                }
-            }
+            const index = parseInt(concatBits.substring(i * 11, (i + 1) * 11), 2);
             words.push(this.wordList[index]);
         }
             
@@ -362,14 +340,8 @@ export class MnemonicCode {
         this.toEntropy(words);
     }
 
-    private static bytesToBits(data: Uint8Array): boolean[] {
-        const bits = new Array<boolean>(data.length * 8);
-        for (let i = 0; i < data.length; ++i) {
-            for (let j = 0; j < 8; ++j) {
-                bits[(i * 8) + j] = (data[i] & (1 << (7 - j))) !== 0;
-            }
-        }
-        return bits;
+    private static bytesToBits(data: Uint8Array): string {
+        return data.reduce((acc, byte) => acc + byte.toString(2).padStart(8, '0'), '');
     }
 }
 

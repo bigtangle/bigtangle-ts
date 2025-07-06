@@ -38,9 +38,10 @@ export class ServerPool {
         } else {
             try {
                 const requestParam: { [key: string]: string } = {};
-                // Assuming OkHttp3Util.post returns a Promise<Uint8Array>
-                OkHttp3Util.post([params.serverSeeds()[0] + ReqCmd.serverinfolist], Json.jsonmapper().writeValueAsString(requestParam)).then(data => {
-                    const response = Json.jsonmapper().readValue(new TextDecoder().decode(data), ServerinfoResponse);
+                // Use Json.jsonmapper().stringify() instead of writeValueAsString()
+                const requestBody = Json.jsonmapper().stringify(requestParam);
+                OkHttp3Util.post([params.serverSeeds()[0] + ReqCmd.serverinfolist], requestBody).then(data => {
+                    const response = Json.jsonmapper().parse(new TextDecoder().decode(data));
                     if (response.getServerInfoList() !== null) {
                         for (const serverInfo of response.getServerInfoList()!) {
                             if (serverInfo.getStatus() === "inactive") {
@@ -120,8 +121,10 @@ export class ServerPool {
 
     public async getChainNumber(s: string): Promise<TXReward | null> {
         const requestParam: { [key: string]: string } = {};
-        const response = await OkHttp3Util.postString([`${s.trim()}/${ReqCmd.getChainNumber}`], Json.jsonmapper().writeValueAsString(requestParam));
-        const aTXRewardResponse = Json.jsonmapper().readValue(new TextDecoder().decode(response), GetTXRewardResponse);
+        // Use Json.jsonmapper().stringify() instead of writeValueAsString()
+        const requestBody = Json.jsonmapper().stringify(requestParam);
+        const response = await OkHttp3Util.postString([`${s.trim()}/${ReqCmd.getChainNumber}`], requestBody);
+        const aTXRewardResponse = Json.jsonmapper().parse(new TextDecoder().decode(response));
         return aTXRewardResponse.getTxReward();
     }
 

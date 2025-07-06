@@ -1,7 +1,6 @@
 import { createHash } from 'crypto';
 import { Buffer } from 'buffer';
 import { Utils } from '../utils/Utils'; // Corrected path to Utils
-
 export class Sha256Hash {
  
     public static readonly LENGTH = 32; // SHA-256 hash

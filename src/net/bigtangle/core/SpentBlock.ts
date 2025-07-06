@@ -4,16 +4,21 @@ import { Utils } from "../utils/Utils";
 import { DataInputStream } from "../utils/DataInputStream";
 import { DataOutputStream } from "../utils/DataOutputStream";
 import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
-import { JsonProperty } from "jackson-js";
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 export class SpentBlock extends DataClass {
-  @JsonProperty({ type: () => Sha256Hash })
+  @JsonProperty()
+  @JsonDeserialize({ using: Sha256HashDeserializer })
+  @JsonSerialize({ using: Sha256HashSerializer })
   private blockHash: Sha256Hash | null = null;
   @JsonProperty()
   private confirmed: boolean = false;
   @JsonProperty()
   private spent: boolean = false;
-  @JsonProperty({ type: () => Sha256Hash })
+  @JsonProperty()
+  @JsonDeserialize({ using: Sha256HashDeserializer })
+  @JsonSerialize({ using: Sha256HashSerializer })
   private spenderBlockHash: Sha256Hash | null = null;
   @JsonProperty()
   private time: number = 0;

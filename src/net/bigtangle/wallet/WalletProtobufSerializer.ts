@@ -79,7 +79,8 @@ export class WalletProtobufSerializer {
     public readWallet(input: any, forceReset: boolean, extensions: WalletExtension[]): Wallet {
         try {
             const walletProto = this.parseToProto(input);
-            const paramsID = walletProto.getNetworkIdentifier();
+            // Access properties directly instead of calling methods
+            const paramsID = walletProto.networkIdentifier;
             const params = UtilParam.fromID(paramsID);
             if (params === null) {
                 throw new UnreadableWalletException(`Unknown network parameters ID ${paramsID}`);
@@ -91,6 +92,7 @@ export class WalletProtobufSerializer {
     }
 
     public readWalletInternal(params: NetworkParameters, extensions: WalletExtension[], walletProto: any, forceReset: boolean): Wallet {
+        // Check version directly as a property
         if (walletProto.version && walletProto.version > WalletProtobufSerializer.CURRENT_WALLET_VERSION) {
             throw new UnreadableWalletException.FutureVersion();
         }
@@ -102,6 +104,7 @@ export class WalletProtobufSerializer {
             keyChainGroup = KeyChainGroup.fromProtobufUnencrypted(params, walletProto.keys, this.keyChainFactory);
         }
         const wallet = this.factory.create(params, keyChainGroup);
+        // Set version directly from property
         if (walletProto.version) {
             wallet.setVersion(walletProto.version);
         }
@@ -129,7 +132,7 @@ export namespace WalletProtobufSerializer {
 
     export class WalletFactoryImpl implements WalletFactory {
         create(params: NetworkParameters, keyChainGroup: KeyChainGroup): Wallet {
-            return new Wallet(params, keyChainGroup);
+            return new Wallet(params, keyChainGroup );
         }
     }
 }

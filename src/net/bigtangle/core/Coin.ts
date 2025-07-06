@@ -59,7 +59,11 @@ export class Coin implements IMonetary, IComparable<Coin> {
         if (!this.tokenid.equals(value.tokenid)) {
             throw new Error('Token IDs must match for addition');
         }
-        return new Coin(this.value + value.value, this.tokenid);
+        const result = this.value + value.value;
+        if (result > BigInt(Number.MAX_SAFE_INTEGER) || result < BigInt(Number.MIN_SAFE_INTEGER)) {
+            throw new Error("Result out of range");
+        }
+        return new Coin(result, this.tokenid);
     }
 
     public plus(value: Coin): Coin {
@@ -70,7 +74,11 @@ export class Coin implements IMonetary, IComparable<Coin> {
         if (!this.tokenid.equals(value.tokenid)) {
             throw new Error('Token IDs must match for subtraction');
         }
-        return new Coin(this.value - value.value, this.tokenid);
+        const result = this.value - value.value;
+        if (result > BigInt(Number.MAX_SAFE_INTEGER) || result < BigInt(Number.MIN_SAFE_INTEGER)) {
+            throw new Error("Result out of range");
+        }
+        return new Coin(result, this.tokenid);
     }
 
     public minus(value: Coin): Coin {

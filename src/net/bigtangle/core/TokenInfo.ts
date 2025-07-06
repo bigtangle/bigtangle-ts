@@ -41,7 +41,7 @@ export class TokenInfo extends DataClass {
     public parse(buf: Uint8Array): TokenInfo {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         const objectMapper = new ObjectMapper();
-        return objectMapper.parse(jsonStr, { 
+        const parsed = objectMapper.parse(jsonStr, { 
             mainCreator: () => [TokenInfo],
             features: {
                 DeserializationFeature: {
@@ -49,6 +49,29 @@ export class TokenInfo extends DataClass {
                 }
             }
         }) as TokenInfo;
+        if (parsed.token) {
+            const tokenData = parsed.token as any;
+            const token = new Token();
+            token.setAmount(BigInt(tokenData.amount));
+            token.setTokenid(tokenData.tokenid);
+            token.setTokenname(tokenData.tokenname);
+            token.setDescription(tokenData.description);
+            token.setSignnumber(tokenData.signnumber);
+            token.setTokenindex(tokenData.tokenindex);
+            token.setTokenstop(tokenData.tokenstop);
+            token.setTokentype(tokenData.tokentype);
+            token.setDomainName(tokenData.domainName);
+            token.setDomainNameBlockHash(tokenData.domainNameBlockHash);
+            token.setConfirmed(tokenData.confirmed);
+            token.setRevoked(tokenData.revoked);
+            token.setLanguage(tokenData.language);
+            token.setClassification(tokenData.classification);
+            token.setDecimals(tokenData.decimals);
+            token.setPrevblockhash(tokenData.prevblockhash);
+            token.setBlockHash(tokenData.blockHash);
+            parsed.setToken(token);
+        }
+        return parsed;
     }
 
     public parseChecked(buf: Uint8Array): TokenInfo {
