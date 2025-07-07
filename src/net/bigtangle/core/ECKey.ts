@@ -49,11 +49,11 @@ export class ECKey {
         return Buffer.from(buf).toString('hex');
     }
 
-    protected priv: BigInteger | null;
+    public priv: BigInteger | null;
     public pub: ECPoint | null;
-    protected creationTimeSeconds: number = Math.floor(Date.now() / 1000);
-    protected encryptedPrivateKey: EncryptedData | null = null;
-    protected keyCrypter: KeyCrypter | null = null;
+    public creationTimeSeconds: number = Math.floor(Date.now() / 1000);
+    public encryptedPrivateKey: EncryptedData | null = null;
+    public keyCrypter: KeyCrypter | null = null;
 
     constructor(priv: BigInteger | null, pub: ECPoint | null, compressed: boolean = true) {
         this.priv = priv;

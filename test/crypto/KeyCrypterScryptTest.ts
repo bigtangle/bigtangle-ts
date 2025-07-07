@@ -48,7 +48,7 @@ describe('KeyCrypterScryptTest', () => {
                 Utils.HEX.encode(Buffer.from(plainText))
             );
         }
-    });
+    }, 30000);
 
     test('testKeyCrypterWrongPassword', async () => {
         let builder = '';

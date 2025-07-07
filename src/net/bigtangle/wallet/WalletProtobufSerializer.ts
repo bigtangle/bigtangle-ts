@@ -31,7 +31,12 @@ export class WalletProtobufSerializer {
         // Assuming walletProto has a method to write to a stream/output
         // This part would depend on the actual Protobuf.js implementation
         // For now, we'll just convert to a buffer and write
-        output.write(Buffer.from(JSON.stringify(walletProto))); // Simplified for now
+        output.write(Buffer.from(JSON.stringify(walletProto, (key, value) => {
+            if (value instanceof Uint8Array) {
+                return Buffer.from(value).toString('base64');
+            }
+            return value;
+        })));
     }
 
     public async walletToText(wallet: Wallet): Promise<string> {
@@ -77,18 +82,14 @@ export class WalletProtobufSerializer {
     }
 
     public readWallet(input: any, forceReset: boolean, extensions: WalletExtension[]): Wallet {
-        try {
-            const walletProto = this.parseToProto(input);
-            // Access properties directly instead of calling methods
-            const paramsID = walletProto.networkIdentifier;
-            const params = UtilParam.fromID(paramsID);
-            if (params === null) {
-                throw new UnreadableWalletException(`Unknown network parameters ID ${paramsID}`);
-            }
-            return this.readWalletInternal(params, extensions, walletProto, forceReset);
-        } catch (e: any) {
-            throw new UnreadableWalletException("Could not parse input stream to protobuf", e);
+        const walletProto = this.parseToProto(input);
+        // Access properties directly instead of calling methods
+        const paramsID = walletProto.networkIdentifier;
+        const params = UtilParam.fromID(paramsID);
+        if (params === null) {
+            throw new UnreadableWalletException(`Unknown network parameters ID ${paramsID}`);
         }
+        return this.readWalletInternal(params, extensions, walletProto, forceReset);
     }
 
     public readWalletInternal(params: NetworkParameters, extensions: WalletExtension[], walletProto: any, forceReset: boolean): Wallet {
@@ -114,7 +115,17 @@ export class WalletProtobufSerializer {
     public parseToProto(input: any): any {
         // For now, assuming input is a stringified JSON
         const jsonString = input.read(); // Assuming read method exists
-        const parsed = JSON.parse(jsonString);
+        const parsed = JSON.parse(jsonString, (key, value) => {
+            if (typeof value === 'string') {
+                if (key === 'public_key' || key === 'secret_bytes') {
+                    return Buffer.from(value, 'base64');
+                }
+                if (key === 'initialisation_vector' || key === 'encrypted_private_key') {
+                    return Buffer.from(value, 'base64');
+                }
+            }
+            return value;
+        });
         return parsed;
     }
 

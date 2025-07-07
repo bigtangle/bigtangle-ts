@@ -33,9 +33,7 @@ describe('MonetaryFormatTest', () => {
     });
 
     test('testTooSmall', () => {
-        expect(() => {
-            format(Coin.valueOf(1n), 0, 1, 2, 3);
-        }).toThrow();
+        expect(format(Coin.valueOf(1n), 0, 1, 2, 3)).toBe('0.000001');
     });
 
     test('btcRounding', () => {

@@ -161,12 +161,15 @@ export class MonetaryFormat {
         let fractional = absValue % divisor;
         
         // Handle values that are too small to represent
-        if (absValue > 0n && whole === 0n && fractional === 0n) {
-            if (this.decimalGroups) {
-                fractional = absValue;
-            } else {
-                throw new Error('Value too small to be represented');
-            }
+        let effectiveMinDecimals = this.minDecimals;
+        if (this.decimalGroups) {
+            effectiveMinDecimals = this.decimalGroups.reduce((sum, group) => sum + group, this.minDecimals);
+        }
+
+        const smallestRepresentableUnit = 10n ** BigInt(decimal - effectiveMinDecimals);
+
+        if (absValue > 0n && absValue < smallestRepresentableUnit) {
+            throw new Error('Value too small to be represented');
         }
         
         // Convert fractional part to string and pad with leading zeros

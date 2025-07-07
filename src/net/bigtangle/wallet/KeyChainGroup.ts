@@ -1,10 +1,12 @@
 import { BasicKeyChain } from "./BasicKeyChain";
 import { DeterministicKeyChain } from "./DeterministicKeyChain";
 import { NetworkParameters } from "../params/NetworkParameters";
+import bigInt from 'big-integer';
 
 import { DeterministicKey } from "../crypto/DeterministicKey";
 import { KeyChain, KeyPurpose } from "./KeyChain";
 import { KeyCrypter } from "../crypto/KeyCrypter";
+import { EncryptedData } from '../crypto/EncryptedData';
 import { KeyParameter } from "../utils/KeyParameter"; // Assuming this is where KeyParameter is defined
 import { Address } from "../core/Address";
 import { BloomFilter } from "../core/BloomFilter";
@@ -12,7 +14,7 @@ import { ECKey } from "../core/ECKey";
 import { RedeemData } from "./RedeemData";
 
 // Correctly import the 'Key' message interface and alias it to avoid name clashes.
-import { Key as ProtoKey } from "../wallet/Protos";
+import { Key as ProtoKey, KeyType } from "../wallet/Protos";
 
 // --- Placeholder interfaces if they are not defined elsewhere ---
 /** A KeyBag is a collection of keys and key chains. */
@@ -200,8 +202,24 @@ export class KeyChainGroup implements KeyBag {
    */
   public toProtobuf(): ProtoKey[] {
     const protoKeys: ProtoKey[] = [];
-    // TODO: Iterate over all key chains (basic and deterministic)
-    // and call their toProtobuf() methods, concatenating the results.
+    for (const key of this.keys) {
+        const keyProto: any = {};
+        keyProto.creation_timestamp = key.getCreationTimeSeconds() * 1000;
+        keyProto.public_key = key.getPubKey();
+        if (key.isEncrypted()) {
+            keyProto.encrypted_data = {
+                initialisation_vector: key.encryptedPrivateKey!.initialisationVector,
+                encrypted_private_key: key.encryptedPrivateKey!.encryptedBytes
+            };
+            keyProto.type = KeyType.ENCRYPTED_SCRYPT_AES;
+        } else if (key.priv) {
+            keyProto.secret_bytes = key.getPrivKeyBytes();
+            keyProto.type = KeyType.ORIGINAL;
+        } else {
+            keyProto.type = KeyType.ORIGINAL; // Should be PUB_ONLY, but that's not in the enum
+        }
+        protoKeys.push(keyProto);
+    }
     return protoKeys;
   }
 
@@ -213,9 +231,20 @@ export class KeyChainGroup implements KeyBag {
     keys: ProtoKey[],
     factory: KeyChainFactory
   ): KeyChainGroup {
-    // TODO: Implement the logic to parse the protobuf keys,
-    // create KeyChain instances using the factory, and build the group.
-    return {} as any;
+    const group = new KeyChainGroup(params);
+    for (const keyProto of keys) {
+        let key: ECKey;
+        if (keyProto.secret_bytes) {
+            // Reconstruct BigInteger from Uint8Array
+            const privKeyBigInt = bigInt(Buffer.from(keyProto.secret_bytes).toString('hex'), 16);
+            key = ECKey.fromPrivate(privKeyBigInt);
+        } else {
+            key = ECKey.fromPublic(keyProto.public_key!);
+        }
+        key.setCreationTimeSeconds(Math.floor(keyProto.creation_timestamp! / 1000));
+        group.importKeys(key);
+    }
+    return group;
   }
 
   /**
@@ -227,9 +256,17 @@ export class KeyChainGroup implements KeyBag {
     crypter: KeyCrypter,
     factory: KeyChainFactory
   ): KeyChainGroup {
-    // TODO: Implement logic similar to the unencrypted version,
-    // but pass the crypter to the created chains.
-    return {} as any;
+    const group = new KeyChainGroup(params);
+    group.keyCrypter = crypter;
+    for (const keyProto of keys) {
+        const encryptedData = new EncryptedData(keyProto.encrypted_data!.initialisation_vector, keyProto.encrypted_data!.encrypted_private_key);
+        const key = ECKey.fromPublic(keyProto.public_key!);
+        key.encryptedPrivateKey = encryptedData;
+        key.keyCrypter = crypter;
+        key.setCreationTimeSeconds(Math.floor(keyProto.creation_timestamp! / 1000));
+        group.importKeys(key);
+    }
+    return group;
   }
 
   public isDeterministicUpgradeRequired(): boolean { return false; }

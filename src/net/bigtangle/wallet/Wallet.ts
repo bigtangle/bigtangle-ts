@@ -1020,6 +1020,10 @@ export class Wallet extends WalletBase {
         return block;
     }
 
+    public async serializeKeyChainGroupToProtobuf(): Promise<any[]> {
+        return this.keyChainGroup.toProtobuf();
+    }
+
     /**
      * Solves the block and posts it to the signToken endpoint.
      * @param block The Block to solve and sign.
