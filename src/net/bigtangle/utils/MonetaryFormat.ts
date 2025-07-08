@@ -166,7 +166,9 @@ export class MonetaryFormat {
             effectiveMinDecimals = this.decimalGroups.reduce((sum, group) => sum + group, this.minDecimals);
         }
 
-        const smallestRepresentableUnit = 10n ** BigInt(decimal - effectiveMinDecimals);
+        // Calculate the smallest representable unit, handling cases where effectiveMinDecimals > decimal
+        const exponent = decimal - effectiveMinDecimals;
+        const smallestRepresentableUnit = exponent >= 0 ? 10n ** BigInt(exponent) : 1n;
 
         if (absValue > 0n && absValue < smallestRepresentableUnit) {
             throw new Error('Value too small to be represented');
