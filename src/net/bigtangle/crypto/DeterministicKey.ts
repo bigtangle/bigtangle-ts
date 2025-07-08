@@ -31,10 +31,7 @@ export class DeterministicKey extends ECKey {
     private readonly depth: number;
     private parentFingerprint: number; // 0 if this key is root node of key hierarchy
     private readonly chainCode: Uint8Array;
-
-    protected encryptedPrivateKey: EncryptedData | null = null;
-    protected keyCrypter: KeyCrypter | null = null;
-
+  
     // Helper to compare two Uint8Arrays
     private static bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
         if (a.length !== b.length) return false;

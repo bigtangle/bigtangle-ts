@@ -192,15 +192,15 @@ export class DeterministicSeed implements EncryptableItem {
         return result;
     }
 
-    public check(): void {
+    public async check(): Promise<void> {
         if (this.mnemonicCode !== null) {
-            MnemonicCode.INSTANCE.check(this.mnemonicCode);
+            await MnemonicCode.INSTANCE.check(this.mnemonicCode);
         }
     }
 
-    public getEntropyBytes(): Uint8Array {
+    public async getEntropyBytes(): Promise<Uint8Array> {
         if (this.mnemonicCode === null) throw new Error("Mnemonic code is null");
-        return MnemonicCode.INSTANCE.toEntropy(this.mnemonicCode);
+        return await MnemonicCode.INSTANCE.toEntropy(this.mnemonicCode);
     }
 
     public getMnemonicCode(): string[] | null {

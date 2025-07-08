@@ -59,18 +59,12 @@ export class OkHttp3Util {
     return this.instance;
   }
 
-  public static async post(urls: string[], data: Buffer): Promise<Buffer>;
-  public static async post(urls: string[], data: Buffer, index: number): Promise<Buffer>;
-  public static async post(urls: string[], data: Buffer, index = 0): Promise<Buffer> {
-    if (index < urls.length) {
-      try {
+  public static async post(url: string, data: Buffer): Promise<Buffer>;
+  public static async post(url: string, data: Buffer, index: number): Promise<Buffer>;
+  public static async post(url: string, data: Buffer, index = 0): Promise<Buffer> {
+   
         return await this.postSingle(urls[index], data);
-      } catch (e) {
-        return this.post(urls, data, index + 1);
-      }
-    } else {
-      throw new Error(`All servers failed: ${urls.join(', ')}`);
-    }
+    
   }
 
   public static async postString(urls: string[], data: string): Promise<Buffer>;

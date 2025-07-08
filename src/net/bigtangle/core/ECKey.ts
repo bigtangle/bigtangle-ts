@@ -68,6 +68,11 @@ export class ECKey {
         return new ECKey(privKey, pubPoint, compressed);
     }
 
+      public static fromPrivateString(privKey: string ): ECKey {
+   
+        return    ECKey.fromPrivate(bigInt(privKey ));
+    }
+
     public static fromPublic(pubKeyBytes: Uint8Array, compressed: boolean = true): ECKey {
         const pubPoint = ECPoint.decodePoint(pubKeyBytes);
         return new ECKey(null, pubPoint, compressed);

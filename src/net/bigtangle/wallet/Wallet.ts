@@ -150,7 +150,7 @@ export class Wallet extends WalletBase {
         }
         // OkHttp3Util.post expects (urls: string[], data: Buffer)
         const response = await OkHttp3Util.post(
-            [this.getServerURL() + String(ReqCmd.getOutputs)],
+            this.getServerURL() + String(ReqCmd.getOutputs),
             Buffer.from(JSON.stringify(pubKeyHashs))
         );
         const responseStr = typeof response === 'string' ? response : response.toString();
@@ -299,7 +299,7 @@ export class Wallet extends WalletBase {
     async getPrevTokenMultiSignAddressList(token: Token): Promise<PermissionedAddressesResponse> {
         const tokenid = token.getTokenid?.() ?? '';
         const url = this.getServerURL() +  ReqCmd.getPayMultiSignAddressList;
-        const response = await OkHttp3Util.post([url], Buffer.from(JSON.stringify([tokenid])));
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([tokenid])));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr) as PermissionedAddressesResponse;
     }
@@ -311,7 +311,7 @@ export class Wallet extends WalletBase {
      */
     async getDomainNameBlockHash(domainName: string): Promise<GetDomainTokenResponse> {
         const url = this.getServerURL() + (ReqCmd.getDomainNameBlockHash || '/getDomainNameBlockHash');
-        const response = await OkHttp3Util.post([url], Buffer.from(JSON.stringify([domainName])));
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([domainName])));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr);
     }
@@ -324,7 +324,7 @@ export class Wallet extends WalletBase {
     async multiSign(multiSignBy: MultiSignBy): Promise<MultiSignResponse> {
         const url = this.getServerURL() + '/multiSign';
         const requestBody = Json.jsonmapper().stringify(multiSignBy);
-        const response = await OkHttp3Util.post([url], Buffer.from(requestBody));
+        const response = await OkHttp3Util.post(url, Buffer.from(requestBody));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr);
     }
@@ -391,7 +391,7 @@ export class Wallet extends WalletBase {
      */
     async getServerCalTokenIndex(tokenid: string): Promise<TokenIndexResponse> {
         const url = this.getServerURL() + '/getServerCalTokenIndex';
-        const response = await OkHttp3Util.post([url], Buffer.from(JSON.stringify([tokenid])));
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([tokenid])));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr);
     }
@@ -473,7 +473,7 @@ export class Wallet extends WalletBase {
      */
     async getUserSettingDataInfo(address: string): Promise<UserSettingDataInfo> {
         const url = this.getServerURL() + '/getUserSettingDataInfo';
-        const response = await OkHttp3Util.post([url], Buffer.from(JSON.stringify([address])));
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([address])));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr);
     }
@@ -487,7 +487,7 @@ export class Wallet extends WalletBase {
     async saveUserdata(address: string, userSettingDataInfo: UserSettingDataInfo): Promise<any> {
         const url = this.getServerURL() + '/saveUserdata';
         const payload = { address, userSettingDataInfo };
-        const response = await OkHttp3Util.post([url], Buffer.from(JSON.stringify(payload)));
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify(payload)));
         const responseStr = typeof response === 'string' ? response : response.toString();
         return Json.jsonmapper().parse(responseStr);
     }
@@ -690,7 +690,7 @@ export class Wallet extends WalletBase {
         // Post the block to the subtangle server
         const url = subtangleUrl + (ReqCmd.saveBlock || '/saveBlock');
         const blockBytes = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([]);
-        const response = await OkHttp3Util.post([url], blockBytes);
+        const response = await OkHttp3Util.post(url, blockBytes);
         // Optionally, parse the response as a Block if needed
         if (response && this.params?.getDefaultSerializer) {
             return this.params.getDefaultSerializer().makeBlock(response);
@@ -1013,7 +1013,7 @@ export class Wallet extends WalletBase {
         const blockBytes = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([]);
         // Post to the server
         const url = this.getServerURL() + (ReqCmd.saveBlock || '/saveBlock');
-        const response = await OkHttp3Util.post([url], blockBytes);
+        const response = await OkHttp3Util.post(url, blockBytes);
         if (response && this.params?.getDefaultSerializer) {
             return this.params.getDefaultSerializer().makeBlock(response);
         }
@@ -1038,7 +1038,7 @@ export class Wallet extends WalletBase {
                 }
             }
             await OkHttp3Util.post(
-                [this.getServerURL() + (ReqCmd.signToken || '/signToken')],
+                this.getServerURL() + (ReqCmd.signToken || '/signToken'),
                 block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([])
             );
             return block;
@@ -1117,7 +1117,7 @@ export class Wallet extends WalletBase {
         const tokenidStr = typeof tokenid === 'string' ? tokenid : Buffer.from(tokenid).toString('hex');
         const requestParam = { tokenid: tokenidStr };
         const url = this.getServerURL() + ( ReqCmd.getTokenById || '/getTokenById');
-        const resp = await OkHttp3Util.post([url], Buffer.from(JSON.stringify(requestParam)));
+        const resp = await OkHttp3Util.post(url, Buffer.from(JSON.stringify(requestParam)));
         const responseStr = typeof resp === 'string' ? resp : resp.toString();
         const tokenResponse: GetTokensResponse = Json.jsonmapper().parse(responseStr);
         const tokens = tokenResponse?.getTokens?.();
