@@ -64,17 +64,17 @@ export class Sha256Hash {
         return Buffer.from(Utils.reverseBytes(this.bytes));
     }
 
-    public getHash(): Sha256Hash {
+    public getHash(): this {
         return this;
     }
 
     public slice(start: number, end: number): Buffer {
-        return this.bytes.slice(start, end);
+        return this.bytes.subarray(start, end);
     }
 
     public subarray(start: number, end: number): Buffer {
         return this.bytes.subarray(start, end);
     }
 
-    public static ZERO_HASH = Sha256Hash.wrap(Buffer.alloc(32));
+    public static readonly ZERO_HASH = Sha256Hash.wrap(Buffer.alloc(32));
 }

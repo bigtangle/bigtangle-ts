@@ -70,6 +70,19 @@ export class Wallet extends WalletBase {
         return new Wallet(params, group);
     }
 
+    static fromKeysURL(params: NetworkParameters, keys: ECKey[], url: string): Wallet {
+        for (const key of keys) {
+            if (key instanceof DeterministicKey) {
+                throw new Error('DeterministicKey not allowed');
+            }
+        }
+        const group = new KeyChainGroup(params);
+        group.importKeys(...keys);
+        url=url;
+        return new Wallet(params, group);
+    }
+
+
     constructor(params: NetworkParameters, keyChainGroup?: KeyChainGroup, url?: string | null) {
         super();
         this.params = params;

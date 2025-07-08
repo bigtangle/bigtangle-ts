@@ -1,10 +1,9 @@
 import { Buffer } from 'buffer';
 import { createHash } from 'crypto';
 import base58 from 'bs58';
-import { BigInteger } from '../../../core/BigInteger';
 
 export class Utils {
-    public static UTF8 = {
+    public static readonly UTF8 = {
         encode: (str: string): Buffer => Buffer.from(str, 'utf8'),
         decode: (buf: Buffer): string => buf.toString('utf8')
     };
@@ -17,8 +16,8 @@ export class Utils {
         return base58.encode(bytes);
     }
 
-    public static toHexString(bytes: Buffer): string {
-        return bytes.toString('hex');
+    public static toHexString(bytes: Uint8Array): string {
+        return Buffer.from(bytes).toString('hex');
     }
 
     public static reverseBytes(bytes: Buffer): Buffer {

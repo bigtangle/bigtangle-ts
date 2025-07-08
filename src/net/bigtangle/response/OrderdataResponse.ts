@@ -28,4 +28,27 @@ export class OrderdataResponse extends AbstractResponse {
     public setTokennames(tokennames: Map<string, Token> | null): void {
         this.tokennames = tokennames;
     }
+
+    public static fromJSON(json: any): OrderdataResponse {
+        const res = new OrderdataResponse();
+
+        res.setErrorcode(json.errorcode ?? null);
+        res.setMessage(json.message ?? null);
+        res.setDuration(json.duration ?? null);
+
+        if (Array.isArray(json.allOrdersSorted)) {
+            const orders = json.allOrdersSorted.map((o: any) => OrderRecord.fromJSON(o));
+            res.setAllOrdersSorted(orders);
+        }
+
+        if (json.tokennames && typeof json.tokennames === 'object') {
+            const tokenMap = new Map<string, Token>();
+            for (const [key, val] of Object.entries(json.tokennames)) {
+                tokenMap.set(key, Token.fromJSON(val));
+            }
+            res.setTokennames(tokenMap);
+        }
+
+        return res;
+    }
 }

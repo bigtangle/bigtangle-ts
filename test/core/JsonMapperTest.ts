@@ -60,6 +60,8 @@ describe('JsonMapperTest', () => {
         const jsonStr = JSON.stringify(blockMCMC);
 
         console.log(jsonStr);
-        JSON.parse(jsonStr);
+     const   b= new BlockMCMC( JSON.parse(jsonStr));
+      console.log(b.toString); 
+     
     });
 });

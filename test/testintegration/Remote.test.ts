@@ -1,47 +1,47 @@
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import { Address } from '../src/net/bigtangle/core/Address';
-import { Block } from '../src/net/bigtangle/core/Block';
-import { BlockEvaluation } from '../src/net/bigtangle/core/BlockEvaluation';
-import { BlockType } from '../src/net/bigtangle/core/BlockType';
-import { Coin } from '../src/net/bigtangle/core/Coin';
-import { ECKey } from '../src/net/bigtangle/core/ECKey';
-import { KeyValue } from '../src/net/bigtangle/core/KeyValue';
-import { MemoInfo } from '../src/net/bigtangle/core/MemoInfo';
-import { MultiSign } from '../src/net/bigtangle/core/MultiSign';
-import { MultiSignAddress } from '../src/net/bigtangle/core/MultiSignAddress';
-import { MultiSignBy } from '../src/net/bigtangle/core/MultiSignBy';
-import { OrderRecord } from '../src/net/bigtangle/core/OrderRecord';
-import { Sha256Hash } from '../src/net/bigtangle/core/Sha256Hash';
-import { Token } from '../src/net/bigtangle/core/Token';
-import { TokenInfo } from '../src/net/bigtangle/core/TokenInfo';
-import { TokenKeyValues } from '../src/net/bigtangle/core/TokenKeyValues';
-import { Tokensums } from '../src/net/bigtangle/core/Tokensums';
-import { Transaction } from '../src/net/bigtangle/core/Transaction';
-import { TransactionInput } from '../src/net/bigtangle/core/TransactionInput';
-import { TransactionOutPoint } from '../src/net/bigtangle/core/TransactionOutPoint';
-import { TransactionOutput } from '../src/net/bigtangle/core/TransactionOutput';
-import { UTXO } from '../src/net/bigtangle/core/UTXO';
-import { UtilGeneseBlock } from '../src/net/bigtangle/core/UtilGeneseBlock';
-import { Utils } from '../src/net/bigtangle/core/Utils';
-import { TransactionSignature } from '../src/net/bigtangle/crypto/TransactionSignature';
-import { InsufficientMoneyException } from '../src/net/bigtangle/exception/InsufficientMoneyException';
-import { NetworkParameters } from '../src/net/bigtangle/params/NetworkParameters';
-import { ReqCmd } from '../src/net/bigtangle/params/ReqCmd';
-import { TestParams } from '../src/net/bigtangle/params/TestParams';
-import { GetBalancesResponse } from '../src/net/bigtangle/response/GetBalancesResponse';
-import { GetBlockEvaluationsResponse } from '../src/net/bigtangle/response/GetBlockEvaluationsResponse';
-import { GetTokensResponse } from '../src/net/bigtangle/response/GetTokensResponse';
-import { MultiSignByRequest } from '../src/net/bigtangle/response/MultiSignByRequest';
-import { MultiSignResponse } from '../src/net/bigtangle/response/MultiSignResponse';
-import { OrderdataResponse } from '../src/net/bigtangle/response/OrderdataResponse';
-import { PermissionedAddressesResponse } from '../src/net/bigtangle/response/PermissionedAddressesResponse';
-import { TokenIndexResponse } from '../src/net/bigtangle/response/TokenIndexResponse';
-import { ScriptBuilder } from '../src/net/bigtangle/script/ScriptBuilder';
-import { MonetaryFormat } from '../src/net/bigtangle/utils/MonetaryFormat';
-import { OkHttp3Util } from '../src/net/bigtangle/utils/OkHttp3Util';
-import { UUIDUtil } from '../src/net/bigtangle/utils/UUIDUtil';
-import { FreeStandingTransactionOutput } from '../src/net/bigtangle/wallet/FreeStandingTransactionOutput';
-import { Wallet } from '../src/net/bigtangle/wallet/Wallet';
+import { Address } from '../../src/net/bigtangle/core/Address';
+import { Block } from '../../src/net/bigtangle/core/Block';
+import { BlockEvaluation } from '../../src/net/bigtangle/core/BlockEvaluation';
+import { BlockType } from '../../src/net/bigtangle/core/BlockType';
+import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { ECKey } from '../../src/net/bigtangle/core/ECKey';
+import { KeyValue } from '../../src/net/bigtangle/core/KeyValue';
+import { MemoInfo } from '../../src/net/bigtangle/core/MemoInfo';
+import { MultiSign } from '../../src/net/bigtangle/core/MultiSign';
+import { MultiSignAddress } from '../../src/net/bigtangle/core/MultiSignAddress';
+import { MultiSignBy } from '../../src/net/bigtangle/core/MultiSignBy';
+import { OrderRecord } from '../../src/net/bigtangle/core/OrderRecord';
+import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
+import { Token } from '../../src/net/bigtangle/core/Token';
+import { TokenInfo } from '../../src/net/bigtangle/core/TokenInfo';
+import { TokenKeyValues } from '../../src/net/bigtangle/core/TokenKeyValues';
+import { Tokensums } from '../../src/net/bigtangle/core/Tokensums';
+import { Transaction } from '../../src/net/bigtangle/core/Transaction';
+import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
+import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOutPoint';
+import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
+import { UTXO } from '../../src/net/bigtangle/core/UTXO';
+import { UtilGeneseBlock } from '../../src/net/bigtangle/core/UtilGeneseBlock';
+import { Utils } from '../../src/net/bigtangle/core/Utils';
+import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
+import { InsufficientMoneyException } from '../../src/net/bigtangle/exception/InsufficientMoneyException';
+import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
+import { ReqCmd } from '../../src/net/bigtangle/params/ReqCmd';
+import { TestParams } from '../../src/net/bigtangle/params/TestParams';
+import { GetBalancesResponse } from '../../src/net/bigtangle/response/GetBalancesResponse';
+import { GetBlockEvaluationsResponse } from '../../src/net/bigtangle/response/GetBlockEvaluationsResponse';
+import { GetTokensResponse } from '../../src/net/bigtangle/response/GetTokensResponse';
+import { MultiSignByRequest } from '../../src/net/bigtangle/response/MultiSignByRequest';
+import { MultiSignResponse } from '../../src/net/bigtangle/response/MultiSignResponse';
+import { OrderdataResponse } from '../../src/net/bigtangle/response/OrderdataResponse';
+import { PermissionedAddressesResponse } from '../../src/net/bigtangle/response/PermissionedAddressesResponse';
+import { TokenIndexResponse } from '../../src/net/bigtangle/response/TokenIndexResponse';
+import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
+import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
+import { OkHttp3Util } from '../../src/net/bigtangle/utils/OkHttp3Util';
+import { UUIDUtil } from '../../src/net/bigtangle/utils/UUIDUtil';
+import { FreeStandingTransactionOutput } from '../../src/net/bigtangle/wallet/FreeStandingTransactionOutput';
+import { Wallet } from '../../src/net/bigtangle/wallet/Wallet';
 
 
 export abstract class RemoteTest {
@@ -52,7 +52,7 @@ export abstract class RemoteTest {
     /*
      * default wallet which has key testpriv and yuanTokenPriv
      */
-    public wallet: Wallet;
+    public wallet!: Wallet;
 
     protected readonly aesKey: any = null;
 
@@ -68,15 +68,14 @@ export abstract class RemoteTest {
     public async checkTokenAssertTrue(tokenid: string, domainname: string) {
         const requestParam0 = new Map<string, any>();
         requestParam0.set("tokenid", tokenid);
-        const resp = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenById,
+        const resp = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenById,
             JSON.stringify(Object.fromEntries(requestParam0)));
 
-        const getTokensResponse = JSON.parse(resp.toString()) as GetTokensResponse;
+        const getTokensResponse = GetTokensResponse.fromJson(JSON.parse(resp.toString()));
         const token_ = getTokensResponse.getTokens()[0];
         expect(token_.getDomainName() === (domainname)).toBeTruthy();
     }
 
-    @beforeEach
     public async setUp() {
 
         this.wallet = await Wallet.fromKeys(this.networkParameters, ECKey.fromPrivate(Buffer.from(RemoteTest.testPriv, 'hex')), this.contextRoot);
@@ -86,8 +85,8 @@ export abstract class RemoteTest {
 
 
 
-    protected async payTestTokenTo(beneficiary: ECKey, testKey: ECKey, amount: bigint) {
-        await this.payTestTokenTo(beneficiary, testKey, amount, new Array<Block>());
+    protected async payTestTokenTo(beneficiary: ECKey, testKey: ECKey, amount: bigint, addedBlocks: Block[] = []) {
+        await this.payTestTokenToAmount(beneficiary, testKey, amount, addedBlocks);
     }
 
     protected async payBigTo(beneficiary: ECKey, amount: bigint, addedBlocks: Block[]): Promise<Block> {
@@ -114,7 +113,7 @@ export abstract class RemoteTest {
         const giveMoneyTestToken = new Map<string, bigint>();
 
         giveMoneyTestToken.set(beneficiary.toAddress(this.networkParameters).toString(), amount);
-        const w = await Wallet.fromKeys(this.networkParameters, testKey, this.contextRoot);
+        const w =   Wallet.fromKeysURL(this.networkParameters, [testKey], this.contextRoot);
 
         const b = await w.payToList(null, giveMoneyTestToken, testKey.getPubKey(), "");
         // log.debug("block " + (b == null ? "block is null" : b.toString()));
@@ -125,13 +124,13 @@ export abstract class RemoteTest {
     }
 
     protected async makeTestToken(testKey: ECKey, addedBlocks: Block[]): Promise<Block> {
-        const block = await this.makeTestToken(testKey, BigInt(77777), addedBlocks, 0);
+        const block = await this.makeTestTokenWithAmount(testKey, BigInt(77777), addedBlocks, 0);
         return block;
     }
 
     protected async makeTestTokenWithSpare(testKey: ECKey, addedBlocks: Block[]): Promise<Block> {
 
-        const block = await this.makeTestToken(testKey, BigInt(77777), addedBlocks, 0);
+        const block = await this.makeTestTokenWithAmount(testKey, BigInt(77777), addedBlocks, 0);
 
         return block;
     }
@@ -150,25 +149,25 @@ export abstract class RemoteTest {
     }
 
     protected async resetAndMakeTestToken(testKey: ECKey, amount: bigint, addedBlocks: Block[]): Promise<Block> {
-        return this.makeTestToken(testKey, amount, addedBlocks, 0);
+        return this.makeTestTokenWithAmount(testKey, amount, addedBlocks, 0);
     }
 
     protected async makeTestTokenWithAmount(testKey: ECKey, amount: bigint, addedBlocks: Block[], decimal: number): Promise<Block> {
 
         // Make the "test" token
-        let block: Block = null;
+        let block: Block | null = null;
         const tokenInfo = new TokenInfo();
 
         const coinbase = new Coin(amount, testKey.getPubKey());
         // BigInteger amount = coinbase.getValue();
-        const tokens = Token.buildSimpleTokenInfo(true, null, testKey.getPublicKeyAsHex(), testKey.getPublicKeyAsHex(),
+        const tokens = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH.toString(), testKey.getPublicKeyAsHex(), testKey.getPublicKeyAsHex(),
             "", 1, 0, amount, true, decimal, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString());
 
         tokenInfo.setToken(tokens);
         tokenInfo.getMultiSignAddresses()
             .push(new MultiSignAddress(tokens.getTokenid(), "", testKey.getPublicKeyAsHex()));
 
-        block = await this.saveTokenUnitTest(tokenInfo, coinbase, testKey, null, addedBlocks);
+        block = await this.saveTokenUnitTest(tokenInfo, coinbase, testKey, null, [], true);
         addedBlocks.push(block);
 
 
@@ -181,39 +180,30 @@ export abstract class RemoteTest {
         let w = await Wallet.fromKeys(this.networkParameters, beneficiary, this.contextRoot);
         w.setServerURL(this.contextRoot);
         await this.payBigTo(beneficiary, Coin.FEE_DEFAULT.getValue(), addedBlocks);
-        const block = await w.buyOrder(null, tokenId, buyPrice, buyAmount, null, null, basetoken, true);
+        const block = await w.buyOrder(null, tokenId, BigInt(buyPrice), BigInt(buyAmount), null, null, basetoken, true);
         addedBlocks.push(block);
 
         return block;
     }
 
-
-
-
-
-
     protected async assertHasAvailableToken(testKey: ECKey, tokenId_: string, amount: number) {
         // Asserts that the given ECKey possesses the given amount of tokens
-        const balance = await this.getBalance(false, [testKey]);
+        const balance = await this.getBalanceByKey(false, testKey);
         const hashMap = new Map<string, number>();
         for (const o of balance) {
             const tokenId = Utils.toHexString(o.getValue().getTokenid());
             if (!hashMap.has(tokenId))
                 hashMap.set(tokenId, 0);
-            hashMap.set(tokenId, hashMap.get(tokenId) + Number(o.getValue().getValue()));
+            hashMap.set(tokenId, hashMap.get(tokenId)! + Number(o.getValue().getValue()));
         }
 
         expect(amount === 0 ? null : amount).toBe(hashMap.get(tokenId_));
     }
 
-
-
-
-
     protected getRandomSha256Hash(): Sha256Hash {
         const rawHashBytes = new Uint8Array(32);
         crypto.getRandomValues(rawHashBytes);
-        const sha256Hash = Sha256Hash.wrap(rawHashBytes);
+        const sha256Hash = Sha256Hash.wrap(Buffer.from(rawHashBytes));
         return sha256Hash;
     }
 
@@ -233,21 +223,20 @@ export abstract class RemoteTest {
     protected async createTestTransaction(): Promise<Transaction> {
 
         const genesiskey = ECKey.fromPrivate(Buffer.from(RemoteTest.testPriv, 'hex'));
-        const outputs = await this.getBalance(false, genesiskey);
+        const outputs = await this.getBalanceByKey(false, genesiskey);
         const output = this.getLargeUTXO(outputs);
         const spendableOutput = new FreeStandingTransactionOutput(this.networkParameters, output);
-        const amount = Coin.valueOf(2, NetworkParameters.BIGTANGLE_TOKENID);
+        const amount = Coin.valueOf(BigInt(2), NetworkParameters.BIGTANGLE_TOKENID);
         const tx = new Transaction(this.networkParameters);
-        tx.addOutput(new TransactionOutput(this.networkParameters, tx, amount, genesiskey));
+        tx.addOutput(new TransactionOutput(this.networkParameters, tx, amount, genesiskey.getPubKey()));
         tx.addOutput(new TransactionOutput(this.networkParameters, tx,
-            spendableOutput.getValue().subtract(amount).subtract(Coin.FEE_DEFAULT), genesiskey));
-        const input = tx.addInput(output.getBlockHash(), spendableOutput);
+            spendableOutput.getValue().subtract(amount).subtract(Coin.FEE_DEFAULT), genesiskey.getPubKey()));
+        const input = tx.addInput(output.getBlockHash()!, spendableOutput);
         const sighash = tx.hashForSignature(0, spendableOutput.getScriptBytes(), Transaction.SigHash.ALL, false);
 
-        const tsrecsig = new TransactionSignature(await genesiskey.sign(sighash), Transaction.SigHash.ALL,
-            false);
-        const inputScript = ScriptBuilder.createInputScript(tsrecsig);
-        input.scriptSig = (inputScript);
+        const tsrecsig = await genesiskey.sign(sighash);
+        const inputScript = ScriptBuilder.createInputScript(new TransactionSignature(tsrecsig, Transaction.SigHash.ALL, false));
+        input.setScriptSig(inputScript);
         return tx;
     }
 
@@ -261,38 +250,38 @@ export abstract class RemoteTest {
         return a;
     }
 
-    protected async getBalance(): Promise<UTXO[]> {
-        return this.getBalance(false);
+    protected async getBalance(withZero: boolean = false): Promise<UTXO[]> {
+        return this.getBalanceByKeys(withZero, await this.wallet.keys());
     }
 
     // get balance for the walletKeys
-    protected async getBalance(withZero: boolean, keys: ECKey[]): Promise<UTXO[]> {
+    protected async getBalanceByKeys(withZero: boolean, keys: ECKey[]): Promise<UTXO[]> {
         const listUTXO = new Array<UTXO>();
         const keyStrHex000 = new Array<string>();
 
         for (const ecKey of keys) {
             // keyStrHex000.push(ecKey.toAddress(networkParameters).toString());
-            keyStrHex000.push(Utils.toHexString(ecKey.getPubKeyHash()));
+            keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
         }
-        const response = await OkHttp3Util.post(this.contextRoot + ReqCmd.getBalances,
-            Buffer.from(JSON.stringify(keyStrHex000)));
+        const response = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getBalances,
+            JSON.stringify(keyStrHex000));
 
-        const getBalancesResponse = JSON.parse(response.toString()) as GetBalancesResponse;
+        const getBalancesResponse = GetBalancesResponse.fromJson(JSON.parse(response.toString()));
 
-        // byte[] response = mvcResult.getResponse().getContentAsString();
-        for (const utxo of getBalancesResponse.getOutputs()) {
-            if (withZero) {
-                listUTXO.push(utxo);
-            } else if (utxo.getValue().getValue() > 0) {
-                listUTXO.push(utxo);
+        if (getBalancesResponse.getOutputs() != null) {
+            for (const utxo of getBalancesResponse.getOutputs()) {
+                if (withZero) {
+                    listUTXO.push(utxo);
+                } else if (utxo.getValue().getValue() > 0) {
+                    listUTXO.push(utxo);
+                }
             }
         }
-
         return listUTXO;
     }
 
     protected async getBalanceByToken(tokenid: string, withZero: boolean, keys: ECKey[]): Promise<UTXO> {
-        const ulist = await this.getBalance(withZero, keys);
+        const ulist = await this.getBalanceByKeys(withZero, keys);
 
         for (const u of ulist) {
             if (tokenid === (u.getTokenId())) {
@@ -309,16 +298,14 @@ export abstract class RemoteTest {
         const keyStrHex000 = new Array<string>();
 
         for (const ecKey of keys) {
-            // keyStrHex000.push(ecKey.toAddress(networkParameters).toString());
-            keyStrHex000.push(Utils.toHexString(ecKey.getPubKeyHash()));
+            keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
         }
-        const response = await OkHttp3Util.post(this.contextRoot + ReqCmd.getAccountBalances,
-            Buffer.from(JSON.stringify(keyStrHex000)));
+        const response = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getAccountBalances,
+            JSON.stringify(keyStrHex000));
 
-        const getBalancesResponse = JSON.parse(response.toString()) as GetBalancesResponse;
+        const getBalancesResponse = GetBalancesResponse.fromJson(JSON.parse(response.toString()));
 
-        // byte[] response = mvcResult.getResponse().getContentAsString();
-        listCoin.push(...getBalancesResponse.getBalance());
+        listCoin.push(...getBalancesResponse.getBalance()!);
         for (const coin of listCoin) {
             console.log("coin:" + coin.toString());
         }
@@ -330,11 +317,11 @@ export abstract class RemoteTest {
         const listUTXO = new Array<UTXO>();
         const keyStrHex000 = new Array<string>();
 
-        keyStrHex000.push(Utils.toHexString(Address.fromBase58(this.networkParameters, address).getHash160()));
-        const response = await OkHttp3Util.post(this.contextRoot + ReqCmd.getBalances,
-            Buffer.from(JSON.stringify(keyStrHex000)));
+        keyStrHex000.push(Utils.toHexString(Address.fromBase58(this.networkParameters, address).getHash160()!));
+        const response = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getBalances,
+            JSON.stringify(keyStrHex000));
 
-        const getBalancesResponse = JSON.parse(response.toString()) as GetBalancesResponse;
+        const getBalancesResponse = GetBalancesResponse.fromJson(JSON.parse(response.toString()));
 
         for (const utxo of getBalancesResponse.getOutputs()) {
             listUTXO.push(utxo);
@@ -343,26 +330,26 @@ export abstract class RemoteTest {
         return listUTXO;
     }
 
-    protected async getBalance(withZero: boolean, ecKey: ECKey): Promise<UTXO[]> {
+    protected async getBalanceByKey(withZero: boolean, ecKey: ECKey): Promise<UTXO[]> {
         const keys = new Array<ECKey>();
         keys.push(ecKey);
-        return this.getBalance(withZero, keys);
+        return this.getBalanceByKeys(withZero, keys);
     }
 
-    protected async testCreateToken(outKey: ECKey, tokennameName: string, blocksAddedAll: Block[]): Promise<Block> {
-        return this.testCreateToken(outKey, tokennameName, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString(),
-            blocksAddedAll);
+    protected async testCreateTokenWithBlocks(outKey: ECKey, tokennameName: string, blocksAddedAll: Block[]): Promise<Block> {
+        return this.testCreateTokenFull(outKey, tokennameName, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString(),
+            BigInt(77777), blocksAddedAll);
     }
 
     protected async testCreateToken(outKey: ECKey, tokennameName: string): Promise<Block> {
-        return this.testCreateToken(outKey, tokennameName, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString(), null);
+        return this.testCreateTokenFull(outKey, tokennameName, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString(), BigInt(77777), []);
     }
 
-    protected async testCreateToken(outKey: ECKey, tokennameName: string, domainpre: string, blocksAddedAll: Block[]): Promise<Block> {
-        return this.testCreateToken(outKey, tokennameName, domainpre, BigInt(77777), blocksAddedAll);
+    protected async testCreateTokenWithDomain(outKey: ECKey, tokennameName: string, domainpre: string, blocksAddedAll: Block[]): Promise<Block> {
+        return this.testCreateTokenFull(outKey, tokennameName, domainpre, BigInt(77777), blocksAddedAll);
     }
 
-    protected async testCreateToken(outKey: ECKey, tokennameName: string, domainpre: string, amountgiven: bigint,
+    protected async testCreateTokenFull(outKey: ECKey, tokennameName: string, domainpre: string, amountgiven: bigint,
         blocksAddedAll: Block[]): Promise<Block> {
         // ECKey outKey = walletKeys.get(0);
         const pubKey = outKey.getPubKey();
@@ -373,7 +360,7 @@ export abstract class RemoteTest {
         const basecoin = Coin.valueOf(amountgiven, pubKey);
         const amount = basecoin.getValue();
 
-        const token = Token.buildSimpleTokenInfo(true, null, tokenid, tokennameName, "", 1, 0, amount, true, 0,
+        const token = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH.toString(), tokenid, tokennameName, "", 1, 0, amount, true, 0,
             domainpre);
 
         tokenInfo.setToken(token);
@@ -383,12 +370,12 @@ export abstract class RemoteTest {
 
         const multiSignAddresses = tokenInfo.getMultiSignAddresses();
         const permissionedAddressesResponse = await this
-            .getPrevTokenMultiSignAddressList(tokenInfo.getToken());
+            .getPrevTokenMultiSignAddressList(tokenInfo.getToken()!);
         if (permissionedAddressesResponse !== null && permissionedAddressesResponse.getMultiSignAddresses() !== null
-            && !permissionedAddressesResponse.getMultiSignAddresses().length) {
+            && permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
             for (const multiSignAddress of permissionedAddressesResponse.getMultiSignAddresses()) {
                 const pubKeyHex = multiSignAddress.getPubKeyHex();
-                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex, 0));
+                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex!, 0));
             }
         }
 
@@ -397,31 +384,31 @@ export abstract class RemoteTest {
             blocksAddedAll.push(b);
 
         const re = await this.pullBlockDoMultiSign(tokenid, outKey, this.aesKey);
-        if (blocksAddedAll !== null)
+        if (blocksAddedAll !== null && re !== null)
             blocksAddedAll.push(re);
-        return re;
+        return re!;
     }
 
-    protected checkResponse(resp: Uint8Array) {
-        this.checkResponse(resp, 0);
+    protected checkResponse(resp: Uint8Array, code: number = 0) {
+        this.checkResponseWithCode(resp, code);
     }
 
-    protected checkResponse(resp: Uint8Array, code: number) {
+    protected checkResponseWithCode(resp: Uint8Array, code: number) {
 
         const result2 = JSON.parse(resp.toString()) as Map<string, any>;
         const error = result2.get("errorcode") as number;
         expect(error === code).toBeTruthy();
     }
 
-    protected async checkBalance(coin: Coin, ecKey: ECKey) {
+    protected async checkBalanceWithKey(coin: Coin, ecKey: ECKey) {
         const a = new Array<ECKey>();
         a.push(ecKey);
         await this.checkBalance(coin, a);
     }
 
     protected async checkBalance(coin: Coin, a: ECKey[]) {
-        const ulist = await this.getBalance(false, a);
-        let myutxo: UTXO = null;
+        const ulist = await this.getBalanceByKeys(false, a);
+        let myutxo: UTXO | null = null;
         for (const u of ulist) {
             if (coin.getTokenHex() === (u.getTokenId()) && coin.getValue() === (u.getValue().getValue())) {
                 myutxo = u;
@@ -429,20 +416,20 @@ export abstract class RemoteTest {
             }
         }
         expect(myutxo !== null).toBeTruthy();
-        expect(myutxo.getAddress() !== null && !myutxo.getAddress().length).toBeTruthy();
-        console.log(myutxo.toString());
+        expect(myutxo!.getAddress() !== null && myutxo!.getAddress()!.length > 0).toBeTruthy();
+        console.log(myutxo!.toString());
     }
 
-    protected async checkBalanceSum(coin: Coin, a: ECKey) {
+    protected async checkBalanceSumWithKey(coin: Coin, a: ECKey) {
         const keys = new Array<ECKey>();
         keys.push(a);
         await this.checkBalanceSum(coin, keys);
     }
 
     protected async checkBalanceSum(coin: Coin, a: ECKey[]) {
-        const ulist = await this.getBalance(false, a);
+        const ulist = await this.getBalanceByKeys(false, a);
 
-        let sum = new Coin(0, coin.getTokenid());
+        let sum = new Coin(BigInt(0), coin.getTokenid());
         for (const u of ulist) {
             if (coin.getTokenHex() === (u.getTokenId())) {
                 sum = sum.add(u.getValue());
@@ -458,33 +445,26 @@ export abstract class RemoteTest {
 
     // create a token with multi sign
     protected async testCreateMultiSigToken(keys: ECKey[], tokenInfo: TokenInfo) {
-        // First issuance cannot be multisign but instead needs the signature of
-        // the token id
-        // Hence we first create a normal token with multiple permissioned, then
-        // we can issue via multisign
-
         const tokenid = await this.createFirstMultisignToken(keys, tokenInfo);
 
 
         const amount = BigInt("200000");
         const basecoin = new Coin(amount, Buffer.from(tokenid, 'hex'));
 
-        // TokenInfo tokenInfo = new TokenInfo();
-
         const requestParam00 = new Map<string, string>();
         requestParam00.set("tokenid", tokenid);
-        const resp2 = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenIndex,
+        const resp2 = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenIndex,
             JSON.stringify(Object.fromEntries(requestParam00)));
 
-        const tokenIndexResponse = JSON.parse(resp2.toString()) as TokenIndexResponse;
+        const tokenIndexResponse = TokenIndexResponse.fromJson(JSON.parse(resp2.toString()));
         const tokenindex_ = tokenIndexResponse.getTokenindex();
 
 
-        const tokens = Token.buildSimpleTokenInfo(true, tokenIndexResponse.getBlockhash(), tokenid, "test", "test", 3,
-            tokenindex_, amount, false, 0, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString());
+        const tokens = Token.buildSimpleTokenInfo(true, tokenIndexResponse.getBlockhash()!, tokenid, "test", "test", 3,
+            tokenindex_!, amount, false, 0, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString());
         const kv = new KeyValue();
         kv.setKey("testkey");
-        kv.setKey("testvalue");
+        kv.setValue("testvalue");
         tokens.addKeyvalue(kv);
 
         tokenInfo.setToken(tokens);
@@ -497,12 +477,12 @@ export abstract class RemoteTest {
 
         const multiSignAddresses = tokenInfo.getMultiSignAddresses();
         const permissionedAddressesResponse = await this
-            .getPrevTokenMultiSignAddressList(tokenInfo.getToken());
+            .getPrevTokenMultiSignAddressList(tokenInfo.getToken()!);
         if (permissionedAddressesResponse !== null && permissionedAddressesResponse.getMultiSignAddresses() !== null
-            && !permissionedAddressesResponse.getMultiSignAddresses().length) {
+            && permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
             for (const multiSignAddress of permissionedAddressesResponse.getMultiSignAddresses()) {
                 const pubKeyHex = multiSignAddress.getPubKeyHex();
-                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex));
+                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex!));
             }
         }
 
@@ -516,8 +496,6 @@ export abstract class RemoteTest {
 
         console.log("block hash : " + block.getHashAsString());
 
-        // save block, but no signature and is not saved as block, but in a
-        // table for signs
         await OkHttp3Util.post(this.contextRoot + ReqCmd.signToken, block.bitcoinSerialize());
 
         const ecKeys = new Array<ECKey>();
@@ -527,41 +505,41 @@ export abstract class RemoteTest {
         for (const ecKey of ecKeys) {
             const requestParam0 = new Map<string, any>();
             requestParam0.set("address", ecKey.toAddress(this.networkParameters).toBase58());
-            const resp = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenSignByAddress,
+            const resp = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenSignByAddress,
                 JSON.stringify(Object.fromEntries(requestParam0)));
             console.log(resp);
 
-            const multiSignResponse = JSON.parse(resp.toString()) as MultiSignResponse;
+            const multiSignResponse = MultiSignResponse.fromJson(JSON.parse(resp.toString()));
 
-            if (!multiSignResponse.getMultiSigns().length)
+            if (multiSignResponse.getMultiSigns() === null || multiSignResponse.getMultiSigns().length == 0)
                 continue;
 
             const blockhashHex = multiSignResponse.getMultiSigns()[tokenindex_ as number].getBlockhashHex();
-            const payloadBytes = Buffer.from(blockhashHex, 'hex');
+            const payloadBytes = Buffer.from(blockhashHex!, 'hex');
 
             const block0 = this.networkParameters.getDefaultSerializer().makeBlock(payloadBytes);
-            const transaction = block0.getTransactions()[0];
+            const transaction = block0.getTransactions()![0];
 
-            let multiSignBies: MultiSignBy[] = null;
+            let multiSignBies: MultiSignBy[] | null = null;
             if (transaction.getDataSignature() === null) {
                 multiSignBies = new Array<MultiSignBy>();
             } else {
-                const multiSignByRequest = JSON.parse(transaction.getDataSignature().toString()) as MultiSignByRequest;
+                const multiSignByRequest = MultiSignByRequest.fromJson(JSON.parse(transaction.getDataSignature()!.toString()));
                 multiSignBies = multiSignByRequest.getMultiSignBies();
             }
             const sighash = transaction.getHash();
-            const party1Signature = await ecKey.sign(sighash);
-            const buf1 = party1Signature.encodeDER();
+            const party1Signature = await ecKey.sign(sighash!);
+            const buf1 = party1Signature.encodeToDER();
 
             const multiSignBy0 = new MultiSignBy();
             multiSignBy0.setTokenid(tokenid);
-            multiSignBy0.setTokenindex(tokenindex_);
+            multiSignBy0.setTokenindex(tokenindex_!);
             multiSignBy0.setAddress(ecKey.toAddress(this.networkParameters).toBase58());
             multiSignBy0.setPublickey(Utils.toHexString(ecKey.getPubKey()));
             multiSignBy0.setSignature(Utils.toHexString(buf1));
-            multiSignBies.push(multiSignBy0);
-            const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-            transaction.setDataSignature(Buffer.from(JSON.stringify(multiSignByRequest)));
+            multiSignBies!.push(multiSignBy0);
+            const newMultiSignByRequest = MultiSignByRequest.create(multiSignBies!);
+            transaction.setDataSignature(Buffer.from(JSON.stringify(newMultiSignByRequest.toJson())));
             this.checkResponse(await OkHttp3Util.post(this.contextRoot + ReqCmd.signToken, block0.bitcoinSerialize()));
 
         }
@@ -574,18 +552,16 @@ export abstract class RemoteTest {
 
         const basecoin = new MonetaryFormat().parse("678900000");
 
-        // TokenInfo tokenInfo = new TokenInfo();
-
         const requestParam00 = new Map<string, string>();
         requestParam00.set("tokenid", tokenid);
-        const resp2 = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenIndex,
+        const resp2 = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenIndex,
             JSON.stringify(Object.fromEntries(requestParam00)));
 
-        const tokenIndexResponse = JSON.parse(resp2.toString()) as TokenIndexResponse;
+        const tokenIndexResponse = TokenIndexResponse.fromJson(JSON.parse(resp2.toString()));
         const tokenindex_ = tokenIndexResponse.getTokenindex();
         const prevblockhash = tokenIndexResponse.getBlockhash();
 
-        const tokens = Token.buildSimpleTokenInfo(true, prevblockhash, tokenid, "test", "test", 3, tokenindex_,
+        const tokens = Token.buildSimpleTokenInfo(true, prevblockhash!, tokenid, "test", "test", 3, tokenindex_!,
             basecoin.getValue(), false, 0, UtilGeneseBlock.createGenesis(this.networkParameters).getHashAsString());
         tokenInfo.setToken(tokens);
 
@@ -597,12 +573,12 @@ export abstract class RemoteTest {
 
         const multiSignAddresses = tokenInfo.getMultiSignAddresses();
         const permissionedAddressesResponse = await this
-            .getPrevTokenMultiSignAddressList(tokenInfo.getToken());
+            .getPrevTokenMultiSignAddressList(tokenInfo.getToken()!);
         if (permissionedAddressesResponse !== null && permissionedAddressesResponse.getMultiSignAddresses() !== null
-            && !permissionedAddressesResponse.getMultiSignAddresses().length) {
+            && permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
             for (const multiSignAddress of permissionedAddressesResponse.getMultiSignAddresses()) {
                 const pubKeyHex = multiSignAddress.getPubKeyHex();
-                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex));
+                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex!));
             }
         }
 
@@ -610,76 +586,76 @@ export abstract class RemoteTest {
         return tokenid;
     }
 
-    public async saveTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter): Promise<Block> {
-        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, null);
-    }
-
-    // for unit tests
-    public async saveTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter,
-        addedBlocks: Block[]): Promise<Block> {
-
-        tokenInfo.getToken().setTokenname(UUIDUtil.randomUUID());
-        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, null, null, addedBlocks, true);
-    }
-
-    public async saveTokenUnitTestWithTokenname(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter): Promise<Block> {
-        return this.saveTokenUnitTestWithTokenname(tokenInfo, basecoin, outKey, aesKey, null);
-    }
-
-    public async saveTokenUnitTestWithTokenname(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter,
-        addedBlocks: Block[]): Promise<Block> {
-        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, null, null, addedBlocks, true);
-    }
-
-    public async saveTokenUnitTestWithTokenname(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter,
-        addedBlocks: Block[], feepay: boolean): Promise<Block> {
-        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, null, null, addedBlocks, feepay);
-    }
-
     public async saveTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any,
-        overrideHash1: Block, overrideHash2: Block, addedBlocks: Block[], feepay: boolean): Promise<Block> {
+        addedBlocks: Block[], feepay: boolean, overrideHash1?: Block, overrideHash2?: Block): Promise<Block> {
         if (feepay)
             await this.payBigTo(outKey, Coin.FEE_DEFAULT.getValue(), addedBlocks);
-        const block = await this.makeTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, overrideHash1, overrideHash2);
+        const block = await this.makeTokenUnitTestFull(tokenInfo, basecoin, outKey, aesKey, overrideHash1!, overrideHash2!);
         await OkHttp3Util.post(this.contextRoot + ReqCmd.signToken, block.bitcoinSerialize());
 
         const permissionedAddressesResponse = await this
-            .getPrevTokenMultiSignAddressList(tokenInfo.getToken());
+            .getPrevTokenMultiSignAddressList(tokenInfo.getToken()!);
         const multiSignAddress = permissionedAddressesResponse.getMultiSignAddresses()[0];
 
-        await this.pullBlockDoMultiSign(tokenInfo.getToken().getTokenid(), outKey, aesKey);
+        await this.pullBlockDoMultiSign(tokenInfo.getToken()!.getTokenid()!, outKey, aesKey);
         const genesiskey = ECKey.fromPrivate(Buffer.from(RemoteTest.testPriv, 'hex'));
-        await this.pullBlockDoMultiSign(tokenInfo.getToken().getTokenid(), genesiskey, null);
+        await this.pullBlockDoMultiSign(tokenInfo.getToken()!.getTokenid()!, genesiskey, null);
 
         return block;
     }
 
-    public async makeTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: KeyParameter): Promise<Block> {
-        return this.makeTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, null, null);
+    public async createTokenWithMemo(key: ECKey, tokename: string, decimals: number, domainname: string, description: string,
+        amount: bigint, increment: boolean, tokenKeyValues: TokenKeyValues, tokentype: number, tokenid: string,
+        w: Wallet, pubkeyTo: Uint8Array, memoInfo: MemoInfo): Promise<Block> {
+
+        const token = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH.toString(), tokenid, tokename, description, 1, 0,
+            amount, !increment, decimals, "");
+        token.setTokenKeyValues(tokenKeyValues);
+        token.setTokentype(tokentype);
+        const addresses = new Array<MultiSignAddress>();
+        addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
+        return w.createToken(key, domainname, increment, token, addresses, pubkeyTo, memoInfo);
+
     }
 
-    public async makeTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any,
+    // for unit tests
+    public async saveTokenUnitTestWithBlocks(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any,
+        addedBlocks: Block[]): Promise<Block> {
+
+        tokenInfo.getToken()!.setTokenname(UUIDUtil.randomUUID());
+        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, addedBlocks, true);
+    }
+
+    public async saveTokenUnitTestWithTokenname(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any, addedBlocks: Block[] = [], feepay: boolean = true): Promise<Block> {
+        return this.saveTokenUnitTest(tokenInfo, basecoin, outKey, aesKey, addedBlocks, feepay);
+    }
+
+    public async makeTokenUnitTest(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any): Promise<Block> {
+        return this.makeTokenUnitTestFull(tokenInfo, basecoin, outKey, aesKey, null!, null!);
+    }
+
+    public async makeTokenUnitTestFull(tokenInfo: TokenInfo, basecoin: Coin, outKey: ECKey, aesKey: any,
         overrideHash1: Block, overrideHash2: Block): Promise<Block> {
 
-        const tokenid = tokenInfo.getToken().getTokenid();
+        const tokenid = tokenInfo.getToken()!.getTokenid();
         const multiSignAddresses = tokenInfo.getMultiSignAddresses();
         const permissionedAddressesResponse = await this
-            .getPrevTokenMultiSignAddressList(tokenInfo.getToken());
+            .getPrevTokenMultiSignAddressList(tokenInfo.getToken()!);
         if (permissionedAddressesResponse !== null && permissionedAddressesResponse.getMultiSignAddresses() !== null
-            && !permissionedAddressesResponse.getMultiSignAddresses().length) {
-            if (!tokenInfo.getToken().getDomainName()) {
-                tokenInfo.getToken().setDomainName(permissionedAddressesResponse.getDomainName());
+            && permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
+            if (tokenInfo.getToken()!.getDomainName() === null || tokenInfo.getToken()!.getDomainName() === '') {
+                tokenInfo.getToken()!.setDomainName(permissionedAddressesResponse.getDomainName()!);
             }
             for (const multiSignAddress of permissionedAddressesResponse.getMultiSignAddresses()) {
                 const pubKeyHex = multiSignAddress.getPubKeyHex();
-                multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex, 0));
+                multiSignAddresses.push(new MultiSignAddress(tokenid!, "", pubKeyHex!, 0));
             }
         }
 
         const requestParam = new Map<string, string>();
         const data = await OkHttp3Util.postAndGetBlock(this.contextRoot + ReqCmd.getTip,
             JSON.stringify(Object.fromEntries(requestParam)));
-        const block = this.networkParameters.getDefaultSerializer().makeBlock(data);
+        let block = this.networkParameters.getDefaultSerializer().makeBlock(data);
         block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
 
         if (overrideHash1 !== null && overrideHash2 !== null) {
@@ -687,21 +663,21 @@ export abstract class RemoteTest {
 
             block.setPrevBranchBlockHash(overrideHash2.getHash());
 
-            block.setHeight(Math.max(overrideHash2.getHeight(), overrideHash1.getHeight()) + 1);
+            block.setHeight(Math.max(overrideHash2.getHeight()!, overrideHash1.getHeight()!) + 1);
         }
 
         block.addCoinbaseTransaction(outKey.getPubKey(), basecoin, tokenInfo, new MemoInfo("coinbase"));
 
-        const transaction = block.getTransactions()[0];
+        const transaction = block.getTransactions()![0];
 
         const sighash = transaction.getHash();
 
         const multiSignBies = new Array<MultiSignBy>();
 
-        const party1Signature = await outKey.sign(sighash, aesKey);
-        const buf1 = party1Signature.encodeDER();
+        const party1Signature = await outKey.sign(sighash!);
+        const buf1 = party1Signature.encodeToDER();
         let multiSignBy0 = new MultiSignBy();
-        multiSignBy0.setTokenid(tokenInfo.getToken().getTokenid().trim());
+        multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
         multiSignBy0.setTokenindex(0);
         multiSignBy0.setAddress(outKey.toAddress(this.networkParameters).toBase58());
         multiSignBy0.setPublickey(Utils.toHexString(outKey.getPubKey()));
@@ -709,10 +685,10 @@ export abstract class RemoteTest {
         multiSignBies.push(multiSignBy0);
 
         const genesiskey = ECKey.fromPrivate(Buffer.from(RemoteTest.testPriv, 'hex'));
-        const party2Signature = await genesiskey.sign(sighash, aesKey);
-        const buf2 = party2Signature.encodeDER();
+        const party2Signature = await genesiskey.sign(sighash!);
+        const buf2 = party2Signature.encodeToDER();
         multiSignBy0 = new MultiSignBy();
-        multiSignBy0.setTokenid(tokenInfo.getToken().getTokenid().trim());
+        multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
         multiSignBy0.setTokenindex(0);
         multiSignBy0.setAddress(genesiskey.toAddress(this.networkParameters).toBase58());
         multiSignBy0.setPublickey(Utils.toHexString(genesiskey.getPubKey()));
@@ -720,77 +696,91 @@ export abstract class RemoteTest {
         multiSignBies.push(multiSignBy0);
 
         const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-        transaction.setDataSignature(Buffer.from(JSON.stringify(multiSignByRequest)));
+        transaction.setDataSignature(Buffer.from(JSON.stringify(multiSignByRequest.toJson())));
 
         // add fee
         const w = await Wallet.fromKeys(this.networkParameters, outKey, this.contextRoot);
         block.addTransaction(await w.feeTransaction(aesKey));
         // save block
-        block = await this.adjustSolve(block);
+        const adjustedBlock = await this.adjustSolve(block);
         //
 
-        return block;
+        return adjustedBlock;
+    }
+
+    public async createToken(key: ECKey, tokename: string, decimals: number, domainname: string, description: string,
+        amount: bigint, increment: boolean, tokenKeyValues: TokenKeyValues, tokentype: number, tokenid: string,
+        w: Wallet): Promise<Block> {
+        w.importKey(key);
+        const token = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH.toString(), tokenid, tokename, description, 1, 0,
+            amount, !increment, decimals, "");
+        token.setTokenKeyValues(tokenKeyValues);
+        token.setTokentype(tokentype);
+        const addresses = new Array<MultiSignAddress>();
+        addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
+        return w.createToken(key, domainname, increment, token, addresses);
+
     }
 
     public async getServerCalTokenIndex(tokenid: string): Promise<TokenIndexResponse> {
         const requestParam = new Map<string, string>();
         requestParam.set("tokenid", tokenid);
-        const resp = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenIndex,
+        const resp = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenIndex,
             JSON.stringify(Object.fromEntries(requestParam)));
-        const tokenIndexResponse = JSON.parse(resp.toString()) as TokenIndexResponse;
+        const tokenIndexResponse = TokenIndexResponse.fromJson(JSON.parse(resp.toString()));
         return tokenIndexResponse;
     }
 
-    public async pullBlockDoMultiSign(tokenid: string, outKey: ECKey, aesKey: any): Promise<Block> {
+    public async pullBlockDoMultiSign(tokenid: string, outKey: ECKey, aesKey: any): Promise<Block | null> {
         const requestParam = new Map<string, any>();
 
         const address = outKey.toAddress(this.networkParameters).toBase58();
         requestParam.set("address", address);
         requestParam.set("tokenid", tokenid);
 
-        const resp = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenSignByAddress,
+        const resp = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenSignByAddress,
             JSON.stringify(Object.fromEntries(requestParam)));
 
-        const multiSignResponse = JSON.parse(resp.toString()) as MultiSignResponse;
-        if (!multiSignResponse.getMultiSigns().length)
+        const multiSignResponse = MultiSignResponse.fromJson(JSON.parse(resp.toString()));
+        if (multiSignResponse.getMultiSigns() === null || multiSignResponse.getMultiSigns().length == 0)
             return null;
         const multiSign = multiSignResponse.getMultiSigns()[0];
 
         const payloadBytes = Buffer.from(multiSign.getBlockhashHex() as string, 'hex');
         const block0 = this.networkParameters.getDefaultSerializer().makeBlock(payloadBytes);
-        const transaction = block0.getTransactions()[0];
+        const transaction = block0.getTransactions()![0];
 
-        let multiSignBies: MultiSignBy[] = null;
+        let multiSignBies: MultiSignBy[] | null = null;
         if (transaction.getDataSignature() === null) {
             multiSignBies = new Array<MultiSignBy>();
         } else {
-            const multiSignByRequest = JSON.parse(transaction.getDataSignature().toString()) as MultiSignByRequest;
+            const multiSignByRequest = MultiSignByRequest.fromJson(JSON.parse(transaction.getDataSignature()!.toString()));
             multiSignBies = multiSignByRequest.getMultiSignBies();
         }
         const sighash = transaction.getHash();
-        const party1Signature = await outKey.sign(sighash, aesKey);
-        const buf1 = party1Signature.encodeDER();
+        const party1Signature = await outKey.sign(sighash!);
+        const buf1 = party1Signature.encodeToDER();
 
         const multiSignBy0 = new MultiSignBy();
 
-        multiSignBy0.setTokenid(multiSign.getTokenid());
-        multiSignBy0.setTokenindex(multiSign.getTokenindex());
+        multiSignBy0.setTokenid(multiSign.getTokenid()!);
+        multiSignBy0.setTokenindex(multiSign.getTokenindex()!);
         multiSignBy0.setAddress(outKey.toAddress(this.networkParameters).toBase58());
         multiSignBy0.setPublickey(Utils.toHexString(outKey.getPubKey()));
         multiSignBy0.setSignature(Utils.toHexString(buf1));
-        multiSignBies.push(multiSignBy0);
-        const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-        transaction.setDataSignature(Buffer.from(JSON.stringify(multiSignByRequest)));
+        multiSignBies!.push(multiSignBy0);
+        const multiSignByRequest = MultiSignByRequest.create(multiSignBies!);
+        transaction.setDataSignature(Buffer.from(JSON.stringify(multiSignByRequest.toJson())));
         await OkHttp3Util.post(this.contextRoot + ReqCmd.signToken, block0.bitcoinSerialize());
         return block0;
     }
 
     public async getPrevTokenMultiSignAddressList(token: Token): Promise<PermissionedAddressesResponse> {
         const requestParam = new Map<string, string>();
-        requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash());
-        const resp = await OkHttp3Util.postString(this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
+        requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash()!);
+        const resp = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
             JSON.stringify(Object.fromEntries(requestParam)));
-        const permissionedAddressesResponse = JSON.parse(resp.toString()) as PermissionedAddressesResponse;
+        const permissionedAddressesResponse = PermissionedAddressesResponse.fromJson(JSON.parse(resp.toString()));
         return permissionedAddressesResponse;
     }
 
@@ -813,55 +803,23 @@ export abstract class RemoteTest {
         const requestParam = new Map<string, any>();
 
         requestParam.set("lastestAmount", lastestAmount);
-        const response = await OkHttp3Util.postString(this.contextRoot + "/" + ReqCmd.findBlockEvaluation,
+        const response = await OkHttp3Util.postStringSingle(this.contextRoot + "/" + ReqCmd.findBlockEvaluation,
             JSON.stringify(Object.fromEntries(requestParam)));
-        const getBlockEvaluationsResponse = JSON.parse(response.toString()) as GetBlockEvaluationsResponse;
-        return getBlockEvaluationsResponse.getEvaluations();
+        const getBlockEvaluationsResponse = GetBlockEvaluationsResponse.fromJson(JSON.parse(response.toString()));
+        return getBlockEvaluationsResponse.getEvaluations()!;
     }
-
-    public async createToken(key: ECKey, tokename: string, decimals: number, domainname: string, description: string,
-        amount: bigint, increment: boolean, tokenKeyValues: TokenKeyValues, tokentype: number, tokenid: string,
-        w: Wallet): Promise<Block> {
-        w.importKey(key);
-        const token = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH, tokenid, tokename, description, 1, 0,
-            amount, !increment, decimals, "");
-        token.setTokenKeyValues(tokenKeyValues);
-        token.setTokentype(tokentype);
-        const addresses = new Array<MultiSignAddress>();
-        addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
-        return w.createToken(key, domainname, increment, token, addresses);
-
-    }
-
-    public async createToken(key: ECKey, tokename: string, decimals: number, domainname: string, description: string,
-        amount: bigint, increment: boolean, tokenKeyValues: TokenKeyValues, tokentype: number, tokenid: string,
-        w: Wallet, pubkeyTo: Uint8Array, memoInfo: MemoInfo): Promise<Block> {
-
-        const token = Token.buildSimpleTokenInfo(true, Sha256Hash.ZERO_HASH, tokenid, tokename, description, 1, 0,
-            amount, !increment, decimals, "");
-        token.setTokenKeyValues(tokenKeyValues);
-        token.setTokentype(tokentype);
-        const addresses = new Array<MultiSignAddress>();
-        addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
-        return w.createToken(key, domainname, increment, token, addresses, pubkeyTo, memoInfo);
-
-    }
-
 
     public balance(a: Tokensums) {
 
         const totalMapValue = new Map<string, bigint>();
 
-        for (const utxo of a.getUtxos()) {
+        for (const utxo of a.getUtxos()!) {
             const address = utxo.getAddress();
+            if (!address) continue; // Skip if address is null
+            
             const amount = utxo.getValue().getValue();
-            if (totalMapValue.has(address)) {
-                const temp = totalMapValue.get(address);
-                totalMapValue.set(address, temp + amount);
-            } else {
-                totalMapValue.set(address, amount);
-            }
-
+            const currentAmount = totalMapValue.get(address) || BigInt(0);
+            totalMapValue.set(address, currentAmount + amount);
         }
         console.log(totalMapValue.toString());
     }
@@ -871,14 +829,14 @@ export abstract class RemoteTest {
 
         const keyStrHex000 = new Array<string>();
 
-        for (const ecKey of await this.wallet.walletKeys(null)) {
+        for (const ecKey of await this.wallet.keys(null)) {
             keyStrHex000.push(Utils.toHexString(ecKey.getPubKeyHash()));
         }
 
-        const response = await OkHttp3Util.post(this.contextRoot + ReqCmd.getBalances,
-            Buffer.from(JSON.stringify(keyStrHex000)));
+        const response = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getBalances,
+            JSON.stringify(keyStrHex000));
 
-        const getBalancesResponse = JSON.parse(response.toString()) as GetBalancesResponse;
+        const getBalancesResponse = GetBalancesResponse.fromJson(JSON.parse(response.toString()));
         const utxos = getBalancesResponse.getOutputs();
         utxos.sort(() => Math.random() - 0.5);
         // long q = 8;
@@ -887,7 +845,7 @@ export abstract class RemoteTest {
                 && utxo.getValue().isGreaterThan(Coin.ZERO)) {
                 this.wallet.setServerURL(this.contextRoot);
                 try {
-                    const sellOrder = await this.wallet.sellOrder(null, utxo.getTokenId(), 100, 1000, null, null,
+                    const sellOrder = await this.wallet.sellOrder(null, utxo.getTokenId()!, BigInt(100), BigInt(1000), null, null,
                         NetworkParameters.BIGTANGLE_TOKENID_STRING, true);
                     blocksAddedAll.push(sellOrder);
 
@@ -909,24 +867,24 @@ export abstract class RemoteTest {
         const giveMoneyResult = new Map<string, bigint>();
 
         for (let i = 0; i < 10; i++) {
-            giveMoneyResult.set(new ECKey().toAddress(this.networkParameters).toString(),
+            giveMoneyResult.set(ECKey.createNewKey().toAddress(this.networkParameters).toString(),
                 BigInt(3333000000) / BigInt(Math.pow(2, 1)));
         }
 
-        const b = await this.wallet.payMoneyToECKeyList(null, giveMoneyResult, "payMoneyToWallet1");
+        const b = await this.wallet.payMoneyToECKeyList(null, giveMoneyResult, new MemoInfo("payMoneyToWallet1"));
         blocksAddedAll.push(b);
         // makeRewardBlock(blocksAddedAll);
     }
 
-    public async buy(blocksAddedAll: Block[]) {
+    public async buyAll(blocksAddedAll: Block[]) {
 
         const requestParam = new Map<string, any>();
-        const response0 = await OkHttp3Util.post(this.contextRoot + ReqCmd.getOrders,
-            Buffer.from(JSON.stringify(Object.fromEntries(requestParam))));
+        const response0 = await OkHttp3Util.postStringSingle(this.contextRoot + ReqCmd.getOrders,
+            JSON.stringify(Object.fromEntries(requestParam)));
 
-        const orderdataResponse = JSON.parse(response0.toString()) as OrderdataResponse;
+        const orderdataResponse = OrderdataResponse.fromJson(JSON.parse(response0.toString()));
 
-        for (const orderRecord of orderdataResponse.getAllOrdersSorted()) {
+        for (const orderRecord of orderdataResponse.getAllOrdersSorted()!) {
             try {
                 await this.buy(orderRecord, blocksAddedAll);
             } catch (e) {
@@ -943,9 +901,9 @@ export abstract class RemoteTest {
 
         if (NetworkParameters.BIGTANGLE_TOKENID_STRING !== (orderRecord.getOfferTokenid())) {
             // sell order and make buy
-            const price = orderRecord.getTargetValue() / orderRecord.getOfferValue();
+            const price = orderRecord.getTargetValue()! / orderRecord.getOfferValue()!;
 
-            const buyOrder = await this.wallet.buyOrder(null, orderRecord.getOfferTokenid(), price, orderRecord.getOfferValue(),
+            const buyOrder = await this.wallet.buyOrder(null, orderRecord.getOfferTokenid()!, price, orderRecord.getOfferValue()!,
                 null, null, NetworkParameters.BIGTANGLE_TOKENID_STRING, false);
             blocksAddedAll.push(buyOrder);
             // makeOrderExecutionAndReward(blocksAddedAll);
@@ -972,7 +930,7 @@ export abstract class RemoteTest {
 
         ];
         for (const priv of s) {
-            const key = ECKey.fromPrivateString( priv );
+            const key = ECKey.fromPrivateString(priv);
             userkeys.push(key);
         }
         return userkeys;

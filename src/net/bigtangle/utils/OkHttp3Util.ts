@@ -63,24 +63,9 @@ export class OkHttp3Util {
   public static async post(url: string, data: Buffer, index: number): Promise<Buffer>;
   public static async post(url: string, data: Buffer, index = 0): Promise<Buffer> {
    
-        return await this.postSingle(urls[index], data);
-    
+        return await this.postSingle(url, data); 
   }
-
-  public static async postString(urls: string[], data: string): Promise<Buffer>;
-  public static async postString(urls: string[], data: string, index: number): Promise<Buffer>;
-  public static async postString(urls: string[], data: string, index = 0): Promise<Buffer> {
-    if (index < urls.length) {
-      try {
-        return await this.postAndGetBlock(urls[index], data);
-      } catch (e) {
-        return this.postString(urls, data, index + 1);
-      }
-    } else {
-      throw new Error(`All servers failed: ${urls.join(', ')}`);
-    }
-  }
-
+ 
   public static async postSingle(url: string, data: Buffer): Promise<Buffer> {
     this.logger.debug(`POST to ${url}`);
     const response = await this.getAxiosInstance().post(url, data);
