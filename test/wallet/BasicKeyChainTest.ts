@@ -22,7 +22,7 @@ describe('BasicKeyChainTest', () => {
         Utils.setMockClock();
         const now = Utils.currentTimeSeconds();
         const key1 = ECKey.fromPrivate(bigInt('1'));
-        Utils.rollMockClock(86400);
+        Utils.rollMockClock(now);
         const key2 = ECKey.fromPrivate(bigInt('2'));
         const keys = [key1, key2];
 
