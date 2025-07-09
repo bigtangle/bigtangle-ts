@@ -7,9 +7,7 @@ export class TokenKeyValues {
     private keyvalues: KeyValue[] | null = null;
 
     public addKeyvalue(kv: KeyValue): void {
-        if (this.keyvalues === null) {
-            this.keyvalues = [];
-        }
+        this.keyvalues ??= [];
         this.keyvalues.push(kv);
     }
 

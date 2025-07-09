@@ -51,9 +51,7 @@ export class Token extends SpentBlock {
     private tokenKeyValues: TokenKeyValues | null = null;
 
     public addKeyvalue(kv: KeyValue): void {
-        if (this.tokenKeyValues === null) {
-            this.tokenKeyValues = new TokenKeyValues();
-        }
+        this.tokenKeyValues ??= new TokenKeyValues();
         this.tokenKeyValues.addKeyvalue(kv);
     }
 
