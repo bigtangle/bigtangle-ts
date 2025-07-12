@@ -50,6 +50,8 @@ import { OkHttp3Util } from '../utils/OkHttp3Util';
 import { WalletBase } from './WalletBase';
 import { KeyChainGroup } from './KeyChainGroup';
 import { LocalTransactionSigner } from '../signers/LocalTransactionSigner';
+import { FreeStandingTransactionOutput } from './FreeStandingTransactionOutput';
+import { TransactionOutPoint } from '../core/TransactionOutPoint';
 
 // TODO: Implement Wallet class translation from Java to TypeScript here, using the above imports and adapting Java idioms to TypeScript.
 
@@ -78,8 +80,7 @@ export class Wallet extends WalletBase {
         }
         const group = new KeyChainGroup(params);
         group.importKeys(...keys);
-        url=url;
-        return new Wallet(params, group);
+        return new Wallet(params, group, url);
     }
 
 
@@ -99,11 +100,9 @@ export class Wallet extends WalletBase {
         if (!url) {
             this.serverPool = new ServerPool(params) as ServerPool;
         } else {
-            // If setServerURL exists, call it, otherwise just set url
+            this.url = url;
             if (typeof (this as any).setServerURL === 'function') {
                 (this as any).setServerURL(url);
-            } else {
-                this.url = url;
             }
         }
     }
@@ -197,7 +196,7 @@ export class Wallet extends WalletBase {
         const domainName = tokenObj ? tokenObj.getDomainName?.() : undefined;
         if (Utils.isBlank(domainNameBlockHash) && Utils.isBlank(domainName)) {
             const domainname = token.getDomainName?.();
-            const getDomainBlockHashResponse = await this.getDomainNameBlockHash(domainname);
+            const getDomainBlockHashResponse = await this.getDomainNameBlockHash(domainname!); // Non-null assertion
             const domainNameToken = getDomainBlockHashResponse.getdomainNameToken?.();
             if (domainNameToken) {
                 token.setDomainNameBlockHash?.(domainNameToken.getBlockHashHex?.() ?? null);
@@ -205,7 +204,7 @@ export class Wallet extends WalletBase {
             }
         }
         if (Utils.isBlank(token.getDomainNameBlockHash?.()) && !Utils.isBlank(domainName)) {
-            const domainResp = await this.getDomainNameBlockHash(domainName ?? '');
+            const domainResp = await this.getDomainNameBlockHash(domainName!); // Non-null assertion
             const domain = domainResp.getdomainNameToken?.();
             if (domain) {
                 token.setDomainNameBlockHash?.(domain.getBlockHashHex?.() ?? null);
@@ -216,7 +215,7 @@ export class Wallet extends WalletBase {
         const permMultiSignAddresses = permissionedAddressesResponse?.getMultiSignAddresses?.();
         if (permMultiSignAddresses && permMultiSignAddresses.length > 0) {
             if (Utils.isBlank(token.getDomainName?.())) {
-                token.setDomainName?.(permissionedAddressesResponse.getDomainName?.() ?? '');
+                token.setDomainName?.(permissionedAddressesResponse?.getDomainName?.() ?? '');
             }
             for (const multiSignAddress of permMultiSignAddresses) {
                 const pubKeyHex = multiSignAddress.getPubKeyHex?.() ?? '';
@@ -228,7 +227,12 @@ export class Wallet extends WalletBase {
         const block = await this.getTip();
         // TODO: Adapt Block.Type.BLOCKTYPE_TOKEN_CREATION to your TypeScript Block implementation
         if (block.setBlockType) block.setBlockType((Block as any).Type?.BLOCKTYPE_TOKEN_CREATION ?? 0);
-        if (block.addCoinbaseTransaction) block.addCoinbaseTransaction(pubKeyTo ?? (ownerKey as any).getPubKey?.(), basecoin, tokenInfo, memoInfo ?? new MemoInfo('coinbase'));
+        if (block.addCoinbaseTransaction) block.addCoinbaseTransaction(
+            pubKeyTo ?? (ownerKey as any).getPubKey?.(), 
+            basecoin, 
+            tokenInfo, 
+            memoInfo ?? new MemoInfo('coinbase')
+        );
         const transaction = block.getTransactions?.()?.[0];
         const sighash = transaction?.getHash?.();
         // TODO: Adapt sign and encodeDER to your ECKey and ECDSASignature implementations
@@ -305,29 +309,62 @@ export class Wallet extends WalletBase {
     }
 
     /**
-     * Retrieves the previous token's multi-sign address list from the server.
-     * @param token The Token whose multi-sign addresses are to be fetched.
-     * @returns A Promise resolving to a PermissionedAddressesResponse.
+     * Encrypts a message using ECIES encryption.
+     * @param message The message to encrypt.
+     * @param pubKey The public key to encrypt with as a Buffer.
+     * @returns A Promise resolving to the encrypted message as a Buffer.
      */
-    async getPrevTokenMultiSignAddressList(token: Token): Promise<PermissionedAddressesResponse> {
-        const tokenid = token.getTokenid?.() ?? '';
-        const url = this.getServerURL() +  ReqCmd.getPayMultiSignAddressList;
-        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([tokenid])));
-        const responseStr = typeof response === 'string' ? response : response.toString();
-        return Json.jsonmapper().parse(responseStr) as PermissionedAddressesResponse;
-    }
 
     /**
-     * Retrieves the domain name block hash for a given domain name from the server.
-     * @param domainName The domain name to query.
-     * @returns A Promise resolving to a GetDomainTokenResponse.
+     * Decrypts a message using ECIES decryption.
+     * @param encryptedMessage The encrypted message as a Buffer.
+     * @param privKey The private key to decrypt with.
+     * @returns A Promise resolving to the decrypted message as a string.
      */
-    async getDomainNameBlockHash(domainName: string): Promise<GetDomainTokenResponse> {
-        const url = this.getServerURL() + (ReqCmd.getDomainNameBlockHash || '/getDomainNameBlockHash');
-        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify([domainName])));
-        const responseStr = typeof response === 'string' ? response : response.toString();
-        return Json.jsonmapper().parse(responseStr);
+    sum(coinList: FreeStandingTransactionOutput[]): Coin {
+        let sum = new Coin(BigInt(0), coinList[0].getValue().getTokenid());
+        for (const u of coinList) {
+            sum = u.getValue().add(sum);
+        }
+        return sum;
     }
+
+    filterTokenid(tokenid: Uint8Array, l: FreeStandingTransactionOutput[]): FreeStandingTransactionOutput[] {
+        const re: FreeStandingTransactionOutput[] = [];
+        for (const u of l) {
+            if (Utils.arraysEqual(u.getValue().getTokenid(), tokenid)) {
+                re.push(u);
+            }
+        }
+        return re;
+    }
+
+    async getECKey(aesKey: any, address: string | null): Promise<ECKey> {
+        
+        const keys =   await this.walletKeys(aesKey);
+        for (const ecKey of  keys) {
+            if (address === ecKey.toAddress(this.params).toString()) {
+                return ecKey;
+            }
+        }
+        throw new Error(`No key in wallet found for address ${address}`);
+    }
+
+    totalAmount(price: bigint, amount: bigint, tokenDecimal: number, allowRemainder: boolean): bigint {
+        const factor = BigInt(10) ** BigInt(tokenDecimal);
+        const product = price * amount;
+        const result = product / factor;
+        const remainder = product % factor;
+        
+        if (remainder !== BigInt(0) && !allowRemainder) {
+            throw new Error(`Invalid price and quantity value with remainder ${remainder}`);
+        }
+        if (result < BigInt(1) || result > BigInt(Number.MAX_SAFE_INTEGER)) {
+            throw new Error(`Invalid target total value: ${result}`);
+        }
+        return result;
+    }
+
 
     /**
      * Submits a multi-signature for a transaction to the server.
@@ -343,58 +380,27 @@ export class Wallet extends WalletBase {
     }
 
     /**
-     * Submits a multi-signature for a token using the tokenid and ECKey.
-     * @param tokenid The token ID to sign.
-     * @param outKey The ECKey to use for signing.
-     * @param aesKey The AES key for signing (if needed).
-     * @returns A Promise resolving to a MultiSignResponse.
+     * Retrieves the domain name block hash for a given domain.
+     * @param domainName The domain name to query.
+     * @returns A Promise resolving to the GetDomainTokenResponse.
      */
-    async multiSignToken(tokenid: string, outKey: ECKey, aesKey: any): Promise<MultiSignResponse> {
-        // Prepare the MultiSignBy object
-        const pubKeyHex = Utils.HEX.encode(outKey.getPubKeyBytes());
-        // The signature is typically over the tokenid (or a hash of it)
-        const sighash = require('crypto').createHash('sha256').update(tokenid).digest();
-        const signatureObj = await outKey.sign(sighash, aesKey);
-        // Convert signature to DER hex string if needed
-        let signature = '';
-        if (signatureObj && typeof signatureObj.encodeDER === 'function') {
-            signature = Buffer.from(signatureObj.encodeDER()).toString('hex');
-        } else if (typeof signatureObj === 'string') {
-            signature = signatureObj;
-        }
-        const multiSignBy = new MultiSignBy();
-        if (multiSignBy.setTokenid) multiSignBy.setTokenid(tokenid);
-        if (multiSignBy.setSignature) multiSignBy.setSignature(signature);
-        // Call the main multiSign method
-        return this.multiSign(multiSignBy);
+    async getDomainNameBlockHash(domainName: string): Promise<GetDomainTokenResponse> {
+        const url = this.getServerURL() + '/getDomainNameBlockHash';
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify({ domainName })));
+        const responseStr = typeof response === 'string' ? response : response.toString();
+        return Json.jsonmapper().parse(responseStr);
     }
 
     /**
-     * Calculates the result of a mathematical expression or operation.
-     * This is a placeholder for the Java Wallet.calc method. Adapt as needed for your use case.
-     * @param expr The expression or operands to calculate.
-     * @returns The result of the calculation.
+     * Retrieves previous token multi-sign addresses.
+     * @param token The token to query.
+     * @returns A Promise resolving to the PermissionedAddressesResponse.
      */
-    calc(expr: string | number | any): number {
-        // If expr is a string, try to evaluate as a simple math expression (safe subset)
-        if (typeof expr === 'string') {
-            // Only allow numbers and basic operators for safety
-            if (/^[0-9+\-*/ ().]+$/.test(expr)) {
-                // eslint-disable-next-line no-eval
-                return Function(`'use strict'; return (${expr})`)();
-            } else {
-                throw new Error('Unsafe or invalid expression');
-            }
-        }
-        // If expr is a number, return as is
-        if (typeof expr === 'number') {
-            return expr;
-        }
-        // If expr is an object with a value property, return that
-        if (expr && typeof expr.value === 'number') {
-            return expr.value;
-        }
-        throw new Error('Unsupported expression type for calc');
+    async getPrevTokenMultiSignAddressList(token: Token): Promise<PermissionedAddressesResponse> {
+        const url = this.getServerURL() + '/getPrevTokenMultiSignAddressList';
+        const response = await OkHttp3Util.post(url, Buffer.from(JSON.stringify({ tokenid: token.getTokenid() })));
+        const responseStr = typeof response === 'string' ? response : response.toString();
+        return Json.jsonmapper().parse(responseStr);
     }
 
     /**
@@ -506,87 +512,11 @@ export class Wallet extends WalletBase {
     }
 
     /**
-     * Pay all small coins in a wallet to one destination. This destination can be in the same wallet.
-     * @param aesKey The AES key for decrypting private keys (if needed).
-     * @param destination The address to send all coins to.
-     * @param tokenid The token id as a Buffer or Uint8Array.
-     * @param memo Memo string for the transaction.
-     * @param low Optional minimum value for UTXOs to include (as a BigInt or string/number convertible to BigInt).
-     * @returns A Promise resolving to a list of Blocks (usually one block).
+     * Encrypts a message using ECIES encryption.
+     * @param message The message to encrypt.
+     * @param pubKey The public key to encrypt with as a Buffer.
+     * @returns A Promise resolving to the encrypted message as a Buffer.
      */
-    async payPartsToOne(
-        aesKey: any,
-        destination: string,
-        tokenid: Uint8Array,
-        memo: string,
-        low: bigint | number | string = 0n
-    ): Promise<Block[]> {
-        const tokenidBuf = Buffer.from(tokenid);
-        const utxos: UTXO[] = await this.calculateAllSpendCandidatesUTXO(aesKey, false);
-        let sum = Coin.valueOf(0n, tokenidBuf);
-        let size = 0;
-        const maxSize = (NetworkParameters as any).MAX_DEFAULT_BLOCK_SIZE
-            ? (NetworkParameters as any).MAX_DEFAULT_BLOCK_SIZE / 10000
-            : 1000; // fallback
-        const lowBigInt = typeof low === 'bigint' ? low : BigInt(low);
-        for (const u of utxos) {
-            const valueObj = u.getValue?.();
-            if (!valueObj) continue;
-            const utxoTokenId = valueObj.getTokenid?.();
-            // Compare tokenid (assume Buffer or Uint8Array)
-            let sameToken = false;
-            if (utxoTokenId && utxoTokenId.length === tokenid.length) {
-                sameToken = true;
-                for (let i = 0; i < utxoTokenId.length; i++) {
-                    if (utxoTokenId[i] !== tokenid[i]) {
-                        sameToken = false;
-                        break;
-                    }
-                }
-            }
-            if (sameToken && size < maxSize) {
-                const value = valueObj.getValue?.();
-                if (value == null) continue;
-                const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
-                if (lowBigInt === 0n || valueBigInt > lowBigInt) {
-                    sum = sum.add(valueObj);
-                    size += 1;
-                }
-            }
-        }
-        // Subtract fee if needed
-        let isSameToken = false;
-        if (NetworkParameters.BIGTANGLE_TOKENNAME && tokenid) {
-            if (typeof NetworkParameters.BIGTANGLE_TOKENNAME === 'string') {
-                const tokenNameBuf = Buffer.from(NetworkParameters.BIGTANGLE_TOKENNAME, 'utf8');
-                isSameToken =
-                    tokenNameBuf.length === tokenid.length &&
-                    tokenNameBuf.every((v: number, i: number) => v === tokenid[i]);
-            } else if (
-                (Array.isArray(NetworkParameters.BIGTANGLE_TOKENNAME) ||
-                    (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(NetworkParameters.BIGTANGLE_TOKENNAME))) &&
-                typeof (NetworkParameters.BIGTANGLE_TOKENNAME as any).length === 'number'
-            ) {
-                const arr = NetworkParameters.BIGTANGLE_TOKENNAME as any;
-                isSameToken =
-                    arr.length === tokenid.length &&
-                    Array.prototype.every.call(arr, (v: number, i: number) => v === tokenid[i]);
-            }
-        }
-        if (
-            typeof this.getFee === 'function' &&
-            this.getFee() &&
-            isSameToken
-        ) {
-            sum = sum.subtract((Coin as any).FEE_DEFAULT ?? Coin.valueOf(1n, tokenidBuf));
-        }
-        // Call pay (should return a list of blocks, but Java returns List<Block> with one block)
-        if (typeof (this as any).pay !== 'function') {
-            throw new Error('pay method not implemented in Wallet');
-        }
-        const block = await (this as any).pay(aesKey, destination, sum, new MemoInfo(memo));
-        return [block];
-    }
 
     /**
      * Pay the given amount to the destination address, using available UTXOs.
@@ -972,9 +902,9 @@ export class Wallet extends WalletBase {
      * @returns A Promise resolving to the created Block.
      * @throws InsufficientMoneyException if funds are insufficient after retries.
      */
-    public async payMoneyToECKeyList(
+    async payMoneyToECKeyList(
         aesKey: any,
-        giveMoneyResult: Map<string, bigint>,
+        giveMoneyResult: Map<string, BigInt>,
         tokenid: Uint8Array,
         memo: string,
         coinList: any[],
@@ -1015,25 +945,9 @@ export class Wallet extends WalletBase {
      * @param block The Block to solve and post.
      * @returns A Promise resolving to the posted Block.
      */
-    public async solveAndPost(block: Block): Promise<Block> {
-        if (typeof block.solve === 'function') {
-            const result = block.solve();
-            if (typeof result !== 'undefined' && typeof (result as any).then === 'function') {
-                await Promise.resolve(result);
-            }
-        }
-        // Serialize the block
-        const blockBytes = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([]);
-        // Post to the server
-        const url = this.getServerURL() + (ReqCmd.saveBlock || '/saveBlock');
-        const response = await OkHttp3Util.post(url, blockBytes);
-        if (response && this.params?.getDefaultSerializer) {
-            return this.params.getDefaultSerializer().makeBlock(response);
-        }
-        return block;
-    }
+    // Removed duplicate implementations
 
-    public async serializeKeyChainGroupToProtobuf(): Promise<any[]> {
+    async serializeKeyChainGroupToProtobuf(): Promise<any[]> {
         return this.keyChainGroup.toProtobuf();
     }
 
@@ -1042,7 +956,7 @@ export class Wallet extends WalletBase {
      * @param block The Block to solve and sign.
      * @returns A Promise resolving to the signed Block.
      */
-    public async adjustSolveAndSign(block: Block): Promise<Block> {
+    async adjustSolveAndSign(block: Block): Promise<Block> {
         try {
             if (typeof block.solve === 'function') {
                 const result = block.solve();
@@ -1080,7 +994,7 @@ export class Wallet extends WalletBase {
      * @returns A Promise resolving to the created and posted Block, or null if giveMoneyResult is empty.
      * @throws InsufficientMoneyException if funds are insufficient.
      */
-    public async payToList(
+    async payToList(
         aesKey: any,
         giveMoneyResult: Map<string, bigint>,
         tokenid: Uint8Array,
@@ -1126,7 +1040,7 @@ export class Wallet extends WalletBase {
      * @returns A Promise resolving to the Token object.
      * @throws NoTokenException if the token is not found.
      */
-    public async checkTokenId(tokenid: string | Uint8Array): Promise<Token> {
+    async checkTokenId(tokenid: string | Uint8Array): Promise<Token> {
         const tokenidStr = typeof tokenid === 'string' ? tokenid : Buffer.from(tokenid).toString('hex');
         const requestParam = { tokenid: tokenidStr };
         const url = this.getServerURL() + ( ReqCmd.getTokenById || '/getTokenById');
@@ -1139,4 +1053,350 @@ export class Wallet extends WalletBase {
         }
         return tokens[0];
     }
+
+    /**
+     * Solves the block and posts it to the server.
+     * @param block The Block to solve and post.
+     * @returns A Promise resolving to the posted Block.
+     */
+    async solveAndPost(block: Block): Promise<Block> {
+        if (typeof block.solve === 'function') {
+            const result = block.solve();
+            if (typeof result !== 'undefined' && typeof (result as any).then === 'function') {
+                await Promise.resolve(result);
+            }
+        }
+        // Serialize the block
+        const blockBytes = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([]);
+        // Post to the server
+        const url = this.getServerURL() + (ReqCmd.saveBlock || '/saveBlock');
+        const response = await OkHttp3Util.post(url, blockBytes);
+        if (response && this.params?.getDefaultSerializer) {
+            return this.params.getDefaultSerializer().makeBlock(response);
+        }
+        return block;
+    }
+
+    // ================== Additional translated methods ==================
+
+    // ================== Additional translated methods ==================
+
+    /**
+     * Retrieves the server's public key.
+     * @returns A Promise resolving to the server's public key as a string.
+     */
+    async getServerPubKey(): Promise<string> {
+        const url = this.getServerURL() + '/getServerPubKey';
+        const response = await OkHttp3Util.post(url, Buffer.from(''));
+        return response.toString();
+    }
+
+    /**
+     * Submits a signed transaction to the server.
+     * @param signedTx The signed Transaction object.
+     * @returns A Promise resolving to the server response.
+     */
+    async submitSignedTransaction(signedTx: Transaction): Promise<any> {
+        const url = this.getServerURL() + '/submitSignedTx';
+        let txBytes = Buffer.from([]);
+        if (signedTx.bitcoinSerialize) {
+            const serialized = signedTx.bitcoinSerialize();
+            txBytes = Buffer.isBuffer(serialized) ? serialized : Buffer.from(serialized);
+        }
+        const response = await OkHttp3Util.post(url, txBytes);
+        return Json.jsonmapper().parse(response.toString());
+    }
+
+    /**
+     * Verifies a transaction signature.
+     * @param tx The Transaction to verify.
+     * @param signature The signature to verify.
+     * @param pubKey The public key used for verification.
+     * @returns True if the signature is valid, false otherwise.
+     */
+    verifySignature(tx: Transaction, signature: any, pubKey: Uint8Array): boolean {
+        const txHash = tx.getHash();
+        const ecdsa = require('../crypto/ECDSASignature');
+        return ecdsa.verify(txHash, signature, pubKey);
+    }
+
+    /**
+     * Creates a multi-signature address.
+     * @param requiredSignatures The number of required signatures.
+     * @param pubKeys The public keys to include in the multi-signature address.
+     * @returns The multi-signature address as a string.
+     */
+    createMultiSigAddress(requiredSignatures: number, pubKeys: Uint8Array[]): string {
+        const scriptBuilder = new ScriptBuilder();
+        
+        // Push required signatures number
+        scriptBuilder.number(requiredSignatures);
+        
+        // Push all public keys
+        for (const pubKey of pubKeys) {
+            scriptBuilder.data(Buffer.from(pubKey));
+        }
+        
+        // Push total keys count
+        scriptBuilder.number(pubKeys.length);
+        
+        // Add CHECKMULTISIG opcode
+        scriptBuilder.op(174); // OP_CHECKMULTISIG
+        
+        const script = scriptBuilder.build();
+        const scriptHash = Utils.sha256hash160(script.getProgram());
+        // Use P2PKH address since P2SH is not implemented
+        return Address.fromP2PKH(this.params, Buffer.from(scriptHash)).toString();
+    }
+
+    /**
+     * Estimates the transaction fee based on size and fee rate.
+     * @param tx The Transaction to estimate fee for.
+     * @param feeRatePerByte The fee rate per byte in satoshis.
+     * @returns The estimated fee as a bigint.
+     */
+    estimateFee(tx: Transaction, feeRatePerByte: bigint): bigint {
+        let txSize = 0;
+        if (tx.bitcoinSerialize) {
+            const serialized = tx.bitcoinSerialize();
+            txSize = Buffer.isBuffer(serialized) ? serialized.length : serialized.byteLength;
+        }
+        return BigInt(txSize) * feeRatePerByte;
+    }
+
+    /**
+     * Encrypts a message using ECIES encryption.
+     * @param message The message to encrypt.
+     * @param pubKey The public key to encrypt with.
+     * @returns A Promise resolving to the encrypted message as a Uint8Array.
+     */
+    async encryptMessage(message: string, pubKey: Uint8Array): Promise<Uint8Array> {
+        return await ECIESCoder.encrypt(Buffer.from(message), Buffer.from(pubKey));
+    }
+
+    /**
+     * Decrypts a message using ECIES decryption.
+     * @param encryptedMessage The encrypted message.
+     * @param privKey The private key to decrypt with.
+     * @returns A Promise resolving to the decrypted message as a string.
+     */
+    async decryptMessage(encryptedMessage: Uint8Array, privKey: ECKey): Promise<string> {
+        const privKeyBytes = privKey.getPrivKeyBytes();
+        const decrypted = await ECIESCoder.decrypt(
+            Buffer.from(encryptedMessage),
+            Buffer.from(privKeyBytes)
+        );
+        return Buffer.from(decrypted).toString('utf-8');
+    }
+
+    /**
+     * Validates an address.
+     * @param address The address to validate.
+     * @returns True if the address is valid, false otherwise.
+     */
+    validateAddress(address: string): boolean {
+        try {
+            Address.fromBase58(this.params, address);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+  
+
+    async buyOrder(
+        aesKey: any,
+        targetTokenId: string,
+        buyPrice: bigint,
+        targetValue: bigint,
+        validToTime: bigint | null,
+        validFromTime: bigint | null,
+        orderBaseToken: string | null,
+        allowRemainder: boolean
+    ): Promise<Block> {
+        const targetToken = await this.checkTokenId(targetTokenId);
+        if (targetToken.getTokenid() === orderBaseToken)
+            throw new Error("buy token is base token ");
+
+        const candidates = await this.calculateAllSpendCandidates(aesKey, false);
+        const priceshift = (this.params as any).getOrderPriceShift(orderBaseToken!);
+        // Burn orderBaseToken to buy
+        let toBePaid = new Coin(
+            this.totalAmount(buyPrice, targetValue, targetToken.getDecimals() + priceshift, allowRemainder),
+            Utils.HEX.decode(orderBaseToken!)).negate();
+        if (this.getFee() && NetworkParameters.BIGTANGLE_TOKENID_STRING === orderBaseToken) {
+            toBePaid = toBePaid.add(Coin.FEE_DEFAULT.negate());
+        }
+        const tx = new Transaction(this.params);
+
+        let beneficiary: ECKey | null = null;
+
+        for (const spendableOutput of candidates) {
+            const blockHash = spendableOutput.getBlockHash();
+            const tokenId = spendableOutput.getTokenId();
+            const outPoint = spendableOutput.getOutPoint();
+            if (blockHash && tokenId && orderBaseToken === tokenId && outPoint) {
+                const ecKey = await this.getECKey(aesKey, spendableOutput.getAddress());
+                beneficiary = ecKey;
+                toBePaid = spendableOutput.getValue().add(toBePaid);
+                
+                // Create TransactionInput using getHash() instead of getOutPointHash()
+                const input = new TransactionInput(
+                    this.params,
+                    tx,
+                    Buffer.from([]),
+                    outPoint,
+                    spendableOutput.getValue()
+                );
+                tx.addInput(input);
+                
+                if (!toBePaid.isNegative()) {
+                    // Create TransactionOutput
+                    const output = new TransactionOutput(
+                        this.params,
+                        tx,
+                        toBePaid,
+                        ecKey.toAddress(this.params).getHash160()
+                    );
+                    tx.addOutput(output);
+                    break;
+                }
+            }
+        }
+        if (beneficiary === null || toBePaid.isNegative()) {
+            throw new InsufficientMoneyException(orderBaseToken ?? '');
+        }
+
+        // Convert bigint to number where required
+        const validToNum = validToTime ? Number(validToTime) : 0;
+        const validFromNum = validFromTime ? Number(validFromTime) : 0;
+        const targetValueNum = Number(targetValue);
+        const buyPriceNum = Number(buyPrice);
+        const totalAmountNum = Number(this.totalAmount(buyPrice, targetValue, targetToken.getDecimals() + priceshift, allowRemainder));
+        
+        const info = new OrderOpenInfo(
+            targetValueNum,
+            targetToken.getTokenid(),
+            beneficiary.getPubKey(),
+            validToNum,
+            validFromNum,
+            Side.BUY,
+            beneficiary.toAddress(this.params).toBase58(),
+            orderBaseToken!,
+            buyPriceNum,
+            totalAmountNum,
+            orderBaseToken!
+        );
+        tx.setData(Buffer.from(info.toByteArray()));
+        tx.setDataClassName("OrderOpen");
+        await this.signTransaction(tx, aesKey, 'THROW');
+        const block = await this.getTip();
+
+        block.addTransaction(tx);
+        block.setBlockType((Block as any).Type.BLOCKTYPE_ORDER_OPEN);
+
+        if (this.getFee() && NetworkParameters.BIGTANGLE_TOKENID_STRING !== orderBaseToken) {
+            const feeBlock = await this.feeTransaction(new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING), beneficiary!, aesKey);
+            const feeTx = feeBlock.getTransactions()[0];
+            block.addTransaction(feeTx);
+        }
+
+        return this.solveAndPost(block);
+    }
+
+    async sellOrder(
+        aesKey: any,
+        offerTokenId: string,
+        sellPrice: bigint,
+        offervalue: bigint,
+        validToTime: bigint | null,
+        validFromTime: bigint | null,
+        orderBaseToken: string | null,
+        allowRemainder: boolean
+    ): Promise<Block> {
+        const t = await this.checkTokenId(offerTokenId);
+        if (t.getTokenid() === orderBaseToken)
+            throw new Error("sell token is not allowed as base token ");
+
+        const candidates = await this.calculateAllSpendCandidates(aesKey, false);
+        const priceshift = (this.params as any).getOrderPriceShift(orderBaseToken!);
+        // Burn tokens to sell
+        let myCoin = Coin.valueOf(offervalue, t.getTokenid()!).negate();
+
+        if (this.getFee() && NetworkParameters.BIGTANGLE_TOKENID_STRING === t.getTokenid()) {
+            myCoin = myCoin.add(Coin.FEE_DEFAULT.negate());
+        }
+
+        const tx = new Transaction(this.params);
+
+        let beneficiary: ECKey | null = null;
+        for (const spendableOutput of candidates) {
+            if (t.getTokenid() === spendableOutput.getTokenId()) {
+                const outPoint = spendableOutput.getOutPoint();
+                if (outPoint) {
+                    beneficiary = await this.getECKey(aesKey, spendableOutput.getAddress());
+                    myCoin = spendableOutput.getValue().add(myCoin);
+                    tx.addInput(new TransactionInput(
+                        this.params,
+                        tx,
+                        Buffer.from([]),
+                        outPoint,
+                        spendableOutput.getValue()
+                    ));
+                    
+                    if (!myCoin.isNegative()) {
+                        break;
+                    }
+                }
+            }
+        }
+        if (beneficiary && !myCoin.isNegative()) {
+            tx.addOutput(new TransactionOutput(this.params, tx, myCoin, beneficiary.toAddress(this.params).getHash160()));
+        }
+        if (beneficiary === null || myCoin.isNegative()) {
+            throw new InsufficientMoneyException("");
+        }
+        // get the base token
+        const targetvalue = this.totalAmount(sellPrice, offervalue, t.getDecimals() + priceshift, allowRemainder);
+        if (targetvalue > BigInt(Number.MAX_SAFE_INTEGER)) {
+            throw new Error("Invalid  max: " + targetvalue + " > " + Number.MAX_SAFE_INTEGER);
+        }
+
+        // Convert bigint to number where required
+        const validToNum = validToTime ? Number(validToTime) : 0;
+        const validFromNum = validFromTime ? Number(validFromTime) : 0;
+        const targetValueNum = Number(targetvalue);
+        const sellPriceNum = Number(sellPrice);
+        const offerValueNum = Number(offervalue);
+        
+        const info = new OrderOpenInfo(
+            targetValueNum,
+            orderBaseToken!,
+            beneficiary.getPubKey(),
+            validToNum,
+            validFromNum,
+            Side.SELL,
+            beneficiary.toAddress(this.params).toBase58(),
+            orderBaseToken!,
+            sellPriceNum,
+            offerValueNum,
+            t.getTokenid()
+        );
+        tx.setData(Buffer.from(info.toByteArray()));
+        tx.setDataClassName("OrderOpen");
+
+        // Add missing 'THROW' parameter to signTransaction call
+        await this.signTransaction(tx, aesKey, 'THROW');
+        const block = await this.getTip();
+        block.addTransaction(tx);
+        block.setBlockType((Block as any).Type.BLOCKTYPE_ORDER_OPEN);
+        if (this.getFee() && NetworkParameters.BIGTANGLE_TOKENID_STRING !== t.getTokenid()) {
+            const feeBlock = await this.feeTransaction(new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING), beneficiary!, aesKey);
+            const feeTx = feeBlock.getTransactions()[0];
+            block.addTransaction(feeTx);
+        }
+        return this.solveAndPost(block);
+    }
+ 
+   
 }

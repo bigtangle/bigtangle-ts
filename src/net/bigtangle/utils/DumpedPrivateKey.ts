@@ -6,7 +6,7 @@ import { ECKey } from '../core/ECKey.js';
 import { Base58 } from '../utils/Base58.js';
 import bigInt from 'big-integer';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { BigInteger } from '../../../core/BigInteger';
+ 
 
 export class DumpedPrivateKey extends VersionedChecksummedBytes {
   public compressed: boolean;

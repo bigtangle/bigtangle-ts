@@ -8,6 +8,7 @@ import { Coin } from './Coin';
 import { Buffer } from 'buffer';
 import { VerificationException } from '../exception/VerificationException';
 import { DataOutputStream } from '../utils/DataOutputStream'; // Ensure DataOutputStream is used
+import { FreeStandingTransactionOutput } from '../wallet/FreeStandingTransactionOutput';
 
 export enum SigHash {
     ALL = 1,
@@ -301,7 +302,7 @@ export class Transaction extends ChildMessage {
         this.unCache();
     }
 
-    public addInput(input: TransactionInput): void {
+    addInput(input: TransactionInput): void {
         input.setParent(this as any);
         this.inputs.push(input);
         this.length += input.getMessageSize ? input.getMessageSize() : 0;

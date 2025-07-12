@@ -3,11 +3,19 @@ import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 export class Spent extends DataClass {
+    @JsonProperty()
     private confirmed: boolean = false;
+    @JsonProperty()
     private spent: boolean = false;
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private spenderBlockHash: Sha256Hash | null = null;
+    @JsonProperty()
     private time: number = 0;
 
     public toByteArray(): Uint8Array {

@@ -3,7 +3,7 @@ import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParamet
 import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
 import { OrderRecord } from '../../src/net/bigtangle/core/OrderRecord';
 import { Token } from '../../src/net/bigtangle/core/Token';
-import { BigInteger } from '../../src/core/BigInteger';
+ 
 describe('CoinTest', () => {
     test('testParseCoin', () => {
         // String version (6 decimals)

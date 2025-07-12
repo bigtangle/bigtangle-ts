@@ -3,8 +3,11 @@ import { Contact } from './Contact';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class ContactInfo extends DataClass {
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [Contact]]})
     private contactList: Contact[] = [];
 
     public toByteArray(): Uint8Array {
@@ -23,7 +26,7 @@ export class ContactInfo extends DataClass {
         return baos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): ContactInfo {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis);
         this.contactList = [];
         const size = dis.readInt();

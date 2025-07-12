@@ -4,12 +4,17 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
-
+import { JsonProperty } from "jackson-js";
 export class ContractEventInfo extends DataClass {
+    @JsonProperty()
     private beneficiaryAddress: string | null = null;
+    @JsonProperty()
     private offerValue: BigInteger | null = null;
+    @JsonProperty()
     private offerTokenid: string | null = null;
+    @JsonProperty()
     private contractTokenid: string | null = null;
+    @JsonProperty()
     private offerSystem: string | null = null;
 
     constructor(
@@ -49,7 +54,7 @@ export class ContractEventInfo extends DataClass {
         return baos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): ContractEventInfo {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis);
         this.beneficiaryAddress = dis.readNBytesString();
         this.offerTokenid = dis.readNBytesString();

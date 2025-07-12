@@ -5,10 +5,17 @@ import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { Buffer } from 'buffer';
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 export class TXReward extends SpentBlock {
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private prevBlockHash: Sha256Hash | null = null;
+    @JsonProperty()
     private difficulty: number = 0;
+    @JsonProperty()
     private chainLength: number = 0;
 
     constructor(
@@ -44,7 +51,7 @@ export class TXReward extends SpentBlock {
         return dos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): SpentBlock {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis);
         this.prevBlockHash = Sha256Hash.wrap(dis.readBytes(32));
         this.difficulty = dis.readLong();

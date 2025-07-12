@@ -5,24 +5,35 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty } from "jackson-js";
 
 export class OrderOpenInfo extends DataClass {
     private static readonly FROMTIME = Math.floor(Date.now() / 1000) - 5;
 
+    @JsonProperty()
     private targetValue: number = 0;
+    @JsonProperty()
     private targetTokenid: string | null = null;
+    @JsonProperty()
     private beneficiaryPubKey: Uint8Array | null = null;
+    @JsonProperty()
     private validToTime: number | null = null;
+    @JsonProperty()
     private validFromTime: number | null = null;
+    @JsonProperty()
     private beneficiaryAddress: string | null = null;
+    @JsonProperty()
     private orderBaseToken: string | null = null;
+    @JsonProperty()
     private price: number | null = null;
+    @JsonProperty()
     private offerValue: number = 0;
+    @JsonProperty()
     private offerTokenid: string | null = null;
      
     constructor(
         targetValue?: number,
-        targetTokenid?: string,
+        targetTokenid?: string | null,
         beneficiaryPubKey?: Uint8Array,
         validToTimeMilli?: number,
         validFromTimeMilli?: number,
@@ -31,7 +42,7 @@ export class OrderOpenInfo extends DataClass {
         orderBaseToken?: string,
         price?: number,
         offerValue?: number,
-        offerTokenid?: string
+        offerTokenid?: string | null
     ) {
         super();
         this.setVersion(2);
@@ -103,7 +114,7 @@ export class OrderOpenInfo extends DataClass {
         }
         return dos.toByteArray();
     }
-    public parseDIS(dis: DataInputStream): OrderOpenInfo {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis); 
         this.targetValue = dis.readLong();
         this.validToTime = dis.readLong();

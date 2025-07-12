@@ -6,15 +6,27 @@ import { ContractEventRecord } from './ContractEventRecord';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { DataOutputStream } from '../utils/DataOutputStream';
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class Tokensums extends DataClass {
+    @JsonProperty()
     public tokenid: string | null = null;
+    @JsonProperty()
     public initial: BigInteger = bigInt(0);
+    @JsonProperty()
     public unspent: BigInteger = bigInt(0);
+    @JsonProperty()
     public order: BigInteger = bigInt(0);
+    @JsonProperty()
     public contract: BigInteger = bigInt(0);
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [UTXO]]})
     public utxos: UTXO[] = [];
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [OrderRecord]]})
     public orders: OrderRecord[] = [];
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [ContractEventRecord]]})
     public contracts: ContractEventRecord[] = [];
 
     public calculate(): void {

@@ -1,7 +1,7 @@
 import { AbstractResponse } from './AbstractResponse';
-
+import { JsonProperty } from "jackson-js";
 export class ExceptionResponse extends AbstractResponse {
-    private exception: string | null = null;
+   @JsonProperty() private exception: string | null = null;
 
     public static create(exception: string): ExceptionResponse {
         const res = new ExceptionResponse();

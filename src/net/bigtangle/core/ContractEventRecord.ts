@@ -1,12 +1,21 @@
 import { Sha256Hash } from './Sha256Hash';
 import { SpentBlock } from './SpentBlock';
 import { BigInteger } from 'big-integer';
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 export class ContractEventRecord extends SpentBlock {
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private collectinghash: Sha256Hash | null = null;
+    @JsonProperty()
     private contractTokenid: string | null = null;
+    @JsonProperty()
     private targetValue: BigInteger | null = null;
+    @JsonProperty()
     private targetTokenid: string | null = null;
+    @JsonProperty()
     private beneficiaryAddress: string | null = null;
 
     constructor(

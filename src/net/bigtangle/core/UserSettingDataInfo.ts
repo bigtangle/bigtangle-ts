@@ -3,8 +3,11 @@ import { UserSettingData } from './UserSettingData';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class UserSettingDataInfo extends DataClass {
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [UserSettingData]]})
     private userSettingDatas: UserSettingData[] = [];
 
     public toByteArray(): Uint8Array {
@@ -23,7 +26,7 @@ export class UserSettingDataInfo extends DataClass {
         return baos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): UserSettingDataInfo {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis);
         this.userSettingDatas = [];
         const size = dis.readInt();

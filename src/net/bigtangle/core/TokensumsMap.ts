@@ -5,8 +5,11 @@ import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class TokensumsMap extends DataClass {
+    @JsonProperty()
+    @JsonClassType({type: () => [Map, [String, Tokensums]]})
     private tokensumsMap: Map<string, Tokensums>;
 
     constructor() {

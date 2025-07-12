@@ -5,23 +5,39 @@ import { MemoInfo } from './MemoInfo';
 import { Utils } from '../utils/Utils';
 import { Address } from './Address';
 import { SpentBlock } from './SpentBlock';
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 /**
  * A UTXO message contains the information necessary to check a spending
  * transaction.
  */
 export class UTXO extends SpentBlock {
+    @JsonProperty()
     private value: Coin | null = null;
+    @JsonProperty()
     private script: Script | null = null;
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private hash: Sha256Hash | null = null;
+    @JsonProperty()
     private index: number = 0;
+    @JsonProperty()
     private coinbase: boolean = false;
+    @JsonProperty()
     private address: string | null = null;
+    @JsonProperty()
     private fromaddress: string | null = null;
+    @JsonProperty()
     private spendPending: boolean = false;
+    @JsonProperty()
     private spendPendingTime: number = 0;
+    @JsonProperty()
     private tokenId: string | null = null;
+    @JsonProperty()
     private minimumsign: number = 0;
+    @JsonProperty()
     private memo: string | null = null;
    
     constructor(

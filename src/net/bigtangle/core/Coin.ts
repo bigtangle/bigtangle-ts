@@ -3,7 +3,7 @@ import { Buffer } from 'buffer';
 import * as Utils from './Utils';
 import { Constants } from './Constants';
 import { MonetaryFormat } from '../utils/MonetaryFormat';
-import { BigInteger } from '../../../core/BigInteger';
+ import bigInt from 'big-integer';
 
 export class Coin implements IMonetary, IComparable<Coin> {
     private static readonly serialVersionUID: bigint = 551802452657362699n;
@@ -35,18 +35,15 @@ export class Coin implements IMonetary, IComparable<Coin> {
         return new Coin(satoshis, tokenid || Constants.BIGTANGLE_TOKENID);
     }
 
-    public static fromBigInteger(value: BigInteger, tokenid: Uint8Array): Coin {
-        return new Coin(value.getValue(), Buffer.from(tokenid));
+    public static fromBigInteger(value: bigint, tokenid: Uint8Array): Coin {
+        return new Coin(value , Buffer.from(tokenid));
     }
 
     public getValue(): bigint {
         return this.value;
     }
 
-    public toBigInteger(): BigInteger {
-        return BigInteger.fromBigInt(this.value);
-    }
-
+     
     public setValue(value: bigint): void {
         this.value = value;
     }

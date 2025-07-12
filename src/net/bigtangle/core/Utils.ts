@@ -1,6 +1,16 @@
 import { Buffer } from 'buffer';
 import { createHash } from 'crypto';
 import base58 from 'bs58';
+import { Sha256Hash } from './Sha256Hash';
+import { ECKey } from './ECKey';
+import { TransactionOutput } from './TransactionOutput';
+import { TokenInfo } from './TokenInfo'; // TokenType not exported
+import { Transaction } from './Transaction'; // TransactionInput not exported
+import { Coin } from './Coin';
+import { Token } from './Token';
+import { OrderOpenInfo } from './OrderOpenInfo'; // Side not exported
+import { Side } from './Side'; // Import Side from correct location
+import { TestParams } from '../params/TestParams';
 
 export class Utils {
     public static readonly UTF8 = {
@@ -82,10 +92,89 @@ export class Utils {
         
         return buf;
     }
+    
+    // Corrected Sha256Hash usage throughout
+    public static createSha256Hash(data: Buffer): Sha256Hash {
+        return Sha256Hash.of(data);
+    }
 
     public static dateTimeFormat(date: number | Date): string {
         const d = typeof date === 'number' ? new Date(date) : date;
         return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    public static payMoneyToECKeyList(amount: number, keyList: ECKey[]): TransactionOutput[] {
+        const params = TestParams.get();
+        return keyList.map(key => {
+            const address = key.toAddress(params);
+            const scriptPubKey = Buffer.concat([Buffer.from([0x76, 0xa9, 0x14]), address.getHash160(), Buffer.from([0x88, 0xac])]);
+            return new TransactionOutput(params, null, Coin.valueOf(BigInt(amount)), scriptPubKey);
+        });
+    }
+
+    public static buildSimpleTokenInfo2(tokenName: string, symbol: string, amount: number): TokenInfo {
+        const token = new Token(symbol, tokenName);
+        token.setAmount(BigInt(amount));
+        token.setTokentype(0); // Assuming 0 for CURRENCY
+        const tokenInfo = new TokenInfo();
+        tokenInfo.setToken(token);
+        return tokenInfo;
+    }
+
+    public static createTestTransaction(inputs: any[], outputs: any[]): Transaction {
+        const tx = new Transaction(TestParams.get());
+        tx.setVersion(1);
+        tx.setLockTime(0);
+        if (inputs) {
+            for (const input of inputs) {
+                tx.addInput(input);
+            }
+        }
+        if (outputs) {
+            for (const output of outputs) {
+                tx.addOutput(output);
+            }
+        }
+        return tx;
+    }
+
+    public static createToken(name: string, symbol: string, amount: number): TokenInfo {
+        const token = new Token(symbol, name);
+        token.setAmount(BigInt(amount));
+        token.setTokentype(0); // Assuming 0 for CURRENCY
+        const tokenInfo = new TokenInfo();
+        tokenInfo.setToken(token);
+        return tokenInfo;
+    }
+
+    public static buyOrder(tokenId: Sha256Hash, amount: number, price: number): OrderOpenInfo {
+        return new OrderOpenInfo(
+            undefined,
+            tokenId.toString(),
+            undefined,
+            undefined,
+            undefined,
+            Side.BUY,
+            undefined,
+            undefined,
+            price,
+            amount
+        );
+    }
+
+    public static sellOrder(tokenId: Sha256Hash, amount: number, price: number): OrderOpenInfo {
+        return new OrderOpenInfo(
+            undefined,
+            tokenId.toString(),
+            undefined,
+            undefined,
+            undefined,
+            Side.SELL,
+            undefined,
+            undefined,
+            price,
+            amount
+        );
     }
 
     public static maxOfMostFreq(...args: number[]): number {
@@ -110,7 +199,7 @@ export class Utils {
     public static decodeCompactBits(compact: number): bigint {
         const size = compact >> 24;
         let mantissa = BigInt(compact & 0x007fffff);
-
+        
         // Handle negative sign bit
         if ((compact & 0x00800000) !== 0) {
             mantissa = -mantissa;
@@ -128,7 +217,7 @@ export class Utils {
     public static encodeCompactBits(value: bigint): number {
         let val = value;
         let isNegative = false;
-
+        
         if (val < 0n) {
             isNegative = true;
             val = -val;

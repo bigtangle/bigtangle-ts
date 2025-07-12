@@ -1,5 +1,7 @@
 import { Sha256Hash } from './Sha256Hash';
 import { SpentBlock } from './SpentBlock';
+import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 /**
  *
@@ -7,6 +9,9 @@ import { SpentBlock } from './SpentBlock';
 export class ContractEventCancel extends SpentBlock {
 
     // this is the block hash of the Order Block, which should be canceled
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private eventBlockHash: Sha256Hash | null = null;
 
     constructor(eventBlockHash?: Sha256Hash) {

@@ -21,7 +21,7 @@ export abstract class DataClass {
         return baos.toByteArray();
     }
 
-    protected parseDIS(dis: DataInputStream): this {
+    protected parseDIS(dis: DataInputStream): DataClass {
         this.version = dis.readInt();
         return this;
     }

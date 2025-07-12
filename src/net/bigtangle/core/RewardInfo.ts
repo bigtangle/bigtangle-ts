@@ -4,13 +4,35 @@ import bigInt, { BigInteger } from 'big-integer';
 import { Utils } from '../utils/Utils.js';
 import { DataInputStream } from '../utils/DataInputStream.js';
 import { DataOutputStream } from '../utils/DataOutputStream.js';
+import { JsonProperty, JsonClassType, JsonDeserialize, JsonSerialize } from "jackson-js";
+import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer.js";
 
 export class RewardInfo extends DataClass {
+    @JsonProperty()
     private chainlength: number = 0;
+    
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private prevRewardHash: Sha256Hash | null = null;
+    
+    @JsonProperty()
+    @JsonClassType({type: () => [Set, [Sha256Hash]]})
+    @JsonDeserialize({ contentUsing: Sha256HashDeserializer })
+    @JsonSerialize({ contentUsing: Sha256HashSerializer })
     private blocks: Set<Sha256Hash> = new Set();
+
+    @JsonProperty()
     private difficultyTargetReward: number = 0;
+
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private ordermatchingResult: Sha256Hash | null = null;
+
+    @JsonProperty()
+    @JsonDeserialize({ using: Sha256HashDeserializer })
+    @JsonSerialize({ using: Sha256HashSerializer })
     private miningResult: Sha256Hash | null = null;
     
     constructor(

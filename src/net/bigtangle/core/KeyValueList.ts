@@ -3,8 +3,11 @@ import { KeyValue } from './KeyValue';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class KeyValueList extends DataClass {
+    @JsonProperty()
+    @JsonClassType({type: () => [Array, [KeyValue]]})
     private keyvalues: KeyValue[] = [];
 
     public addKeyvalue(kv: KeyValue): void {
@@ -27,7 +30,7 @@ export class KeyValueList extends DataClass {
         return baos.toByteArray();
     }
 
-    public parseDIS(dis: DataInputStream): KeyValueList {
+    public parseDIS(dis: DataInputStream): this {
         super.parseDIS(dis);
         this.keyvalues = [];
         const size = dis.readInt();
