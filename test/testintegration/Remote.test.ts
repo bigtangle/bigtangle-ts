@@ -80,7 +80,7 @@ export abstract class RemoteTest {
   public async checkTokenAssertTrue(tokenid: string, domainname: string) {
     const getTokensResponse = (await this.post(
       ReqCmd.getTokenById,
-      new Map<string, any>().set("tokenid", tokenid),
+       [ tokenid],
       GetTokensResponse
     )) as GetTokensResponse;
     const token_ = getTokensResponse.getTokens()![0];
@@ -89,21 +89,27 @@ export abstract class RemoteTest {
 
   public async post<T>(
     reqCmd: string,
-    params: Map<string, any>,
+    params: any, // Changed type to any to accommodate Map and Array
     responseClass: any
   ): Promise<T> {
-    const jsonPayload = this.objectMapper.stringify(Object.fromEntries(params));
-    const resp = await OkHttp3Util.postStringSingle(
+    const jsonPayload = this.objectMapper.stringify( params);
+    const responseString = await OkHttp3Util.postStringSingle(
       this.contextRoot + reqCmd,
       jsonPayload
     );
-    return this.objectMapper.parse(resp.toString("utf8"), {
-      mainCreator: () => [responseClass],
-    }) as T;
+    
+    try {
+      return this.objectMapper.parse(responseString, {
+        mainCreator: () => [responseClass],
+      }) as T;
+    } catch (e) {
+      // Handle JSON parsing errors
+      throw new Error(`Failed to parse JSON response: ${responseString}`);
+    }
   }
 
-  public async setUp() {
-    this.wallet = await Wallet.fromKeysURL(
+  public setUp() {
+    this.wallet = Wallet.fromKeysURL(
       this.networkParameters,
       [ECKey.fromPrivateString(RemoteTest.testPriv)],
       this.contextRoot
@@ -509,7 +515,7 @@ export abstract class RemoteTest {
     }
     const getBalancesResponse = (await this.post(
       ReqCmd.getBalances,
-      new Map<string, any>().set("addresses", keyStrHex000),
+      keyStrHex000,
       GetBalancesResponse
     )) as GetBalancesResponse;
 
@@ -555,11 +561,14 @@ export abstract class RemoteTest {
     }
     const getBalancesResponse = (await this.post(
       ReqCmd.getAccountBalances,
-      new Map<string, any>().set("addresses", keyStrHex000),
+      keyStrHex000,
       GetBalancesResponse
     )) as GetBalancesResponse;
 
-    listCoin.push(...getBalancesResponse.getBalance()!);
+    // Access the balance property directly
+    if (getBalancesResponse.getBalance()) {
+      listCoin.push(...getBalancesResponse.getBalance()!);
+    }
     for (const coin of listCoin) {
       console.log("coin:" + coin.toString());
     }
@@ -578,7 +587,7 @@ export abstract class RemoteTest {
     );
     const getBalancesResponse = (await this.post(
       ReqCmd.getBalances,
-      new Map<string, any>().set("addresses", keyStrHex000),
+      keyStrHex000,
       GetBalancesResponse
     )) as GetBalancesResponse;
 
@@ -644,7 +653,7 @@ export abstract class RemoteTest {
       this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
-    return this.objectMapper.parse(resp.toString("utf8"), {
+    return this.objectMapper.parse(resp, { // Removed .toString("utf8")
       mainCreator: () => [PermissionedAddressesResponse],
     });
   }
@@ -1240,12 +1249,14 @@ export abstract class RemoteTest {
     requestParam.set("address", address);
     requestParam.set("tokenid", tokenid);
 
-    const resp = await OkHttp3Util.postStringSingle(
+    const resp: string = await OkHttp3Util.postStringSingle( // Explicitly declare resp as string
       this.contextRoot + ReqCmd.getTokenSignByAddress,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
 
-    const multiSignResponse = this.objectMapper.parse(resp.toString(), {
+    const trimmedResp = resp.trim(); // Introduce intermediate variable
+
+    const multiSignResponse = this.objectMapper.parse(trimmedResp, {
       mainCreator: () => [MultiSignResponse],
     }) as MultiSignResponse;
     if (

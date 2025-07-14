@@ -74,17 +74,24 @@ export class OkHttp3Util {
   }
 
   public static async postAndGetBlock(url: string, data: string): Promise<Buffer> {
-    const response = await this.postStringSingle(url, data);
-    const json = JSON.parse(response.toString());
+    const response = await this.postStringSingle(url, data); // Now returns string
+    const json = JSON.parse(response); // Parse the string directly
     const dataHex = json.dataHex;
     return dataHex ? Buffer.from(dataHex, 'hex') : Buffer.alloc(0);
   }
 
-  public static async postStringSingle(url: string, data: string): Promise<Buffer> {
+  public static async postStringSingle(url: string, data: string): Promise<string> { // Change return type to string
     this.logger.debug(`POST to ${url}`);
     const response = await this.getAxiosInstance().post(url, data);
     this.checkResponse(response, url);
-    return response.data;
+    
+    let responseBuffer = response.data;
+    try {
+      responseBuffer = await gunzip(responseBuffer);
+    } catch (e) {
+      // Not gzipped, proceed with original buffer
+    }
+    return responseBuffer.toString('utf8'); // Convert to string here
   }
 
   private static checkResponse(response: AxiosResponse<Buffer>, url: string): void {
@@ -118,7 +125,7 @@ export class OkHttp3Util {
     return response.data;
   }
 
-  public static async postStringWithHeader(url: string, data: string, header: string): Promise<Buffer> {
+  public static async postStringWithHeader(url: string, data: string, header: string): Promise<string> {
     this.logger.debug(`POST to ${url} with header`);
     const config: AxiosRequestConfig = {
       headers: {
@@ -127,14 +134,21 @@ export class OkHttp3Util {
     };
     const response = await this.getAxiosInstance().post(url, data, config);
     this.checkResponse(response, url);
-    return response.data;
+    
+    let responseBuffer = response.data;
+    try {
+      responseBuffer = await gunzip(responseBuffer);
+    } catch (e) {
+      // Not gzipped, proceed with original buffer
+    }
+    return responseBuffer.toString('utf8');
   }
 
   public static async postAndGetBlockWithHeader(url: string, data: string, header: string): Promise<Buffer> {
-    const response = await this.postStringWithHeader(url, data, header);
+    const response = await this.postStringWithHeader(url, data, header); // Now returns string
     if (!response || response.length === 0) return Buffer.alloc(0);
     
-    const json = JSON.parse(response.toString());
+    const json = JSON.parse(response); // Parse the string directly
     const dataHex = json.dataHex;
     return dataHex ? Buffer.from(dataHex, 'hex') : Buffer.alloc(0);
   }

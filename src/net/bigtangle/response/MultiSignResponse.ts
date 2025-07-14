@@ -1,8 +1,11 @@
 import { AbstractResponse } from './AbstractResponse';
 import { MultiSign } from '../core/MultiSign';
+import { JsonProperty } from 'jackson-js';
 
 export class MultiSignResponse extends AbstractResponse {
+    @JsonProperty()
     public multiSigns: MultiSign[] | null = null;
+    @JsonProperty()
     public signCount: number = 0;
 
     public getMultiSigns(): MultiSign[] | null {

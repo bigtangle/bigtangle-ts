@@ -52,8 +52,15 @@ import { KeyChainGroup } from './KeyChainGroup';
 import { LocalTransactionSigner } from '../signers/LocalTransactionSigner';
 import { FreeStandingTransactionOutput } from './FreeStandingTransactionOutput';
 import { TransactionOutPoint } from '../core/TransactionOutPoint';
+import { KeyParameter } from '../crypto/IESEngine';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
+import bigInt from "big-integer";
+import { WalletProtobufSerializer } from './WalletProtobufSerializer';
+import { ECDSASignature } from '../crypto/ECDSASignature';
+import { secp256k1 } from '@noble/curves/secp256k1';
 
-// TODO: Implement Wallet class translation from Java to TypeScript here, using the above imports and adapting Java idioms to TypeScript.
+const gunzip = promisify(zlib.gunzip);
 
 export class Wallet extends WalletBase {
     private static readonly log = console; // Replace with a logger if needed
@@ -132,12 +139,10 @@ export class Wallet extends WalletBase {
         // This is a synchronous method in Java, but you may want to adapt to async if your serializer is async
         // For now, we assume synchronous
         // TODO: Implement locking if needed
-        const { WalletProtobufSerializer } = require('../utils/WalletProtobufSerializer');
         new WalletProtobufSerializer().writeWallet(this, f);
     }
 
     async calculateAllSpendCandidates(aesKey: any, multisigns: boolean): Promise<any[]> {
-        const { FreeStandingTransactionOutput } = require('../core/FreeStandingTransactionOutput');
         const candidates: any[] = [];
         for (const output of await this.calculateAllSpendCandidatesUTXO(aesKey, multisigns)) {
             candidates.push(new FreeStandingTransactionOutput(this.params, output));
@@ -165,7 +170,15 @@ export class Wallet extends WalletBase {
             this.getServerURL() + String(ReqCmd.getOutputs),
             Buffer.from(JSON.stringify(pubKeyHashs))
         );
-        const responseStr = typeof response === 'string' ? response : response.toString();
+        
+        let responseBuffer = response;
+        try {
+            // Try gunzip first, if it fails, it's not gzipped
+            responseBuffer = await gunzip(responseBuffer);
+        } catch (e) {
+            // Not gzipped, proceed with original buffer
+        }
+        const responseStr = responseBuffer.toString('utf8'); // Convert to string here
         const getOutputsResponse: GetOutputsResponse = Json.jsonmapper().parse(responseStr);
         const outputs = getOutputsResponse && typeof getOutputsResponse.getOutputs === 'function' ? getOutputsResponse.getOutputs() : [];
         if (outputs) {
@@ -276,7 +289,7 @@ export class Wallet extends WalletBase {
             block.setBlockType((Block as any).Type?.BLOCKTYPE_FEE ?? 0);
         }
         // Create a minimal Token for fee transaction
-        const dummyToken: any = new (require('../core/Token').Token)();
+        const dummyToken: any = new Token();
         if (dummyToken.setTokenid) dummyToken.setTokenid('fee');
         const dummyTokenInfo = new TokenInfo();
         if (dummyTokenInfo.setToken && typeof dummyTokenInfo.setToken === 'function') {
@@ -550,9 +563,12 @@ export class Wallet extends WalletBase {
         amount: Coin,
         memo: string
     ): Promise<Transaction> {
-        const TransactionClass = require('../core/Transaction').Transaction;
-        const TransactionInputClass = require('../core/TransactionInput').TransactionInput;
-        const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput;
+        // Directly use imported classes
+        // const TransactionClass = require('../core/Transaction').Transaction; // Removed
+        // const TransactionInputClass = require('../core/TransactionInput').TransactionInput; // Removed
+        // const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput; // Removed
+
+        const tx = new Transaction(this.params); // Declare tx here
 
         // Calculate total input value
         let totalInput = Coin.valueOf(0n, amount.getTokenid());
@@ -561,7 +577,11 @@ export class Wallet extends WalletBase {
             const output = candidate.output || candidate;
             const value = output.getValue();
             totalInput = totalInput.add(value);
-            const input = new TransactionInputClass(output.getHash(), output.getIndex());
+            // Create TransactionOutPoint and use the correct TransactionInput constructor
+            const outPoint = new TransactionOutPoint(this.params, output.getHash(), output.getIndex());
+            // Assuming output has a getScript() method that returns a Script object
+            const scriptBytes = output.getScript().getProgram();
+            const input = new TransactionInput(this.params, tx, scriptBytes, outPoint, value);
             inputs.push(input);
             if (totalInput.compareTo(amount) >= 0) break;
         }
@@ -573,7 +593,7 @@ export class Wallet extends WalletBase {
 
         // Create outputs
         const outputs = [
-            new TransactionOutputClass(amount, destAddr)
+            new TransactionOutput(this.params, tx, amount, destAddr.getHash160()) // Used imported TransactionOutput
         ];
 
         // Add change output if needed
@@ -585,10 +605,18 @@ export class Wallet extends WalletBase {
             // Convert Uint8Array to Buffer
             const pubKeyHashBuffer = Buffer.from(pubKeyHash);
             const changeAddr = Address.fromP2PKH(this.params, pubKeyHashBuffer);
-            outputs.push(new TransactionOutputClass(change, changeAddr));
+            outputs.push(new TransactionOutput(this.params, tx, change, changeAddr.getHash160())); // Used imported TransactionOutput
         }
 
-        return new TransactionClass(this.params, inputs, outputs, memo);
+        for (const input of inputs) {
+            tx.addInput(input);
+        }
+        for (const output of outputs) {
+            tx.addOutput(output);
+        }
+        tx.setMemo(memo);
+
+        return tx;
     }
 
     async payTransaction(transactions: Transaction[]): Promise<Block> {
@@ -622,10 +650,7 @@ export class Wallet extends WalletBase {
         // Gather spendable UTXOs
         const candidates = await this.calculateAllSpendCandidates(aesKey, false);
         // Find the destination Address object
-        const AddressClass = require('../core/Address').Address;
-        const destAddr = AddressClass.fromString
-            ? AddressClass.fromString(destination)
-            : new AddressClass(destination);
+        const destAddr = Address.fromBase58(this.params, destination); // Used imported Address
         // Create the transaction
         const tx = (this as any).createTransaction(aesKey, candidates, destAddr, amount, memoInfo?.toString?.() ?? (memoInfo as any)?.memo ?? '');
         // Create a block with this transaction
@@ -660,10 +685,7 @@ export class Wallet extends WalletBase {
         // Gather spendable UTXOs
         const candidates = await this.calculateAllSpendCandidates(aesKey, false);
         // Find the destination Address object
-        const AddressClass = require('../core/Address').Address;
-        const destAddr = AddressClass.fromString
-            ? AddressClass.fromString(destination)
-            : new AddressClass(destination);
+        const destAddr = Address.fromBase58(this.params, destination); // Used imported Address
         // Create the transaction
         let memo = memoInfo?.toString?.() ?? (memoInfo as any)?.memo ?? '';
         // Attach contract info to memo if provided
@@ -701,17 +723,14 @@ export class Wallet extends WalletBase {
         // Gather spendable UTXOs
         const candidates = await this.calculateAllSpendCandidates(aesKey, false);
         // Find the destination Address object
-        const AddressClass = require('../core/Address').Address;
-        const destAddr = AddressClass.fromString
-            ? AddressClass.fromString(destination)
-            : new AddressClass(destination);
+        const destAddr = Address.fromBase58(this.params, destination); // Used imported Address
         // Create the transaction
         let memo = memoInfo?.toString?.() ?? (memoInfo as any)?.memo ?? '';
         // Attach contract cancel info to memo
         if (contractCancelInfo) {
             memo += `|contractCancel:${JSON.stringify(contractCancelInfo)}`;
         }
-        const tx = (this as any).createTransaction(aesKey, candidates, destAddr, amount, memo);
+        const tx = await this.createTransaction(aesKey, candidates, destAddr, amount, memo);
         // Create a block with this transaction
         const block = await (this as any).payTransaction([tx]);
         // Optionally solve and post the block
@@ -736,14 +755,13 @@ export class Wallet extends WalletBase {
         candidates: any[]
     ): Promise<Transaction> {
         // Find the destination Address object
-        const AddressClass = require('../core/Address').Address;
-        const destAddr = AddressClass.fromString
-            ? AddressClass.fromString(destination)
-            : new AddressClass(destination);
+        const destAddr = Address.fromBase58(this.params, destination); // Used imported Address
         // Prepare transaction inputs and outputs
-        const TransactionClass = require('../core/Transaction').Transaction;
-        const TransactionInputClass = require('../core/TransactionInput').TransactionInput;
-        const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput;
+        // const TransactionClass = require('../core/Transaction').Transaction; // Removed
+        // const TransactionInputClass = require('../core/TransactionInput').TransactionInput; // Removed
+        // const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput; // Removed
+        const tx = new Transaction(this.params); // Declare tx here
+
         let totalInput = Coin.valueOf(0n, amount.getTokenid());
         const inputs = [];
         for (const candidate of candidates) {
@@ -752,7 +770,11 @@ export class Wallet extends WalletBase {
             const value = utxo.getValue?.();
             if (!value) continue;
             totalInput = totalInput.add(value);
-            const input = new TransactionInputClass(utxo.getHash?.(), utxo.getIndex?.());
+            // Create TransactionOutPoint and use the correct TransactionInput constructor
+            const outPoint = new TransactionOutPoint(this.params, utxo.getHash(), utxo.getIndex());
+            // Assuming utxo has a getScript() method that returns a Script object
+            const scriptBytes = utxo.getScript().getProgram();
+            const input = new TransactionInput(this.params, tx, scriptBytes, outPoint, value);
             inputs.push(input);
             if (totalInput.isGreaterThan(amount)) break;
         }
@@ -761,21 +783,26 @@ export class Wallet extends WalletBase {
         }
         // Outputs: main destination
         const outputs = [
-            new TransactionOutputClass(amount, destAddr)
+            new TransactionOutput(this.params, tx, amount, destAddr.getHash160()) // Used imported TransactionOutput
         ];
         // Change output if needed
         const change = totalInput.subtract(amount);
         if (change.isGreaterThan(Coin.valueOf(0n, amount.getTokenid()))) {
             // Send change back to a wallet address
             const keys = await this.walletKeys(aesKey);
-        const changeKey = keys[0];
-            const changeAddr = AddressClass.fromKey
-                ? AddressClass.fromKey(this.params, changeKey)
-                : new AddressClass(changeKey.getPubKeyHash());
-            outputs.push(new TransactionOutputClass(change, changeAddr));
+            const changeKey = keys[0];
+            const changeAddr = Address.fromP2PKH(this.params, Buffer.from(changeKey.getPubKeyHash())); // Used imported Address
+            outputs.push(new TransactionOutput(this.params, tx, change, changeAddr.getHash160())); // Used imported TransactionOutput
         }
-        // Create the transaction
-        const tx = new TransactionClass(inputs, outputs, memoInfo);
+        
+        for (const input of inputs) {
+            tx.addInput(input);
+        }
+        for (const output of outputs) {
+            tx.addOutput(output);
+        }
+        tx.setMemo(memoInfo.toString()); // Set memo
+
         // Optionally sign the transaction here if needed
         // ...
         return tx;
@@ -937,7 +964,14 @@ export class Wallet extends WalletBase {
                 throw e;
             }
         }
-        throw new InsufficientMoneyException("InsufficientMoneyException " + JSON.stringify([...giveMoneyResult]));
+        // Custom replacer to handle BigInt serialization
+        const bigIntReplacer = (key: any, value: any) => {
+            if (typeof value === 'bigint') {
+                return value.toString();
+            }
+            return value;
+        };
+        throw new InsufficientMoneyException("InsufficientMoneyException " + JSON.stringify([...giveMoneyResult], bigIntReplacer));
     }
 
     /**
@@ -984,6 +1018,16 @@ export class Wallet extends WalletBase {
         Wallet.log.error?.('Server connection exception occurred.');
     }
 
+    async payToListCalc(
+        aesKey: any,
+        giveMoneyResult: Map<string, bigint>,
+        tokenid: Uint8Array,
+        memo: string 
+    ): Promise<Block | null> { 
+          const newCoinList = await this.calculateAllSpendCandidates(aesKey, false);
+        return  this.payToList(aesKey, giveMoneyResult, tokenid, memo, newCoinList);
+
+    }
     /**
      * Pays to a list of addresses with specified amounts, using the given UTXOs.
      * @param aesKey The AES key for decrypting private keys.
@@ -1098,7 +1142,7 @@ export class Wallet extends WalletBase {
      */
     async submitSignedTransaction(signedTx: Transaction): Promise<any> {
         const url = this.getServerURL() + '/submitSignedTx';
-        let txBytes = Buffer.from([]);
+        let txBytes: Buffer = Buffer.from([]);
         if (signedTx.bitcoinSerialize) {
             const serialized = signedTx.bitcoinSerialize();
             txBytes = Buffer.isBuffer(serialized) ? serialized : Buffer.from(serialized);
@@ -1114,10 +1158,12 @@ export class Wallet extends WalletBase {
      * @param pubKey The public key used for verification.
      * @returns True if the signature is valid, false otherwise.
      */
-    verifySignature(tx: Transaction, signature: any, pubKey: Uint8Array): boolean {
+    verifySignature(tx: Transaction, signature: ECDSASignature, pubKey: Uint8Array): boolean {
         const txHash = tx.getHash();
-        const ecdsa = require('../crypto/ECDSASignature');
-        return ecdsa.verify(txHash, signature, pubKey);
+        // Use secp256k1.verify from @noble/curves/secp256k1
+        // Assuming txHash.getBytes() returns the message hash as Uint8Array
+        // The secp256k1.verify function expects r and s as bigint
+        return secp256k1.verify({ r: BigInt(signature.r.toString()), s: BigInt(signature.s.toString()) }, txHash.getBytes(), pubKey);
     }
 
     /**
@@ -1398,5 +1444,202 @@ export class Wallet extends WalletBase {
         return this.solveAndPost(block);
     }
  
-   
+    async multiSignKey(tokenid: string, outKey: ECKey, aesKey: any): Promise<Block | null> {
+        const requestParam = new Map<string, string>();
+
+        const address = outKey.toAddress(this.params).toBase58();
+        requestParam.set("address", address);
+        requestParam.set("tokenid", tokenid);
+        
+        // Use post instead of postString
+        const response = await OkHttp3Util.post(
+            this.getServerURL() + ReqCmd.getTokenSignByAddress,
+            Buffer.from(Json.jsonmapper().writeValueAsString(requestParam))
+        );
+        const resp = response.toString();
+
+        const multiSignResponse: MultiSignResponse = Json.jsonmapper().readValue(resp, MultiSignResponse);
+        // Check if getMultiSigns exists and has items
+        if (!multiSignResponse.getMultiSigns || typeof multiSignResponse.getMultiSigns !== 'function') {
+            return null;
+        }
+        const multiSigns = multiSignResponse.getMultiSigns();
+        if (!multiSigns || multiSigns.length === 0) {
+            return null;
+        }
+        const multiSign: MultiSign = multiSigns[0];
+
+        const blockhashHex = multiSign.getBlockhashHex();
+        if (!blockhashHex) {
+            throw new Error('BlockhashHex is missing in multiSign');
+        }
+        const payloadBytes = Utils.HEX.decode(blockhashHex);
+        const block = this.params.getDefaultSerializer().makeBlock(payloadBytes);
+        if (!block) {
+            throw new Error('Failed to create block from payload');
+        }
+
+        const transactions = block.getTransactions();
+        if (!transactions || transactions.length === 0) {
+            throw new Error('Block has no transactions');
+        }
+        const transaction = transactions[0];
+        if (!transaction) {
+            throw new Error('Transaction is missing in block');
+        }
+
+        let multiSignBies: MultiSignBy[] = [];
+        if (transaction.getDataSignature() === null) {
+            multiSignBies = [];
+        } else {
+            const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().readValue(
+                transaction.getDataSignature(),
+                MultiSignByRequest
+            );
+            if (multiSignByRequest && multiSignByRequest.getMultiSignBies) {
+                // Call the method if it exists
+                multiSignBies = multiSignByRequest.getMultiSignBies() || [];
+            }
+        }
+        
+        const sighash = transaction.getHash();
+        if (!sighash) {
+            throw new Error('Transaction hash is missing');
+        }
+        
+        // Await the signature promise
+        const party1Signature = await outKey.sign(sighash, aesKey);
+        const buf1 = party1Signature.encodeDER(); // Fixed method name
+
+        const multiSignBy0 = new MultiSignBy();
+        multiSignBy0.setTokenid(multiSign.getTokenid());
+        multiSignBy0.setTokenindex(multiSign.getTokenindex());
+        multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
+        multiSignBy0.setPublickey(Utils.HEX.encode(outKey.getPubKey()));
+        multiSignBy0.setSignature(Utils.HEX.encode(buf1));
+        multiSignBies.push(multiSignBy0);
+        
+        const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
+        transaction.setDataSignature(Json.jsonmapper().writeValueAsBytes(multiSignByRequest));
+
+        return this.adjustSolveAndSign(block);
+    }
+
+    /**
+     * Creates a transaction that pays to a list of addresses with specified amounts, using the given UTXOs.
+     * @param aesKey The AES key for decrypting private keys.
+     * @param giveMoneyResult A map of address to amount (BigInt).
+     * @param tokenid The token id as a Buffer or Uint8Array.
+     * @param memo Memo string for the transaction.
+     * @param coinList List of FreeStandingTransactionOutput (UTXO wrappers).
+     * @returns A Promise resolving to the created Transaction.
+     * @throws InsufficientMoneyException if funds are insufficient.
+     */
+    async payToListTransaction(
+        aesKey: any,
+        giveMoneyResult: Map<string, bigint>,
+        tokenid: Uint8Array,
+        memo: string,
+        coinList: any[]
+    ): Promise<Transaction> {
+        // const TransactionClass = require('../core/Transaction').Transaction; // Removed
+        // const TransactionInputClass = require('../core/TransactionInput').TransactionInput; // Removed
+        // const TransactionOutputClass = require('../core/TransactionOutput').TransactionOutput; // Removed
+        // const AddressClass = require('../core/Address').Address; // Removed
+
+        const tx = new Transaction(this.params); // Declare tx here
+
+        let totalOutputAmount = BigInt(0);
+        const outputs: TransactionOutput[] = [];
+
+        // Create outputs for each recipient
+        for (const [addressStr, amount] of giveMoneyResult.entries()) {
+            const destAddr = Address.fromBase58(this.params, addressStr);
+            outputs.push(TransactionOutput.fromAddress(this.params, tx, new Coin(amount, tokenid), destAddr));
+            totalOutputAmount += amount;
+        }
+
+        // Filter coinList by token id and sum available funds
+        const filteredCoinList = coinList.filter((c: any) => 
+            c.getValue?.().getTokenid?.() && Buffer.compare(c.getValue().getTokenid(), tokenid) === 0
+        );
+
+        let totalInputAmount = BigInt(0);
+        const inputs: TransactionInput[] = [];
+        const usedOutputs: UTXO[] = [];
+
+        // Select inputs from available UTXOs
+        for (const candidate of filteredCoinList) {
+            const utxo = candidate.utxo || candidate.output || candidate;
+            const value = utxo.getValue?.();
+            if (!value) continue;
+
+            totalInputAmount += value.getValue();
+            // Create TransactionOutPoint and use the correct TransactionInput constructor
+            const outPoint = new TransactionOutPoint(this.params, utxo.getHash(), utxo.getIndex());
+            // Assuming utxo has a getScript() method that returns a Script object
+            const scriptBytes = utxo.getScript().getProgram();
+            inputs.push(new TransactionInput(this.params, tx, scriptBytes, outPoint, value));
+            usedOutputs.push(utxo);
+
+            if (totalInputAmount >= totalOutputAmount) {
+                break;
+            }
+        }
+
+        // Check for sufficient funds
+        if (totalInputAmount < totalOutputAmount) {
+            throw new InsufficientMoneyException(`Insufficient funds for token ${Utils.HEX.encode(tokenid)}. Needed: ${totalOutputAmount}, available: ${totalInputAmount}`);
+        }
+
+        for (const input of inputs) {
+            tx.addInput(input);
+        }
+        for (const output of outputs) {
+            tx.addOutput(output);
+        }
+        tx.setMemo(memo); // Set memo
+
+        // Handle change
+        const changeAmount = totalInputAmount - totalOutputAmount;
+        if (changeAmount > BigInt(0)) {
+            // Send change back to a wallet address (e.g., the first key's address)
+            const keys = await this.walletKeys(aesKey);
+            if (keys.length === 0) {
+                throw new Error("No keys available in wallet to return change.");
+            }
+            const changeKey = keys[0];
+            const changeAddr = Address.fromP2PKH(this.params, Buffer.from(changeKey.getPubKeyHash()));
+            tx.addOutput(new TransactionOutput(this.params, tx, new Coin(changeAmount, tokenid), changeAddr.getHash160()));
+        }
+
+        // Sign the transaction
+        for (let i = 0; i < tx.getInputs().length; i++) {
+            const input = tx.getInputs()[i];
+            const connectedOutput = usedOutputs[i]; // Assuming 1:1 mapping for simplicity, adjust if complex selection
+            
+            const scriptProgram = connectedOutput.getScript()?.getProgram();
+            if (!scriptProgram) {
+                throw new Error(`Script program missing for connected output at index ${i}`);
+            }
+
+            const sighash = tx.hashForSignature(
+                i,
+                scriptProgram,
+                Transaction.SigHash.ALL
+            );
+            const signingKey = await this.getECKey(aesKey, connectedOutput.getAddress());
+            const signature = await signingKey.sign(sighash.getBytes());
+            const inputScript = ScriptBuilder.createInputScript(
+                new TransactionSignature(
+                    bigInt(signature.r.toString()),
+                    bigInt(signature.s.toString()),
+                    Transaction.SigHash.ALL
+                )
+            );
+            input.setScriptSig(inputScript);
+        }
+
+        return tx;
+    }
 }

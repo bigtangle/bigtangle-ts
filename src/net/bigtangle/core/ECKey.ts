@@ -22,6 +22,8 @@ export class ECKey {
         return ECKey.fromPrivate(privateKey, compressed);
     }
 
+    
+
     // Helper to convert bigint or BigInteger to 32-byte Uint8Array
     private static bigIntToBytes(bi: bigint | BigInteger, length: number = 32): Uint8Array {
         let hex: string;
@@ -62,15 +64,26 @@ export class ECKey {
             pub.setCompressed(compressed);
         }
     }
+    public static fromPrivateByte(privKeyBytes: Uint8Array): ECKey {
+        const hex = Buffer.from(privKeyBytes).toString('hex');
+        return ECKey.fromPrivate(bigInt(hex, 16));
+    }
 
+    
     public static fromPrivate(privKey: BigInteger, compressed: boolean = true): ECKey {
         const pubPoint = ECKey.publicPointFromPrivate(privKey);
         return new ECKey(privKey, pubPoint, compressed);
     }
 
-      public static fromPrivateString(privKey: string ): ECKey {
-   
-        return    ECKey.fromPrivate(bigInt(privKey ));
+      public static fromPrivateString(privKey: string): ECKey {
+        // Handle hex strings with or without '0x' prefix
+        if (privKey.startsWith('0x')) {
+            return ECKey.fromPrivate(bigInt(privKey.substring(2), 16));
+        } else if (/^[0-9a-fA-F]{64}$/.test(privKey)) {
+            return ECKey.fromPrivate(bigInt(privKey, 16));
+        } else {
+            return ECKey.fromPrivate(bigInt(privKey));
+        }
     }
 
     public static fromPublic(pubKeyBytes: Uint8Array, compressed: boolean = true): ECKey {
