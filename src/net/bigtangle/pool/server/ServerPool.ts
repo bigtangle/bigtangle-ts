@@ -125,7 +125,7 @@ export class ServerPool {
         // Use Json.jsonmapper().stringify() instead of writeValueAsString()
         const requestBody = Json.jsonmapper().stringify(requestParam);
         const response = await OkHttp3Util.postStringSingle(`${s.trim()}/${ReqCmd.getChainNumber}`, requestBody);
-        const aTXRewardResponse = Json.jsonmapper().parse(new TextDecoder().decode(response));
+        const aTXRewardResponse = Json.jsonmapper().parse(response);
         return aTXRewardResponse.getTxReward();
     }
 

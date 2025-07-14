@@ -1432,7 +1432,7 @@ export abstract class RemoteTest {
     );
 
     const orderdataResponse = this.objectMapper.parse(
-      response0.toString("utf8"),
+      response0,
       { mainCreator: () => [OrderdataResponse] }
     ) as OrderdataResponse;
 

@@ -13,7 +13,7 @@ import { Transaction } from '../core/Transaction';
 import { KeyBag } from './KeyBag';
 import { EncryptionType } from '../crypto/EncryptableItem';
 import { DeterministicKey } from '../crypto/DeterministicKey';
-import { Mutex } from '../../../utils/Mutex';
+import { Mutex } from '../utils/Mutex';
 
 export abstract class WalletBase implements KeyBag {
     protected readonly lock = new Mutex();
