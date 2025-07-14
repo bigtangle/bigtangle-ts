@@ -33,20 +33,14 @@ class RemoteFromAddressTests extends RemoteTest {
   async setUp() {
     super.setUp();
     const adminKey = ECKey.fromPrivateString(RemoteTest.testPriv);
-    this.wallet = await Wallet.fromKeysURL(this.networkParameters, [adminKey],this.contextRoot);
+    this.wallet = Wallet.fromKeysURL(this.networkParameters, [adminKey], this.contextRoot);
   }
 
   async testUserpay() {
     const yuanKey = ECKey.fromPrivateString(this.yuanTokenPriv);
     this.yuanWallet = await Wallet.fromKeysURL(this.networkParameters, [yuanKey],this.contextRoot);
     let list = await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
-    let b = BigInt(0);
-    
-    for (const coin of list) {
-      if (coin.isBIG()) {
-        b = coin.getValue();
-      }
-    }
+ 
 
     await this.payBigTo(
       yuanKey,
