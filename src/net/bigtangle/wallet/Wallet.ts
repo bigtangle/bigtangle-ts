@@ -904,12 +904,7 @@ export class Wallet extends WalletBase {
                     }
                 }
             }
-            // Improved logging: print block hash and height if available
-            Wallet.log.debug?.(
-                "Block hash: %s, height: %s",
-                block.getHash?.()?.toString?.() ?? '',
-                block.getHeight?.() ?? ''
-            );
+ 
             if (typeof this.solveAndPost === 'function') {
                 await this.solveAndPost(block);
             }
@@ -946,7 +941,7 @@ export class Wallet extends WalletBase {
             return await (this as any).payToList(aesKey, giveMoneyResult, tokenid, memo, filtered);
         } catch (e: any) {
             if (e instanceof InsufficientMoneyException) {
-                Wallet.log.debug?.("InsufficientMoneyException  %o repeat time =%d sleep=%d", giveMoneyResult, repeat, sleepMs);
+                Wallet.log.log?.("InsufficientMoneyException  %o repeat time =%d sleep=%d", giveMoneyResult, repeat, sleepMs);
                 if (repeat > 0) {
                     await new Promise(res => setTimeout(res, sleepMs));
                     // Recalculate coinList
@@ -954,7 +949,7 @@ export class Wallet extends WalletBase {
                     return this.payMoneyToECKeyList(aesKey, giveMoneyResult, tokenid, memo, newCoinList, repeat - 1, sleepMs);
                 }
             } else if (e instanceof Error && e.message?.includes("net.bigtangle.core.exception.VerificationException$ConflictPossibleException")) {
-                Wallet.log.debug?.("%s   %o repeat time =%d sleep=%d", e.message, giveMoneyResult, repeat, sleepMs);
+                Wallet.log.log?.("%s   %o repeat time =%d sleep=%d", e.message, giveMoneyResult, repeat, sleepMs);
                 if (repeat > 0) {
                     await new Promise(res => setTimeout(res, sleepMs));
                     const newCoinList = await this.calculateAllSpendCandidates(aesKey, false);
@@ -1015,7 +1010,7 @@ export class Wallet extends WalletBase {
      * Handles server connection exceptions (stub).
      */
     protected serverConnectException(): void {
-        Wallet.log.error?.('Server connection exception occurred.');
+        Wallet.log.log?.('Server connection exception occurred.');
     }
 
     async payToListCalc(

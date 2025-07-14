@@ -513,8 +513,8 @@ export abstract class RemoteTest {
     for (const ecKey of keys) {
       keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
     }
-    const getBalancesResponse = (await this.post(
-      ReqCmd.getBalances,
+    const getBalancesResponse: GetBalancesResponse = (await this.post(
+      ReqCmd.getAccountBalances,
       keyStrHex000,
       GetBalancesResponse
     )) as GetBalancesResponse;
@@ -570,7 +570,7 @@ export abstract class RemoteTest {
       listCoin.push(...getBalancesResponse.getBalance()!);
     }
     for (const coin of listCoin) {
-      console.log("coin:" + coin.toString());
+      console.log("coin:" + JSON.stringify(coin));
     }
     return listCoin;
   }

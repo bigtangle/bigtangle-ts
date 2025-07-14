@@ -1,13 +1,12 @@
-import { Monetary } from './Monetary';
+
 import { Buffer } from 'buffer';
-import * as Utils from './Utils';
 import { Constants } from './Constants';
 import { MonetaryFormat } from '../utils/MonetaryFormat';
- import bigInt from 'big-integer';
+ 
 
 export class Coin implements IMonetary, IComparable<Coin> {
     private static readonly serialVersionUID: bigint = 551802452657362699n;
-    static FIAT: MonetaryFormat = new MonetaryFormat().withShift(0).withMinDecimals(0);
+    static readonly FIAT: MonetaryFormat = new MonetaryFormat().withShift(0).withMinDecimals(0);
 
     // Static constants
     public static readonly ZERO: Coin = Coin.valueOf(0n, Constants.BIGTANGLE_TOKENID);
@@ -17,7 +16,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     public static readonly FEE_DEFAULT: Coin = Coin.valueOf(1000n, Constants.BIGTANGLE_TOKENID);
 
     private value: bigint;
-    private tokenid: Buffer;
+    private readonly tokenid: Buffer;
 
     constructor(satoshis: bigint, tokenid: Buffer | Uint8Array | string) {
         this.value = satoshis;
