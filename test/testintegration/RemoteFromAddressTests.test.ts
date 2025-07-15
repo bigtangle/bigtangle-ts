@@ -40,8 +40,7 @@ class RemoteFromAddressTests extends RemoteTest {
     const yuanKey = ECKey.fromPrivateString(this.yuanTokenPriv);
     this.yuanWallet = await Wallet.fromKeysURL(this.networkParameters, [yuanKey],this.contextRoot);
     let list = await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
- 
-
+     this.logCoins(list);
     await this.payBigTo(
       yuanKey,
       Coin.FEE_DEFAULT.getValue() * BigInt(1000),
@@ -53,14 +52,17 @@ class RemoteFromAddressTests extends RemoteTest {
     await this.createUserPay(this.accountKey);
     
     list = await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
+    this.logCoins(list);
     const userkeys = [this.accountKey];
     list = await this.getBalanceAccount(false, userkeys);
-    
+    this.logCoins(list);
+
+  }
+  public logCoins(list: Coin[]) {
     for (const coin of list) {
       this.log.debug(coin.toString());
     }
   }
-
   async createUserPay(accountKey: ECKey) {
     const ulist = await this.payKeys();
     for (const key of ulist) {

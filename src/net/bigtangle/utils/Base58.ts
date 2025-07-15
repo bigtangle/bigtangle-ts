@@ -44,8 +44,8 @@ export class Base58 {
     static decodeToBigInteger(input: string): bigint {
         const bytes = Base58.decode(input);
         let value = BigInt(0);
-        for (let i = 0; i < bytes.length; i++) {
-            value = value * BigInt(256) + BigInt(bytes[i]);
+        for (const element of bytes) {
+            value = value * BigInt(256) + BigInt(element);
         }
         return value;
     }
@@ -66,8 +66,8 @@ export class Base58 {
         if (input.length === 0) return new Uint8Array(0);
         
         let value = BigInt(0);
-        for (let i = 0; i < input.length; i++) {
-            const char = input[i];
+        for (const element of input) {
+            const char = element;
             const index = Base58.ALPHABET.indexOf(char);
             if (index === -1) throw new AddressFormatException(`Invalid Base58 character: ${char}`);
             value = value * Base58.BASE + BigInt(index);

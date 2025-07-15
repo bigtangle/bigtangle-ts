@@ -80,7 +80,7 @@ export abstract class RemoteTest {
   public async checkTokenAssertTrue(tokenid: string, domainname: string) {
     const getTokensResponse = (await this.post(
       ReqCmd.getTokenById,
-       [ tokenid],
+      [tokenid],
       GetTokensResponse
     )) as GetTokensResponse;
     const token_ = getTokensResponse.getTokens()![0];
@@ -92,20 +92,14 @@ export abstract class RemoteTest {
     params: any, // Changed type to any to accommodate Map and Array
     responseClass: any
   ): Promise<T> {
-    const jsonPayload = this.objectMapper.stringify( params);
+    const jsonPayload = this.objectMapper.stringify(params);
     const responseString = await OkHttp3Util.postStringSingle(
       this.contextRoot + reqCmd,
       jsonPayload
     );
-    
-    try {
-      return this.objectMapper.parse(responseString, {
-        mainCreator: () => [responseClass],
-      }) as T;
-    } catch (e) {
-      // Handle JSON parsing errors
-      throw new Error(`Failed to parse JSON response: ${responseString}`);
-    }
+    return this.objectMapper.parse(responseString, {
+      mainCreator: () => [responseClass],
+    }) as T;
   }
 
   public setUp() {
@@ -148,7 +142,7 @@ export abstract class RemoteTest {
   private async payList(
     addedBlocks: Block[],
     giveMoneyResult: Map<string, BigInt>,
-    tokenid: Uint8Array
+    tokenid: Buffer
   ): Promise<Block> {
     const coinList = await this.wallet.calculateAllSpendCandidatesUTXO(
       null,
@@ -161,7 +155,7 @@ export abstract class RemoteTest {
       "",
       coinList,
       0,
-       0
+      0
     );
     // log.debug("block " + (b == null ? "block is null" : b.toString()));
     if (addedBlocks !== null) {
@@ -200,7 +194,7 @@ export abstract class RemoteTest {
       tokenidBytes,
       "",
       coinList,
-       0,
+      0,
       0
     );
     // log.debug("block " + (b == null ? "block is null" : b.toString()));
@@ -553,7 +547,6 @@ export abstract class RemoteTest {
     withZero: boolean,
     keys: ECKey[]
   ): Promise<Coin[]> {
-    let listCoin = new Array<Coin>();
     const keyStrHex000 = new Array<string>();
 
     for (const ecKey of keys) {
@@ -566,13 +559,11 @@ export abstract class RemoteTest {
     )) as GetBalancesResponse;
 
     // Access the balance property directly
-    if (getBalancesResponse.getBalance()) {
-      listCoin.push(...getBalancesResponse.getBalance()!);
+    let re = getBalancesResponse.getBalance();
+    if (re === null) {
+      re = new Array<Coin>();
     }
-    for (const coin of listCoin) {
-      console.log("coin:" + JSON.stringify(coin));
-    }
-    return listCoin;
+    return re;
   }
 
   // get balance for the walletKeys
@@ -653,7 +644,8 @@ export abstract class RemoteTest {
       this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
-    return this.objectMapper.parse(resp, { // Removed .toString("utf8")
+    return this.objectMapper.parse(resp, {
+      // Removed .toString("utf8")
       mainCreator: () => [PermissionedAddressesResponse],
     });
   }
@@ -1249,7 +1241,8 @@ export abstract class RemoteTest {
     requestParam.set("address", address);
     requestParam.set("tokenid", tokenid);
 
-    const resp: string = await OkHttp3Util.postStringSingle( // Explicitly declare resp as string
+    const resp: string = await OkHttp3Util.postStringSingle(
+      // Explicitly declare resp as string
       this.contextRoot + ReqCmd.getTokenSignByAddress,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
@@ -1431,10 +1424,9 @@ export abstract class RemoteTest {
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
 
-    const orderdataResponse = this.objectMapper.parse(
-      response0,
-      { mainCreator: () => [OrderdataResponse] }
-    ) as OrderdataResponse;
+    const orderdataResponse = this.objectMapper.parse(response0, {
+      mainCreator: () => [OrderdataResponse],
+    }) as OrderdataResponse;
 
     for (const orderRecord of orderdataResponse.getAllOrdersSorted()!) {
       try {

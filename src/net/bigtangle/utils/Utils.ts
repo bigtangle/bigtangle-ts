@@ -7,6 +7,7 @@ import { Buffer } from 'buffer';
 import { ContractEventInfo } from '../core/ContractEventInfo';
 import { Token } from '../core/Token';
 import { TokenKeyValues } from '../core/TokenKeyValues';
+import { BaseEncoding } from './BaseEncoding';
 
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { DataInputStream } from '../utils/DataInputStream';
@@ -20,23 +21,7 @@ export class Utils {
     public static readonly BITCOIN_SIGNED_MESSAGE_HEADER = "Bitcoin Signed Message:\n";
     public static readonly BITCOIN_SIGNED_MESSAGE_HEADER_BYTES = new TextEncoder().encode(Utils.BITCOIN_SIGNED_MESSAGE_HEADER);
 
-    public static HEX = {
-        encode: (data: Uint8Array): string => {
-            return Array.from(data)
-                .map(byte => byte.toString(16).padStart(2, '0'))
-                .join('');
-        },
-        decode: (hex: string): Uint8Array => {
-            if (hex.length % 2 !== 0) {
-                throw new Error("Hex string must have an even number of characters");
-            }
-            const bytes = new Uint8Array(hex.length / 2);
-            for (let i = 0; i < bytes.length; i++) {
-                bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
-            }
-            return bytes;
-        }
-    };
+    public static readonly HEX = BaseEncoding.base16().lowerCase();
 
     public static bigIntToBytes(b: BigInteger, numBytes: number): Uint8Array {
         if (b === null) {
@@ -492,8 +477,8 @@ export class Utils {
 
     public static hashCode(data: Uint8Array): number {
         let hash = 0;
-        for (let i = 0; i < data.length; i++) {
-            const char = data[i];
+        for (const element of data) {
+            const char = element;
             hash = (hash << 5) - hash + char;
             hash |= 0; // Convert to 32bit integer
         }
