@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class GetBlockListResponse extends AbstractResponse {
-    private blockbytelist: Uint8Array[] | null = null;
+    @JsonProperty() private blockbytelist: Uint8Array[] | null = null;
 
     public static create(blockbytelist: Uint8Array[]): GetBlockListResponse {
         const res = new GetBlockListResponse();

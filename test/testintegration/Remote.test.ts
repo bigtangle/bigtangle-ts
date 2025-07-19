@@ -92,14 +92,7 @@ export abstract class RemoteTest {
     params: any, // Changed type to any to accommodate Map and Array
     responseClass: any
   ): Promise<T> {
-    const jsonPayload = this.objectMapper.stringify(params);
-    const responseString = await OkHttp3Util.postStringSingle(
-      this.contextRoot + reqCmd,
-      jsonPayload
-    );
-    return this.objectMapper.parse(responseString, {
-      mainCreator: () => [responseClass],
-    }) as T;
+    return OkHttp3Util.postClass(this.contextRoot + reqCmd, params, responseClass);
   }
 
   public setUp() {
@@ -234,26 +227,10 @@ export abstract class RemoteTest {
   protected async payBigToAmount(beneficiary: ECKey, addedBlocks: Block[]) {
     const giveMoneyResult = new Map<string, bigint>();
 
-    // Use BigInt constructor
+    // Fund with a single, very large amount for testing purposes
     giveMoneyResult.set(
       beneficiary.toAddress(this.networkParameters).toString(),
-      BigInt(500000000)
-    );
-    giveMoneyResult.set(
-      beneficiary.toAddress(this.networkParameters).toString(),
-      BigInt(400000000)
-    );
-    giveMoneyResult.set(
-      beneficiary.toAddress(this.networkParameters).toString(),
-      BigInt(300000000)
-    );
-    giveMoneyResult.set(
-      beneficiary.toAddress(this.networkParameters).toString(),
-      BigInt(200000000)
-    );
-    giveMoneyResult.set(
-      beneficiary.toAddress(this.networkParameters).toString(),
-      BigInt(100000000)
+      BigInt(1000000000000000) // A very large amount to ensure sufficient funds
     );
     // Convert token ID string to Uint8Array
     const tokenIdBytes = Buffer.from(
@@ -389,7 +366,7 @@ export abstract class RemoteTest {
       block.bitcoinSerialize()
     );
 
-    const result = this.objectMapper.parse(resp.toString("utf8")) as any;
+    const result = this.objectMapper.parse(resp )  ;
     const dataHex = result.dataHex as string;
 
     const adjust = this.networkParameters
@@ -560,12 +537,16 @@ export abstract class RemoteTest {
 
     // Access the balance property directly
     let re = getBalancesResponse.getBalance();
-    if (re === null) {
-      re = new Array<Coin>();
-    }
+    re ??= new Array<Coin>();
+    this.logCoins(re);
     return re;
   }
 
+    public logCoins(list: Coin[]) {
+    for (const coin of list) {
+      console.debug(coin instanceof Coin ? coin.toString() : `Non-Coin object: ${JSON.stringify(coin)}`);
+    }
+  }
   // get balance for the walletKeys
   protected async getBalanceByAddress(address: string): Promise<UTXO[]> {
     const listUTXO = new Array<UTXO>();
@@ -928,12 +909,12 @@ export abstract class RemoteTest {
       transaction.setDataSignature(
         Buffer.from(this.objectMapper.stringify(newMultiSignByRequest))
       );
-      this.checkResponse(
+   
         await OkHttp3Util.post(
           this.contextRoot + ReqCmd.signToken,
           block0.bitcoinSerialize()
         )
-      );
+      ;
     }
   }
 

@@ -1,10 +1,11 @@
 import { AbstractResponse } from './AbstractResponse';
 import { UTXO } from '../core/UTXO';
 import { OutputsMulti } from '../core/OutputsMulti';
+import { JsonProperty } from "jackson-js";
 
 export class OutputsDetailsResponse extends AbstractResponse {
-    private outputs: UTXO | null = null;
-    private outputsMultis: OutputsMulti[] | null = null;
+    @JsonProperty() private outputs: UTXO | null = null;
+    @JsonProperty() private outputsMultis: OutputsMulti[] | null = null;
 
     public static create(outputs: UTXO): OutputsDetailsResponse;
     public static create(outputsMultis: OutputsMulti[]): OutputsDetailsResponse;

@@ -1,7 +1,8 @@
 import { MultiSignBy } from '../core/MultiSignBy';
+import { JsonProperty } from "jackson-js";
 
 export class MultiSignByRequest {
-    private multiSignBies: MultiSignBy[] = [];
+    @JsonProperty() private multiSignBies: MultiSignBy[] = [];
 
     public getMultiSignBies(): MultiSignBy[] {
         return this.multiSignBies;

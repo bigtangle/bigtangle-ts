@@ -1,8 +1,10 @@
+import { JsonProperty } from "jackson-js";
+
 export class ServerInfo {
-    public url: string | null = null;
-    public servertype: string | null = null;
-    public chain: string | null = null;
-    public status: string | null = null;
+    @JsonProperty() public url: string | null = null;
+    @JsonProperty() public servertype: string | null = null;
+    @JsonProperty() public chain: string | null = null;
+    @JsonProperty() public status: string | null = null;
 
     public getUrl(): string | null {
         return this.url;

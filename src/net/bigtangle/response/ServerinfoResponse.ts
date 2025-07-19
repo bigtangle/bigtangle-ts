@@ -1,8 +1,9 @@
 import { AbstractResponse } from './AbstractResponse';
 import { ServerInfo } from './ServerInfo';
+import { JsonProperty } from "jackson-js";
 
 export class ServerinfoResponse extends AbstractResponse {
-    private serverInfoList: ServerInfo[] | null = null;
+    @JsonProperty() private serverInfoList: ServerInfo[] | null = null;
 
     public static create(serverInfoList: ServerInfo[]): ServerinfoResponse {
         const res = new ServerinfoResponse();

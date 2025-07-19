@@ -1,9 +1,10 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Sha256Hash } from '../core/Sha256Hash';
 import { TokensumsMap } from '../core/TokensumsMap';
+import { JsonProperty } from "jackson-js";
 
 export class CheckpointResponse extends AbstractResponse {
-    private tokensumsMapHash: Sha256Hash | null = null;
+    @JsonProperty() private tokensumsMapHash: Sha256Hash | null = null;
 
     public static create(tokensumsMap: TokensumsMap): CheckpointResponse {
         const res = new CheckpointResponse();

@@ -67,7 +67,7 @@ export class ServerPool {
             const requestParam: { [key: string]: string } = {};
             const requestBody = Json.jsonmapper().stringify(requestParam);
             OkHttp3Util.post(this.params.serverSeeds()[0] + ReqCmd.serverinfolist, requestBody).then(data => {
-                const response = Json.jsonmapper().parse(new TextDecoder().decode(data));
+                const response = Json.jsonmapper().parse( data);
                 if (response.getServerInfoList() !== null) {
                     for (const serverInfo of response.getServerInfoList()!) {
                         if (serverInfo.getStatus() === "inactive") {

@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class SearchMultiSignResponse extends AbstractResponse {
-    private multiSignList: Map<string, any>[] = [];
+    @JsonProperty() private multiSignList: Map<string, any>[] = [];
 
     public static createSearchMultiSignResponse(multiSignList: Map<string, any>[]): SearchMultiSignResponse {
         const res = new SearchMultiSignResponse();

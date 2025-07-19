@@ -1,10 +1,11 @@
 import { AbstractResponse } from './AbstractResponse';
 import { MatchLastdayResult } from '../ordermatch/MatchLastdayResult';
 import { Token } from '../core/Token';
+import { JsonProperty } from "jackson-js";
 
 export class OrderTickerResponse extends AbstractResponse {
-    private tickers: MatchLastdayResult[] | null = null;
-    private tokennames: Map<string, Token> | null = null;
+    @JsonProperty() private tickers: MatchLastdayResult[] | null = null;
+    @JsonProperty() private tokennames: Map<string, Token> | null = null;
 
     public static createOrderRecordResponse(tickers: MatchLastdayResult[], tokennames: Map<string, Token>): OrderTickerResponse {
         const res = new OrderTickerResponse();

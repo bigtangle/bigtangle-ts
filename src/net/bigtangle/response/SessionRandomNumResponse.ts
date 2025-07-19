@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class SessionRandomNumResponse extends AbstractResponse {
-    private verifyHex: string | null = null;
+    @JsonProperty() private verifyHex: string | null = null;
 
     public static create(verifyHex: string): SessionRandomNumResponse {
         const res = new SessionRandomNumResponse();

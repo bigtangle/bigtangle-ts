@@ -1,10 +1,11 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Token } from '../core/Token';
 import { UTXO } from '../core/UTXO';
+import { JsonProperty } from "jackson-js";
 
 export class GetOutputsResponse extends AbstractResponse {
-    private outputs: UTXO[] | null = null;
-    private tokennames: Map<string, Token> | null = null;
+    @JsonProperty({ type: () => UTXO }) private outputs: UTXO[] | null = null;
+    @JsonProperty() private tokennames: Map<string, Token> | null = null;
 
     public static create(outputs: UTXO[], tokennames: Map<string, Token>): GetOutputsResponse {
         const res = new GetOutputsResponse();

@@ -1,9 +1,10 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Sha256Hash } from '../core/Sha256Hash';
+import { JsonProperty } from "jackson-js";
 
 export class TokenIndexResponse extends AbstractResponse {
-    private tokenindex: number = 0;
-    private blockhash: Sha256Hash | null = null;
+    @JsonProperty() private tokenindex: number = 0;
+    @JsonProperty() private blockhash: Sha256Hash | null = null;
 
     public getTokenindex(): number {
         return this.tokenindex;

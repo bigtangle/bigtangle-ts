@@ -1,8 +1,9 @@
 import { AbstractResponse } from './AbstractResponse';
 import { PayMultiSignAddress } from '../core/PayMultiSignAddress';
+import { JsonProperty } from "jackson-js";
 
 export class PayMultiSignAddressListResponse extends AbstractResponse {
-    private payMultiSignAddresses: PayMultiSignAddress[] | null = null;
+    @JsonProperty() private payMultiSignAddresses: PayMultiSignAddress[] | null = null;
 
     public static create(payMultiSignAddresses: PayMultiSignAddress[]): PayMultiSignAddressListResponse {
         const res = new PayMultiSignAddressListResponse();

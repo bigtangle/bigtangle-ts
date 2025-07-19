@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class GetStringResponse extends AbstractResponse {
-    private text: string | null = null;
+    @JsonProperty() private text: string | null = null;
 
     public static create(text: string): GetStringResponse {
         const res = new GetStringResponse();

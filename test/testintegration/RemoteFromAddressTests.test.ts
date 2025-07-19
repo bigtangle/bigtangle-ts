@@ -1,13 +1,4 @@
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
-import {
-  ObjectMapper,
-  JsonProperty,
-  JsonClassType,
-  JsonAlias,
-  JsonIgnoreProperties,
-  JsonDeserialize,
-  JsonSerialize,
-} from "jackson-js";
 import bigInt from "big-integer";
 import { JsonConverter, JsonCustomConvert } from "jackson-js";
 import { Address } from "../../src/net/bigtangle/core/Address";
@@ -27,20 +18,11 @@ class RemoteFromAddressTests extends RemoteTest {
   accountKey: ECKey | undefined;
   yuanWallet: Wallet | undefined;
   
-  log = console;
- 
-
-  async setUp() {
-    super.setUp();
-    const adminKey = ECKey.fromPrivateString(RemoteTest.testPriv);
-    this.wallet = Wallet.fromKeysURL(this.networkParameters, [adminKey], this.contextRoot);
-  }
-
+  
   async testUserpay() {
     const yuanKey = ECKey.fromPrivateString(this.yuanTokenPriv);
     this.yuanWallet = await Wallet.fromKeysURL(this.networkParameters, [yuanKey],this.contextRoot);
-    let list = await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
-     this.logCoins(list);
+    await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
     await this.payBigTo(
       yuanKey,
       Coin.FEE_DEFAULT.getValue() * BigInt(1000),
@@ -51,18 +33,11 @@ class RemoteFromAddressTests extends RemoteTest {
     await this.testTokens();
     await this.createUserPay(this.accountKey);
     
-    list = await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
-    this.logCoins(list);
+     await this.getBalanceAccount(false, await this.yuanWallet.walletKeys(null));
     const userkeys = [this.accountKey];
-    list = await this.getBalanceAccount(false, userkeys);
-    this.logCoins(list);
-
+      await this.getBalanceAccount(false, userkeys);
   }
-  public logCoins(list: Coin[]) {
-    for (const coin of list) {
-      this.log.debug(coin.toString());
-    }
-  }
+ 
   async createUserPay(accountKey: ECKey) {
     const ulist = await this.payKeys();
     for (const key of ulist) {
@@ -72,7 +47,7 @@ class RemoteFromAddressTests extends RemoteTest {
 
   async buyTicket(key: ECKey, accountKey: ECKey) {
     const w = await Wallet.fromKeysURL(this.networkParameters, [key],this.contextRoot);
-    this.log.debug('====ready buyTicket====');
+    console.debug('====ready buyTicket====');
     
     const coinValue = BigInt(100);
     const tokenIdBytes = Buffer.from(this.yuanTokenPub, 'hex');
@@ -85,14 +60,14 @@ class RemoteFromAddressTests extends RemoteTest {
       new MemoInfo('buy ticket')
     );
 
-    this.log.debug('====start buyTicket====');
+    console.debug('====start buyTicket====');
     const userkeys = [key];
-    this.log.debug('====check utxo');
+    console.debug('====check utxo');
     
     const address =   Address.fromKey(this.networkParameters, key  ).toString();
     const utxos = await this.getBalanceByAddress(address);
     for (const utxo of utxos) {
-      this.log.debug('user utxo==' + utxo.toString());
+      console.debug('user utxo==' + utxo.toString());
     }
     
     let coins = await this.getBalanceAccount(false, userkeys);
@@ -105,7 +80,7 @@ class RemoteFromAddressTests extends RemoteTest {
       expect(coin.getValue()).toEqual(BigInt(100));
     }
     
-    this.log.debug('====start check admin wallet====');
+    console.debug('====start check admin wallet====');
     await this.getBalanceAccount(false, await this.wallet.walletKeys(null));
   }
 
@@ -125,9 +100,9 @@ class RemoteFromAddressTests extends RemoteTest {
     const tokenId = Buffer.from(this.yuanTokenPub, 'hex');
     
     const b = await this.yuanWallet!.payToListCalc(null, giveMoneyResult, tokenId, memo );
-    this.log.debug('block ' + (b ? b.toString() : 'block is null'));
+    console.debug('block ' + (b ? b.toString() : 'block is null'));
 
-    this.log.debug('====start check yuanWallet wallet====');
+    console.debug('====start check yuanWallet wallet====');
     let list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     for (const coin of list) {
       if (!coin.isBIG()) {
@@ -143,7 +118,7 @@ class RemoteFromAddressTests extends RemoteTest {
     }
 
     await this.payBigTo(key, Coin.FEE_DEFAULT.getValue(), []);
-    this.log.debug('====start check admin wallet====');
+    console.debug('====start check admin wallet====');
     
     let adminCoins = await this.getBalanceAccount(false, await this.wallet.walletKeys(null));
     const totalCoins = BigInt(1000000000000000); // Replace with actual total coin value
@@ -158,7 +133,7 @@ class RemoteFromAddressTests extends RemoteTest {
     }
 
     await this.payBigTo(key2, Coin.FEE_DEFAULT.getValue(), []);
-    this.log.debug('====start check admin wallet====');
+    console.debug('====start check admin wallet====');
     
     adminCoins = await this.getBalanceAccount(false, await this.wallet.walletKeys(null));
     adminCoin = adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000);
@@ -220,7 +195,7 @@ class RemoteFromAddressTests extends RemoteTest {
       const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
       await this.wallet.multiSignKey( key.getPublicKeyAsHex(),signkey , null);
     } catch (e) {
-      this.log.warn('Error in testCreateMultiSigToken', e);
+      console.warn('Error in testCreateMultiSigToken', e);
     }
   }
  

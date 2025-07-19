@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class LongResponse extends AbstractResponse {
-    private value: number | null = null;
+    @JsonProperty() private value: number | null = null;
 
     public static create(value: number): LongResponse {
         const res = new LongResponse();

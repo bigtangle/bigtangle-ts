@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class SubtangleResponse extends AbstractResponse {
-    private subtanglePermissionList: Map<string, string>[] | null = null;
+    @JsonProperty() private subtanglePermissionList: Map<string, string>[] | null = null;
 
     public static createUserDataResponse(subtanglePermissionList: Map<string, string>[]): SubtangleResponse {
         const res = new SubtangleResponse();

@@ -1,10 +1,11 @@
 import { AbstractResponse } from './AbstractResponse';
 import { MultiSignAddress } from '../core/MultiSignAddress';
+import { JsonProperty } from "jackson-js";
 
 export class PermissionedAddressesResponse extends AbstractResponse {
-    private multiSignAddresses: MultiSignAddress[] | null = null;
-    private domainName: string | null = null;
-    private isRootPermissioned: boolean = false;
+    @JsonProperty() private multiSignAddresses: MultiSignAddress[] | null = null;
+    @JsonProperty() private domainName: string | null = null;
+    @JsonProperty() private isRootPermissioned: boolean = false;
 
     public static create(domainName: string, isRootPermissioned: boolean, multiSignAddresses: MultiSignAddress[]): PermissionedAddressesResponse {
         const res = new PermissionedAddressesResponse();

@@ -1,7 +1,8 @@
 import { AbstractResponse } from './AbstractResponse';
+import { JsonProperty } from "jackson-js";
 
 export class UserDataResponse extends AbstractResponse {
-    private dataList: string[] | null = null;
+    @JsonProperty() private dataList: string[] | null = null;
 
     public static createUserDataResponse(dataList: string[]): UserDataResponse {
         const res = new UserDataResponse();

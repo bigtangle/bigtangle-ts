@@ -1,8 +1,9 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Token } from '../core/Token';
+import { JsonProperty } from "jackson-js";
 
 export class GetDomainTokenResponse extends AbstractResponse {
-    private domainNameToken: Token | null = null;
+    @JsonProperty() private domainNameToken: Token | null = null;
 
     public getdomainNameToken(): Token | null {
         return this.domainNameToken;

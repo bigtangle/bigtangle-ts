@@ -1,8 +1,9 @@
 import { AbstractResponse } from './AbstractResponse';
 import { TXReward } from '../core/TXReward';
+import { JsonProperty } from "jackson-js";
 
 export class GetTXRewardResponse extends AbstractResponse {
-    private txReward: TXReward | null = null;
+    @JsonProperty() private txReward: TXReward | null = null;
 
     public static create(txReward: TXReward): GetTXRewardResponse {
         const res = new GetTXRewardResponse();
