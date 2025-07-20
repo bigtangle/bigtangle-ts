@@ -137,10 +137,11 @@ export abstract class RemoteTest {
     giveMoneyResult: Map<string, BigInt>,
     tokenid: Buffer
   ): Promise<Block> {
-    const coinList = await this.wallet.calculateAllSpendCandidatesUTXO(
+    const coinList = await this.wallet.calculateAllSpendCandidates(
       null,
       false
     );
+    this.logUTXOs(coinList);
     const b = await this.wallet.payMoneyToECKeyList(
       null,
       giveMoneyResult,
@@ -180,7 +181,7 @@ export abstract class RemoteTest {
     );
 
     const tokenidBytes = Buffer.from(testKey.getPublicKeyAsHex(), "hex");
-    const coinList = await w.calculateAllSpendCandidatesUTXO(null, false);
+    const coinList = await w.calculateAllSpendCandidates(null, false);
     const b = await w.payMoneyToECKeyList(
       null,
       giveMoneyTestToken,
@@ -545,6 +546,12 @@ export abstract class RemoteTest {
     public logCoins(list: Coin[]) {
     for (const coin of list) {
       console.debug(coin instanceof Coin ? coin.toString() : `Non-Coin object: ${JSON.stringify(coin)}`);
+    }
+  }
+
+    public logUTXOs(list: FreeStandingTransactionOutput[]) {
+    for (const coin of list) {
+      console.debug( `  ${JSON.stringify(coin)}`);
     }
   }
   // get balance for the walletKeys
@@ -1381,7 +1388,7 @@ export abstract class RemoteTest {
     }
 
     // Add all required parameters for payMoneyToECKeyList
-    const coinList = await this.wallet.calculateAllSpendCandidatesUTXO(
+    const coinList = await this.wallet.calculateAllSpendCandidates(
       null,
       false
     );

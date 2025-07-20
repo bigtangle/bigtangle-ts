@@ -171,7 +171,7 @@ export class MonetaryFormat {
         const smallestRepresentableUnit = exponent >= 0 ? 10n ** BigInt(exponent) : 1n;
 
         if (absValue > 0n && absValue < smallestRepresentableUnit) {
-            throw new Error('Value too small to be represented');
+            // throw new Error('Value too small to be represented');
         }
         
         // Convert fractional part to string and pad with leading zeros

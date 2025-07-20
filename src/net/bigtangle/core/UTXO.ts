@@ -13,32 +13,32 @@ import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerial
  * transaction.
  */
 export class UTXO extends SpentBlock {
+    @JsonProperty({ type: () => Coin })
+    private value: Coin = new Coin(); // Default to empty coin instead of null
     @JsonProperty()
-    private value: Coin | null = null;
+    private script: Script = new Script(new Uint8Array()); // Default to empty script
     @JsonProperty()
-    private script: Script | null = null;
-    @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
-    private hash: Sha256Hash | null = null;
+    @JsonDeserialize({ using: new Sha256HashDeserializer() })
+    @JsonSerialize({ using: new Sha256HashSerializer() })
+    private hash: Sha256Hash =   Sha256Hash.ZERO_HASH; // Default to empty hash
     @JsonProperty()
     private index: number = 0;
     @JsonProperty()
     private coinbase: boolean = false;
     @JsonProperty()
-    private address: string | null = null;
+    private address: string = ""; // Default to empty string instead of null
     @JsonProperty()
-    private fromaddress: string | null = null;
+    private fromaddress: string = ""; // Default to empty string instead of null
     @JsonProperty()
     private spendPending: boolean = false;
     @JsonProperty()
     private spendPendingTime: number = 0;
     @JsonProperty()
-    private tokenId: string | null = null;
+    private tokenId: string = ""; // Default to empty string instead of null
     @JsonProperty()
     private minimumsign: number = 0;
     @JsonProperty()
-    private memo: string | null = null;
+    private memo: string = ""; // Default to empty string instead of null
    
     constructor(
         hash?: Sha256Hash,
@@ -60,18 +60,18 @@ export class UTXO extends SpentBlock {
         spenderBlockHash?: Sha256Hash
     ) {
         super();
-        this.value = value ?? null;
-        this.script = script ?? null;
-        this.hash = hash ?? null;
+        this.value = value ?? new Coin();
+        this.script = script ?? new Script(new Uint8Array());
+        this.hash = hash ?? Sha256Hash.ZERO_HASH;
         this.index = index ?? 0;
         this.coinbase = coinbase ?? false;
-        this.address = address ?? null;
-        this.fromaddress = fromaddress ?? null;
+        this.address = address ?? "";
+        this.fromaddress = fromaddress ?? "";
         this.spendPending = spendPending ?? false;
         this.spendPendingTime = spendPendingTime ?? 0;
-        this.tokenId = tokenid ?? null;
+        this.tokenId = tokenid ?? "";
         this.minimumsign = minimumsign ?? 0;
-        this.memo = memo ?? null;
+        this.memo = memo ?? "";
 
         // Set properties from superclass if provided
         if (blockhash) this.setBlockHash(blockhash);
@@ -82,7 +82,7 @@ export class UTXO extends SpentBlock {
     }
 
     public keyAsString(): string {
-        return `${this.getBlockHashHex()}-${Utils.HEX.encode(this.hash ? this.hash.getBytes() : new Uint8Array())}-${this.index}`;
+        return `${this.getBlockHashHex()}-${Utils.HEX.encode(this.hash.getBytes())}-${this.index}`;
     }
 
     public getSpendPendingTime(): number {
@@ -90,7 +90,7 @@ export class UTXO extends SpentBlock {
     }
 
     public isZero(): boolean {
-        return this.value !== null && this.value.isZero();
+        return this.value.isZero();
     }
 
     public setSpendPendingTime(spendPendingTime: number): void {
@@ -129,7 +129,7 @@ export class UTXO extends SpentBlock {
         return this.minimumsign > 1;
     }
 
-    public getTokenId(): string | null {
+    public getTokenId(): string {
         return this.tokenId;
     }
 
@@ -141,7 +141,7 @@ export class UTXO extends SpentBlock {
         return this.tokenId ? Utils.HEX.decode(this.tokenId) : new Uint8Array();
     }
 
-    public getFromaddress(): string | null {
+    public getFromaddress(): string {
         return this.fromaddress;
     }
 
@@ -149,15 +149,15 @@ export class UTXO extends SpentBlock {
         this.fromaddress = fromaddress;
     }
 
-    public memoToString(): string | null {
-        return this.memo ? MemoInfo.parseToString(this.memo) : null;
+    public memoToString(): string {
+        return this.memo ? MemoInfo.parseToString(this.memo) : "";
     }
 
-    public getValue(): Coin | null {
+    public getValue(): Coin {
         return this.value;
     }
 
-    public getScript(): Script | null {
+    public getScript(): Script {
         return this.script;
     }
 
@@ -166,15 +166,15 @@ export class UTXO extends SpentBlock {
     }
 
     public getScriptHex(): string {
-        return this.script ? Utils.HEX.encode(this.script.getProgram()) : "";
+        return Utils.HEX.encode(this.script.getProgram());
     }
 
-    public getTxHash(): Sha256Hash | null {
+    public getTxHash(): Sha256Hash {
         return this.hash;
     }
 
     public getHashHex(): string {
-        return this.hash ? Utils.HEX.encode(this.hash.getBytes()) : "";
+        return Utils.HEX.encode(this.hash.getBytes());
     }
 
     public getIndex(): number {
@@ -185,7 +185,7 @@ export class UTXO extends SpentBlock {
         return this.coinbase;
     }
 
-    public getAddress(): string | null {
+    public getAddress(): string {
         return this.address;
     }
 
@@ -207,8 +207,8 @@ export class UTXO extends SpentBlock {
     public hashCode(): number {
         let result = 17;
         result = 31 * result + this.index;
-        result = 31 * result + (this.hash ? this.hash.hashCode() : 0);
-        result = 31 * result + (this.getBlockHash() ? this.getBlockHash()!.hashCode() : 0);
+        result = 31 * result + this.hash.hashCode();
+        result = 31 * result + (this.getBlockHash()?.hashCode() ?? 0);
         return result;
     }
 
@@ -216,18 +216,22 @@ export class UTXO extends SpentBlock {
         if (this === o) return true;
         if (o === null || !(o instanceof UTXO)) return false;
         const other = o as UTXO;
+        const thisBlockHash = this.getBlockHash();
+        const otherBlockHash = other.getBlockHash();
+        
         return this.getIndex() === other.getIndex() &&
-               (this.getTxHash() === other.getTxHash() || (this.getTxHash() !== null && other.getTxHash() !== null && this.getTxHash()!.equals(other.getTxHash()!))) &&
-               (this.getBlockHash() === other.getBlockHash() || (this.getBlockHash() !== null && other.getBlockHash() !== null && this.getBlockHash()!.equals(other.getBlockHash()!)));
+               this.getTxHash().equals(other.getTxHash()) &&
+               (thisBlockHash === otherBlockHash || 
+                (thisBlockHash !== null && otherBlockHash !== null && thisBlockHash.equals(otherBlockHash)));
     }
 
-    public getMemo(): string | null {
+    public getMemo(): string {
         return this.memo;
     }
 
     public setMemo(memo: string): void {
         this.memo = memo;
-    };
+    }
 
     public isSpendPending(): boolean {
         return this.spendPending;

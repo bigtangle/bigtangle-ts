@@ -1,8 +1,7 @@
-
 import { Buffer } from 'buffer';
 import { Constants } from './Constants';
 import { MonetaryFormat } from '../utils/MonetaryFormat';
- 
+import { JsonProperty, JsonClassType, JsonCreator } from 'jackson-js';
 
 export class Coin implements IMonetary, IComparable<Coin> {
  
@@ -16,19 +15,27 @@ export class Coin implements IMonetary, IComparable<Coin> {
     public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOf(-1n, Constants.BIGTANGLE_TOKENID);
     public static readonly FEE_DEFAULT: Coin = Coin.valueOf(1000n, Constants.BIGTANGLE_TOKENID);
 
-    private value: bigint;
-    private readonly tokenid: Buffer;
+    public value: bigint;
+    public tokenid: Buffer;
 
-    constructor(satoshis: bigint, tokenid: Buffer | Uint8Array | string) {
-        this.value = satoshis;
+    constructor(satoshis?: bigint, tokenid?: Buffer | Uint8Array | string) {
+        this.value = satoshis || 0n;
         
         if (typeof tokenid === 'string') {
             this.tokenid = Buffer.from(tokenid, 'hex');
         } else if (tokenid instanceof Uint8Array) {
             this.tokenid = Buffer.from(tokenid);
         } else {
-            this.tokenid = tokenid;
+            this.tokenid = tokenid || Buffer.from([]);
         }
+    }
+
+    @JsonCreator()
+    public static fromJSON(json: any): Coin {
+        const coin = new Coin();
+        coin.value = BigInt(json.value);
+        coin.tokenid = Buffer.from(json.tokenid, 'hex');
+        return coin;
     }
 
     public static valueOf(satoshis: bigint, tokenid?: Buffer | string): Coin {

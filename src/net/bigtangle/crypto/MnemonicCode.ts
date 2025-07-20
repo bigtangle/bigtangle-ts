@@ -1,5 +1,6 @@
-import { createHash } from 'crypto';
+import * as crypto from 'crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { MnemonicException } from './MnemonicException';
 import { Utils } from '../utils/Utils';
@@ -80,13 +81,14 @@ export class MnemonicCode {
         }
 
         // Take the digest of the entropy.
-        const hash = createHash('sha256').update(entropy).digest();
+        const hash = crypto.createHash('sha256').update(entropy).digest();
         const hashBits = MnemonicCode.bytesToBits(hash);
 
         // Check all the checksum bits.
         const checksum = concatBits.substring(entropyLengthBits);
-        if (hashBits.substring(0, checksumLengthBits) !== checksum)
+        if (hashBits.substring(0, checksumLengthBits) !== checksum) {
             throw new MnemonicException.MnemonicChecksumException();
+        }
 
         return entropy;
     }
@@ -105,11 +107,11 @@ export class MnemonicCode {
 
         const entropyBits = MnemonicCode.bytesToBits(entropy);
         const checksumLengthBits = entropyBits.length / 32;
-        const hash = createHash('sha256').update(entropy).digest();
+        const hash = crypto.createHash('sha256').update(entropy).digest();
         const hashBits = MnemonicCode.bytesToBits(hash);
         const checksumBits = hashBits.substring(0, checksumLengthBits);
 
-        const concatBits = entropyBits + checksumBits;
+        const concatBits = checksumBits + entropyBits;
 
         const words: string[] = [];
         const nwords = concatBits.length / 11;

@@ -58,10 +58,10 @@ export class MemoInfo {
   /*
    * used for display the memo and cutoff maximal to 20 chars
    */
-  public static parseToString(jsonStr: string | null): string | null {
+  public static parseToString(jsonStr: string | null): string   {
     try {
       if (jsonStr === null) {
-        return null;
+        return "";
       }
       const m = MemoInfo.parse(jsonStr);
       let s = "";
@@ -79,7 +79,7 @@ export class MemoInfo {
       }
       return s;
     } catch (e) {
-      return jsonStr;
+      return  ""; // Return empty string if parsing fails
     }
   }
 

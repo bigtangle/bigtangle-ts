@@ -8,8 +8,8 @@ import { Coin } from './Coin';
 import { Buffer } from 'buffer';
 import { VerificationException } from '../exception/VerificationException';
 import { DataOutputStream } from '../utils/DataOutputStream'; // Ensure DataOutputStream is used
-import { FreeStandingTransactionOutput } from '../wallet/FreeStandingTransactionOutput';
-
+import { TransactionOutPoint } from './TransactionOutPoint';
+import { ECKey } from './ECKey';
 export enum SigHash {
     ALL = 1,
     NONE = 2,
@@ -302,17 +302,36 @@ export class Transaction extends ChildMessage {
         this.unCache();
     }
 
-    addInput(input: TransactionInput): void {
+    addInput(input: TransactionInput): TransactionInput {
+            this.unCache();
         input.setParent(this as any);
         this.inputs.push(input);
         this.length += input.getMessageSize ? input.getMessageSize() : 0;
-        this.unCache();
+        return input;
     }
 
-    public addOutput(output: TransactionOutput): void {
+       public  addInputWithOutput( params: NetworkParameters,  blockHash: Sha256Hash | null,  output: TransactionOutput) : TransactionInput{
+       
+            const outputIndex = output.getIndex();
+            let outpoint = new TransactionOutPoint(params, blockHash, output);
+        if(output.getParentTransaction() != null ) {
+             outpoint = new TransactionOutPoint(params, outputIndex, blockHash, output.getParentTransaction());
+        }
+ 
+       
+        return this.addInput( new TransactionInput(params, this,  Buffer.alloc(0), outpoint ));
+    }
+
+
+    public addOutput(output: TransactionOutput): TransactionOutput {
         this.outputs.push(output);
         this.length += output.getMessageSize ? output.getMessageSize() : 0;
         this.unCache();
+        return output;
+    }
+
+    public  addOutputCoin(params: NetworkParameters, value: Coin,  pubkey: ECKey) : TransactionOutput  {
+        return this. addOutput(  TransactionOutput.fromECKey(params, this, value, pubkey));
     }
 
     /**
