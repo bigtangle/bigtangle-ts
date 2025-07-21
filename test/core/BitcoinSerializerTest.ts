@@ -1,12 +1,7 @@
 
 import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
-import { BitcoinSerializer, BitcoinPacketHeader } from '../../src/net/bigtangle/core/BitcoinSerializer';
-import { Transaction } from '../../src/net/bigtangle/core/Transaction';
-import { HeadersMessage } from '../../src/net/bigtangle/core/HeadersMessage';
-import { Block } from '../../src/net/bigtangle/core/Block';
-import { Utils } from '../../src/net/bigtangle/utils/Utils';
-import { ProtocolException } from '../../src/net/bigtangle/exception/ProtocolException';
+import { BitcoinPacketHeader } from '../../src/net/bigtangle/core/BitcoinSerializer';
 
 describe('BitcoinSerializerTest', () => {
     const ADDRESS_MESSAGE_BYTES = Buffer.from(

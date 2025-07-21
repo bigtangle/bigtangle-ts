@@ -2,7 +2,6 @@ import { DataClass } from './DataClass';
 import { Tokensums } from './Tokensums';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
-import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";

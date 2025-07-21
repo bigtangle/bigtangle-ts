@@ -1,9 +1,7 @@
 import * as crypto from 'crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
-import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { MnemonicException } from './MnemonicException';
-import { Utils } from '../utils/Utils';
 import bip39Wordlist from './bip39-wordlist';
 
 /**

@@ -2,8 +2,6 @@ import bigInt from 'big-integer';
 import { ECDSASignature } from './ECDSASignature';
 import { SigHash } from '../core/Transaction';
 import { VerificationException } from '../exception/VerificationException';
-import { Utils } from '../utils/Utils';
-import { ECKey } from '../core/ECKey';
 import { secp256k1 } from '@noble/curves/secp256k1';
 
 /**

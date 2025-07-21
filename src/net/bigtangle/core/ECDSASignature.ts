@@ -6,7 +6,6 @@ import { Buffer } from 'buffer';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { InvalidTransactionDataException } from '../exception/Exceptions';
 
-import bigInt, { BigInteger } from 'big-integer';
 
 export class ECDSASignature {
     public r: bigint;

@@ -1,10 +1,9 @@
-import { BasicKeyChain } from "./BasicKeyChain";
 import { DeterministicKeyChain } from "./DeterministicKeyChain";
 import { NetworkParameters } from "../params/NetworkParameters";
 import bigInt from 'big-integer';
 
 import { DeterministicKey } from "../crypto/DeterministicKey";
-import { KeyChain, KeyPurpose } from "./KeyChain";
+import { KeyPurpose } from "./KeyChain";
 import { KeyCrypter } from "../crypto/KeyCrypter";
 import { EncryptedData } from '../crypto/EncryptedData';
 import { KeyParameter } from "../utils/KeyParameter"; // Assuming this is where KeyParameter is defined

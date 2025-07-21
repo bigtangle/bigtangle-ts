@@ -7,7 +7,6 @@ import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
 import { BloomFilter } from './BloomFilter';
 import { Sha256Hash } from './Sha256Hash';
-import { Utils } from './Utils';
 import { Buffer } from 'buffer';
 
 // Define BitcoinPacketHeader locally since we removed the separate file

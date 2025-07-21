@@ -1,6 +1,5 @@
 import { NetworkParameters } from "../params/NetworkParameters";
 import { ECKey } from "../core/ECKey";
-import { Address } from "../core/Address";
 import { BloomFilter, BloomUpdate } from "../core/BloomFilter";
 
 export class BasicKeyChain {

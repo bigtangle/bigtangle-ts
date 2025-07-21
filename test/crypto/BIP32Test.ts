@@ -1,7 +1,5 @@
 
-import { Buffer } from 'buffer';
 import { HDKeyDerivation } from '../../src/net/bigtangle/crypto/HDKeyDerivation';
-import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { DeterministicHierarchy } from '../../src/net/bigtangle/crypto/DeterministicHierarchy';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';

@@ -1,6 +1,5 @@
 import { KeyChain } from './KeyChain';
-import { KeyCrypter, KeyCrypterException, KeyParameter } from '../crypto/KeyCrypter';
-import { KeyCrypterScrypt } from '../crypto/KeyCrypterScrypt';
+import { KeyCrypter, KeyParameter } from '../crypto/KeyCrypter';
 
 /**
  * An encryptable key chain is a key-chain that can be encrypted with a user-provided password or AES key.

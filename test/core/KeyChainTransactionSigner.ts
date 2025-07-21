@@ -1,7 +1,6 @@
 
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
-import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { CustomTransactionSigner } from '../../src/net/bigtangle/signers/CustomTransactionSigner';
 import { DeterministicKeyChain } from '../../src/net/bigtangle/wallet/DeterministicKeyChain';
 

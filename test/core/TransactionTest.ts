@@ -1,23 +1,11 @@
-import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { FakeTxBuilder } from './FakeTxBuilder';
-import {    VerificationException    } from '../../src/net/bigtangle/exception/VerificationException';
- 
-import {    ScriptException    } from '../../src/net/bigtangle/exception/ScriptException';
 
-import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
-import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
-import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
-import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
+
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { Message } from '../../src/net/bigtangle/core/Message';
-import { Script } from '../../src/net/bigtangle/script/Script';
-import { MemoInfo } from '../../src/net/bigtangle/core/MemoInfo';
-import { UTXO } from '../../src/net/bigtangle/core/UTXO';
-import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import BigInteger from 'big-integer';
 
 describe('TransactionTest', () => {

@@ -10,7 +10,6 @@ import { Buffer } from 'buffer';
 import { MessageSerializer } from './MessageSerializer';
 import { DummySerializer } from './DummySerializer';
 import { Message } from './Message';
-import { TransactionInput } from './TransactionInput';
 
 // Placeholder for KeyBag and RedeemData
 interface KeyBag {}

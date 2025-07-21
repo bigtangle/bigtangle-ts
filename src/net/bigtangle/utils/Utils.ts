@@ -242,11 +242,11 @@ export class Utils {
             }
         }
         const isNegative = value.isNegative();
-        let absValue = isNegative ? value.abs() : value;
+        const absValue = isNegative ? value.abs() : value;
 
         // Get bytes from big-integer, most significant byte first
         const arrayResult = absValue.toArray(256);
-        let array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+        const array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
 
         // Ensure the highest bit is not set if positive, or is set if negative (for MPI format)
         let length = array.length;

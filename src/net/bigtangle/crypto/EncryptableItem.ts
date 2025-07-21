@@ -1,5 +1,4 @@
 import { EncryptedData } from './EncryptedData';
-import { KeyParameter } from './IESEngine';
 
 export enum EncryptionType {
     UNENCRYPTED = "UNENCRYPTED",

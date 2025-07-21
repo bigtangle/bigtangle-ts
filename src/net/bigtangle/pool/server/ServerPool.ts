@@ -1,9 +1,6 @@
 import { NetworkParameters } from '../../params/NetworkParameters';
 import { TXReward } from '../../core/TXReward';
 import { ReqCmd } from '../../params/ReqCmd'; // Placeholder
-import { GetTXRewardResponse } from '../../response/GetTXRewardResponse';
-import { ServerInfo } from '../../response/ServerInfo';
-import { ServerinfoResponse } from '../../response/ServerinfoResponse';
 import { Json } from '../../utils/Json';
 import { OkHttp3Util } from '../../utils/OkHttp3Util'; // Placeholder
 import { ServerState } from './ServerState';

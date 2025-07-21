@@ -1,6 +1,5 @@
 import { Block } from './Block';
 import { NetworkParameters } from '../params/NetworkParameters';
-import { Address } from './Address';
 import { Sha256Hash } from './Sha256Hash';
 import { BlockType } from './BlockType';
 import { Coin } from './Coin';

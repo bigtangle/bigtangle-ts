@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { MainNetParams } from "../../src/net/bigtangle/params/MainNetParams";
 import { VersionedChecksummedBytes } from "../../src/net/bigtangle/core/VersionedChecksummedBytes";
 import { Utils } from "../../src/net/bigtangle/utils/Utils";

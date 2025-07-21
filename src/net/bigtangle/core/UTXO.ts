@@ -3,7 +3,6 @@ import { Script } from '../script/Script';
 import { Sha256Hash } from './Sha256Hash';
 import { MemoInfo } from './MemoInfo';
 import { Utils } from '../utils/Utils';
-import { Address } from './Address';
 import { SpentBlock } from './SpentBlock';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";

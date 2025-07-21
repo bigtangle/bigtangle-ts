@@ -2,11 +2,9 @@ import { Buffer } from 'buffer';
 import { DeterministicKeyChain } from '../../src/net/bigtangle/wallet/DeterministicKeyChain';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { KeyPurpose } from '../../src/net/bigtangle/wallet/KeyChain';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
-import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { DeterministicSeed } from '../../src/net/bigtangle/wallet/DeterministicSeed';
 
 describe('DeterministicKeyChainTest', () => {

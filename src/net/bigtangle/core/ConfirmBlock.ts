@@ -1,10 +1,6 @@
 import { Sha256Hash } from './Sha256Hash';
 import { DataClass } from './DataClass';
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
-import { ByteArrayInputStream } from '../utils/ByteArrayInputStream';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 

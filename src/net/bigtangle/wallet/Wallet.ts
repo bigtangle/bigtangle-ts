@@ -1119,7 +1119,7 @@ export class Wallet extends WalletBase {
    */
   async payMoneyToECKeyList(
     aesKey: any,
-    giveMoneyResult: Map<string, BigInt>,
+    giveMoneyResult: Map<string, bigint>,
     tokenid: Uint8Array,
     memo: string,
     coinList: FreeStandingTransactionOutput[],
@@ -1914,7 +1914,7 @@ export class Wallet extends WalletBase {
 
       totalInputAmount += value.getValue();
       // Create TransactionOutPoint and use the correct TransactionInput constructor
-          let outpoint = new TransactionOutPoint(    this.params,   utxo.getBlockHash(), candidate);
+          const outpoint = new TransactionOutPoint(    this.params,   utxo.getBlockHash(), candidate);
  
       // Assuming utxo has a getScript() method that returns a Script object
       const scriptBytes = utxo.getScript().getProgram();

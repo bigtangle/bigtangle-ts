@@ -1,10 +1,8 @@
 import { DataClass } from './DataClass';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Side } from './Side';
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty } from "jackson-js";
 
 export class OrderOpenInfo extends DataClass {

@@ -1,7 +1,6 @@
 import { Buffer } from 'buffer';
 import { createHash } from 'crypto';
 import base58 from 'bs58';
-import { Sha256Hash } from './Sha256Hash';
 
 export class Utils {
  

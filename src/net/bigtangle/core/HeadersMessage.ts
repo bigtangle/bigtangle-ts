@@ -3,7 +3,6 @@ import { Block } from './Block';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
 import { VarInt } from './VarInt';
-import { MessageSerializer } from './MessageSerializer';
 import { Buffer } from 'buffer';
 
 /**

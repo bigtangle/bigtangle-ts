@@ -2,7 +2,6 @@ import { ChildNumber } from './ChildNumber';
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
 import { ECKey } from '../core/ECKey';
-import { BigInteger } from 'big-integer';
 import { ECPoint } from '../core/ECPoint'; // Added import
 
 export class HDUtils {

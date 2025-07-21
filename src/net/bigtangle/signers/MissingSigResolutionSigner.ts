@@ -1,9 +1,7 @@
 import { StatelessTransactionSigner } from './StatelessTransactionSigner';
 import { TransactionInput } from '../core/TransactionInput';
-import { Script } from '../script/Script';
 import { ScriptChunk } from '../script/ScriptChunk';
 import { TransactionSignature } from '../crypto/TransactionSignature';
-import { ECKey } from '../core/ECKey';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 import { MissingPrivateKeyException } from '../crypto/MissingPrivateKeyException';
 import { VerificationException } from '../exception/VerificationException';

@@ -1,6 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, test } from "vitest";
-import bigInt from "big-integer";
-import { JsonConverter, JsonCustomConvert } from "jackson-js";
+import { beforeEach, describe, expect, test } from "vitest";
 import { Address } from "../../src/net/bigtangle/core/Address";
  
 import { Coin } from "../../src/net/bigtangle/core/Coin";
@@ -103,7 +101,7 @@ class RemoteFromAddressTests extends RemoteTest {
     console.debug('block ' + (b ? b.toString() : 'block is null'));
 
     console.debug('====start check yuanWallet wallet====');
-    let list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
+    const list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     for (const coin of list) {
       if (!coin.isBIG()) {
         expect(coin.getValue()).toEqual(BigInt(10000000) - BigInt(200));

@@ -1,4 +1,3 @@
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';

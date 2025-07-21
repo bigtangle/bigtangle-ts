@@ -1,7 +1,7 @@
 import { AbstractResponse } from './AbstractResponse';
 import { Token } from '../core/Token';
 import { JsonProperty, JsonClassType } from "jackson-js";
-import bigInt, { BigInteger } from 'big-integer';
+import { BigInteger } from 'big-integer';
 
 export class GetTokensResponse extends AbstractResponse {
       @JsonProperty()

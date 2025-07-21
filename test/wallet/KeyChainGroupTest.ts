@@ -3,7 +3,6 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { KeyPurpose } from '../../src/net/bigtangle/wallet/KeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import bigInt from 'big-integer';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 

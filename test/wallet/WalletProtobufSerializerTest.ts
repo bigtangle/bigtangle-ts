@@ -69,7 +69,7 @@ describe('WalletProtobufSerializerTest', () => {
             const proto = await new WalletProtobufSerializer().walletToProto(myWallet);
             proto.version = 2; // setVersion does not exist, set property directly
             // Mock output/input for serializer
-            let data = JSON.stringify(proto);
+            const data = JSON.stringify(proto);
             const input = { read: () => data };
             new WalletProtobufSerializer().readWallet(input, false, []);
         }).rejects.toThrow(UnreadableWalletException.FutureVersion);

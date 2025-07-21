@@ -1,12 +1,9 @@
 import { StatelessTransactionSigner } from './StatelessTransactionSigner';
 import { Transaction } from '../core/Transaction';
-import { TransactionInput } from '../core/TransactionInput';
 import { ECKey } from '../core/ECKey';
-import { TransactionSignature } from '../crypto/TransactionSignature';
 import { Script } from '../script/Script';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
-import { RedeemData } from '../wallet/RedeemData'; // Placeholder
-import { VerificationException } from '../exception/VerificationException';
+// Placeholder
 import { DeterministicKey } from '../crypto/DeterministicKey';
 
 /**
@@ -73,7 +70,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 continue;
             }
 
-            let inputScript = txIn.getScriptSig();
+            const inputScript = txIn.getScriptSig();
             const script = redeemData.redeemScript.getProgram();
             try {
                 const sighash = tx.hashForSignature(i, script, Transaction.SigHash.ALL);

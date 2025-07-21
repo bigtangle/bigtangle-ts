@@ -1,13 +1,11 @@
 import { StatelessTransactionSigner } from './StatelessTransactionSigner';
 import { Sha256Hash } from '../core/Sha256Hash';
 import { Transaction } from '../core/Transaction';
-import { TransactionInput } from '../core/TransactionInput';
-import { TransactionOutput } from '../core/TransactionOutput';
 import { Script } from '../script/Script';
 import { ECKey } from '../core/ECKey';
 import { TransactionSignature } from '../crypto/TransactionSignature';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
-import { RedeemData } from '../wallet/RedeemData'; // Placeholder
+// Placeholder
 import { ChildNumber } from '../crypto/ChildNumber';
 import { ECDSASignature } from '../crypto/ECDSASignature';
 

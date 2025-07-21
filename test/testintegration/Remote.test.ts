@@ -1,35 +1,24 @@
-import { beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import {
   ObjectMapper,
-  JsonProperty,
-  JsonClassType,
-  JsonAlias,
-  JsonIgnoreProperties,
-  JsonDeserialize,
-  JsonSerialize,
 } from "jackson-js";
 import bigInt from "big-integer";
-import { JsonConverter, JsonCustomConvert } from "jackson-js";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
-import { BlockEvaluation } from "../../src/net/bigtangle/core/BlockEvaluation";
 import { BlockType } from "../../src/net/bigtangle/core/BlockType";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
 import { ECKey } from "../../src/net/bigtangle/core/ECKey";
 import { KeyValue } from "../../src/net/bigtangle/core/KeyValue";
 import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
-import { MultiSign } from "../../src/net/bigtangle/core/MultiSign";
 import { MultiSignAddress } from "../../src/net/bigtangle/core/MultiSignAddress";
 import { MultiSignBy } from "../../src/net/bigtangle/core/MultiSignBy";
 import { OrderRecord } from "../../src/net/bigtangle/core/OrderRecord";
 import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
 import { Token } from "../../src/net/bigtangle/core/Token";
 import { TokenInfo } from "../../src/net/bigtangle/core/TokenInfo";
-import { TokenKeyValues } from "../../src/net/bigtangle/core/TokenKeyValues";
 import { Tokensums } from "../../src/net/bigtangle/core/Tokensums";
 import { Transaction } from "../../src/net/bigtangle/core/Transaction";
 import { TransactionInput } from "../../src/net/bigtangle/core/TransactionInput";
-import { TransactionOutPoint } from "../../src/net/bigtangle/core/TransactionOutPoint";
 import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
 import { UTXO } from "../../src/net/bigtangle/core/UTXO";
 import { UtilGeneseBlock } from "../../src/net/bigtangle/core/UtilGeneseBlock";
@@ -40,7 +29,6 @@ import { NetworkParameters } from "../../src/net/bigtangle/params/NetworkParamet
 import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalancesResponse";
-import { GetBlockEvaluationsResponse } from "../../src/net/bigtangle/response/GetBlockEvaluationsResponse";
 import { GetTokensResponse } from "../../src/net/bigtangle/response/GetTokensResponse";
 import { MultiSignByRequest } from "../../src/net/bigtangle/response/MultiSignByRequest";
 import { MultiSignResponse } from "../../src/net/bigtangle/response/MultiSignResponse";
@@ -114,10 +102,10 @@ export abstract class RemoteTest {
 
   protected async payBigTo(
     beneficiary: ECKey,
-    amount: BigInt,
+    amount: bigint,
     addedBlocks: Block[]
   ): Promise<Block> {
-    const giveMoneyResult = new Map<string, BigInt>();
+    const giveMoneyResult = new Map<string, bigint>();
 
     giveMoneyResult.set(
       beneficiary.toAddress(this.networkParameters).toString(),
@@ -134,7 +122,7 @@ export abstract class RemoteTest {
 
   private async payList(
     addedBlocks: Block[],
-    giveMoneyResult: Map<string, BigInt>,
+    giveMoneyResult: Map<string, bigint>,
     tokenid: Buffer
   ): Promise<Block> {
     const coinList = await this.wallet.calculateAllSpendCandidates(
@@ -310,7 +298,7 @@ export abstract class RemoteTest {
     basetoken: string,
     addedBlocks: Block[]
   ): Promise<Block> {
-    let w = await Wallet.fromKeysURL(
+    const w = await Wallet.fromKeysURL(
       this.networkParameters,
       [beneficiary],
       this.contextRoot
@@ -1128,7 +1116,7 @@ export abstract class RemoteTest {
       this.contextRoot + ReqCmd.getTip,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
-    let block = this.networkParameters.getDefaultSerializer().makeBlock(data);
+    const block = this.networkParameters.getDefaultSerializer().makeBlock(data);
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
 
     if (overrideHash1 !== null && overrideHash2 !== null) {

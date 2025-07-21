@@ -157,8 +157,8 @@ export class MonetaryFormat {
 
         // Calculate divisor based on decimal
         const divisor = 10n ** BigInt(decimal);
-        let whole = absValue / divisor;
-        let fractional = absValue % divisor;
+        const whole = absValue / divisor;
+        const fractional = absValue % divisor;
         
         // Handle values that are too small to represent
         let effectiveMinDecimals = this.minDecimals;
@@ -175,7 +175,7 @@ export class MonetaryFormat {
         }
         
         // Convert fractional part to string and pad with leading zeros
-        let fractionalStr = fractional.toString().padStart(decimal, '0');
+        const fractionalStr = fractional.toString().padStart(decimal, '0');
         
         // Apply decimalGroups for optional decimals
         let decimalsToShow = this.applyDecimalGroups(fractionalStr);
@@ -198,7 +198,7 @@ export class MonetaryFormat {
         }
         
         // Format the whole number part
-        let wholeStr = whole.toString();
+        const wholeStr = whole.toString();
         
         // Combine whole and fractional parts
         let result = wholeStr;

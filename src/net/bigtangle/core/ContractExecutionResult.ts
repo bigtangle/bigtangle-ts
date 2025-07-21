@@ -2,7 +2,6 @@ import { Sha256Hash } from './Sha256Hash';
 import { Transaction } from './Transaction';
 import { ContractEventRecord } from './ContractEventRecord';
 import { Spent } from './Spent';
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
@@ -83,16 +82,16 @@ export class ContractExecutionResult extends Spent {
         this.chainlength = dis.readLong();
 
         this.cancelRecords = new Set();
-        let cancelRecordsSize = dis.readInt();
+        const cancelRecordsSize = dis.readInt();
         for (let i = 0; i < cancelRecordsSize; i++) {
             this.cancelRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
         }
         this.remainderRecords = new Set();
-        let remainderRecordsSize = dis.readInt();
+        const remainderRecordsSize = dis.readInt();
         for (let i = 0; i < remainderRecordsSize; i++) {
             this.remainderRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
         }
-        let blocksSize = dis.readInt();
+        const blocksSize = dis.readInt();
         this.referencedBlocks = new Set();
         for (let i = 0; i < blocksSize; i++) {
             this.referencedBlocks.add(Sha256Hash.wrap(dis.readBytes(32)));

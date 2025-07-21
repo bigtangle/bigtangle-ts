@@ -1,10 +1,8 @@
 import { SpentBlock } from "./SpentBlock";
 import { Sha256Hash } from "./Sha256Hash";
-import bigInt from "big-integer";
 import { TokenType } from "./TokenType";
 import { TokenKeyValues } from "./TokenKeyValues";
 import { NetworkParameters } from "../params/NetworkParameters";
-import { Utils } from "../utils/Utils";
 import { KeyValue } from "./KeyValue";
 import { UtilGeneseBlock } from "./../utils/UtilGeneseBlock";
 import { JsonProperty } from "jackson-js";

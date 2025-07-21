@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import { Constants } from './Constants';
 import { MonetaryFormat } from '../utils/MonetaryFormat';
-import { JsonProperty, JsonClassType, JsonCreator } from 'jackson-js';
+import { JsonCreator } from 'jackson-js';
 
 export class Coin implements IMonetary, IComparable<Coin> {
  

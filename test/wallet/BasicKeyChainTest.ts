@@ -1,6 +1,5 @@
 import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { BloomFilter } from '../../src/net/bigtangle/core/BloomFilter';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import bigInt from 'big-integer';
 

@@ -4,7 +4,7 @@
 //   protoc               v3.20.3
 // source: src/wallet.proto
 
-/* eslint-disable */
+ 
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "wallet";

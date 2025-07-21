@@ -1,9 +1,7 @@
 import { SpentBlock } from './SpentBlock';
 import { Sha256Hash } from './Sha256Hash';
-import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { DataOutputStream } from '../utils/DataOutputStream';
-import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { Buffer } from 'buffer';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";

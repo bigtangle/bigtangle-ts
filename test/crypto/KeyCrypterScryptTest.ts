@@ -1,7 +1,6 @@
 
 import { Buffer } from 'buffer';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
-import { EncryptedData } from '../../src/net/bigtangle/crypto/EncryptedData';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 
 describe('KeyCrypterScryptTest', () => {

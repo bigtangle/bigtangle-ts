@@ -4,10 +4,8 @@ import { Block } from '../../src/net/bigtangle/core/Block';
 import { Utils } from '../../src/net/bigtangle/core/Utils';
 import { Gzip } from '../../src/net/bigtangle/utils/Gzip';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import { UtilGeneseBlock } from '../../src/net/bigtangle/core/UtilGeneseBlock';
 import { TestParams } from '../../src/net/bigtangle/params/TestParams';
-import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 
 describe('UtilsTest', () => {
     test('testSolve', () => {

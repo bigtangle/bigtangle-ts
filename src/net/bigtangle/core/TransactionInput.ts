@@ -11,7 +11,6 @@ import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 import { TransactionOutput } from './TransactionOutput';
 import { Address } from './Address';
-import { Sha256Hash } from './Sha256Hash';
 
 /**
  * <p>A transfer of coins from one address to another creates a transaction in which the outputs

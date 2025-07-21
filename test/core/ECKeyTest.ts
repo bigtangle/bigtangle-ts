@@ -7,12 +7,8 @@ import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { Address } from '../../src/net/bigtangle/core/Address';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
 import { KeyCrypter } from '../../src/net/bigtangle/crypto/KeyCrypter';
-import { EncryptedData } from '../../src/net/bigtangle/crypto/EncryptedData';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
-import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import bigInt from 'big-integer';
-import { ECDSASignature } from '../../src/net/bigtangle/core/ECDSASignature';
-import { ECPoint } from '../../src/net/bigtangle/core/ECPoint';
 
 describe('ECKeyTest', () => {
     const PASSWORD1 = 'my hovercraft has eels';

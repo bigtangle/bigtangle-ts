@@ -1,6 +1,6 @@
 import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { BloomFilter, BloomUpdate } from '../../src/net/bigtangle/core/BloomFilter';
+import { BloomFilter } from '../../src/net/bigtangle/core/BloomFilter';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { expect } from 'vitest';
 

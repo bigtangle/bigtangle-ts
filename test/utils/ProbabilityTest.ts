@@ -1,5 +1,4 @@
 
-import { Buffer } from 'buffer';
 import { ProbabilityBlock } from '../../src/net/bigtangle/utils/ProbabilityBlock';
 
 describe('ProbabilityTest', () => {

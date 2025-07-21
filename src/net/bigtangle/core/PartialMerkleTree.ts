@@ -1,7 +1,6 @@
 import { Sha256Hash } from './Sha256Hash';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Message } from './Message';
-import { ProtocolException } from '../exception/ProtocolException';
 import { VerificationException } from '../exception/VerificationException';
 import { VarInt } from './VarInt';
 import { Utils } from '../utils/Utils';

@@ -1,7 +1,6 @@
 import { Message } from './Message';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
-import { ECKey } from './ECKey';
 import { Sha256Hash } from './Sha256Hash';
 import { Buffer } from 'buffer';
 // TODO: Implement DataOutputStream

@@ -1,9 +1,6 @@
 import { ECKey } from './ECKey';
-import { Utils } from './Utils';
-import { VarInt } from './VarInt';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Message } from './Message';
-import { MessageSerializer } from './MessageSerializer';
 
 export enum BloomUpdate {
     UPDATE_NONE = 0,
@@ -107,7 +104,7 @@ export class BloomFilter extends Message {
     serialize(): Buffer {
         // Manually serialize varint for data length
         const varintParts: Buffer[] = [];
-        let dataLength = this.data.length;
+        const dataLength = this.data.length;
         
         if (dataLength < 0xfd) {
             varintParts.push(Buffer.from([dataLength]));

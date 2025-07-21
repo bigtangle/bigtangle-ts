@@ -1,4 +1,3 @@
-import { AddressFormatException } from '../exception/AddressFormatException';
 import { Base58 } from '../utils/Base58';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';

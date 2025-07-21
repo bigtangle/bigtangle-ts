@@ -1,6 +1,5 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import bigInt from 'big-integer';
-import { Utils } from '../utils/Utils';
 
 export class ECPoint {
     private point: ReturnType<typeof secp256k1.Point.fromHex>;

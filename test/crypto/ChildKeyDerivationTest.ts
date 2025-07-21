@@ -194,7 +194,7 @@ describe('ChildKeyDerivationTest', () => {
     });
 
     test('pubOnlyDerivation', () => {
-        let key1 = HDKeyDerivation.createMasterPrivateKey(
+        const key1 = HDKeyDerivation.createMasterPrivateKey(
             Buffer.from('satoshi lives!'),
         );
         expect(key1.isPubKeyOnly()).toBe(false);

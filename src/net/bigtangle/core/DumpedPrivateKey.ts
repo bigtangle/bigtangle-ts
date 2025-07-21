@@ -2,7 +2,6 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { VersionedChecksummedBytes } from './VersionedChecksummedBytes';
 import { ECKey } from './ECKey';
 import bigInt from 'big-integer';
-import { Utils } from './Utils';
 
 export class DumpedPrivateKey extends VersionedChecksummedBytes {
     private compressed: boolean;
@@ -38,7 +37,7 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
         if (privKeyBytes.length !== 32) {
             throw new Error('Private key must be 32 bytes');
         }
-        let bytes = new Uint8Array(compressed ? 33 : 32);
+        const bytes = new Uint8Array(compressed ? 33 : 32);
         bytes.set(privKeyBytes, 0);
         if (compressed) {
             bytes[32] = 1; // Compression marker

@@ -114,8 +114,8 @@ export class DeterministicSeed implements EncryptableItem {
     }
 
     public toString(): string {
-        let mnemonicStr = this.mnemonicCode ? this.mnemonicCode.join(" ") : "";
-        let hexStr = this.toHexString();
+        const mnemonicStr = this.mnemonicCode ? this.mnemonicCode.join(" ") : "";
+        const hexStr = this.toHexString();
         if (this.isEncrypted()) {
             return "DeterministicSeed [encrypted]";
         } else {

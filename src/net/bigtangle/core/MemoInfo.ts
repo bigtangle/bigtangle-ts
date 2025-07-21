@@ -1,8 +1,6 @@
 import { KeyValue } from "./KeyValue";
 import {
   ObjectMapper,
-  SerializationFeature,
-  DeserializationFeature,
 } from "jackson-js";
 
 /*

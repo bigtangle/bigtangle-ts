@@ -5,7 +5,6 @@ import { Address } from '../../src/net/bigtangle/core/Address';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { AddressFormatException } from '../../src/net/bigtangle/exception/AddressFormatException';
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { DumpedPrivateKey } from '../../src/net/bigtangle/utils/DumpedPrivateKey';
 import { TestParams } from '../../src/net/bigtangle/params/TestParams';
 

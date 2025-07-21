@@ -2,7 +2,6 @@
 import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Message } from '../../src/net/bigtangle/core/Message';
-import { ProtocolException } from '../../src/net/bigtangle/exception/ProtocolException';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
 
 describe('MessageTest', () => {

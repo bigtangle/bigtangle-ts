@@ -1,5 +1,4 @@
 import { BlockEvaluation } from './BlockEvaluation';
-import { Block } from './Block';
 import { BlockType } from './BlockType';
 import { BlockMCMC } from './BlockMCMC';
 import { ProbabilityBlock } from '../utils/ProbabilityBlock';

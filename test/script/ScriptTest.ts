@@ -11,8 +11,7 @@ import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOut
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { OP_0 } from '../../src/net/bigtangle/script/ScriptOpCodes';
-import { ScriptException } from '../../src/net/bigtangle/exception/ScriptException';
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 
 describe('ScriptTest', () => {
     const sigProg =

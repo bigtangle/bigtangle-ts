@@ -2,9 +2,7 @@ import { Message } from './Message';
 import { Block } from './Block';
 import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
-import { BloomFilter } from './BloomFilter';
 import { NetworkParameters } from '../params/NetworkParameters';
-import { ProtocolException } from '../exception/Exceptions';
 import { Gzip } from '../utils/Gzip';
 import { Buffer } from 'buffer';
 

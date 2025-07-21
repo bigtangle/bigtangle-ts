@@ -18,9 +18,6 @@ import { KeyValue } from '../../src/net/bigtangle/core/KeyValue';
 import { KeyValueList } from '../../src/net/bigtangle/core/KeyValueList';
 import { IdentityCoreClass as IdentityCore } from '../../src/net/bigtangle/apps/data/IdentityCore';
 import { IdentityDataClass as IdentityData } from '../../src/net/bigtangle/apps/data/IdentityData';
-import { SignedData } from '../../src/net/bigtangle/apps/data/SignedData';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { TokenKeyValues } from '../../src/net/bigtangle/core/TokenKeyValues';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 
 describe('SerializationTest', () => {
