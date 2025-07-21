@@ -30,13 +30,22 @@ export class Coin implements IMonetary, IComparable<Coin> {
         }
     }
 
-    @JsonCreator()
-    public static fromJSON(json: any): Coin {
-        const coin = new Coin();
-        coin.value = BigInt(json.value);
-        coin.tokenid = Buffer.from(json.tokenid, 'hex');
-        return coin;
+@JsonCreator()
+public static fromJSON(json: any): Coin {
+    console.log('Coin JSON input:', json);
+    console.log('tokenid (base64):', json.tokenid);
+    console.log('tokenHex:', json.tokenHex);
+    
+    const coin = new Coin();
+    coin.value = BigInt(json.value);
+    
+    if (json.tokenid) {
+        coin.tokenid = Buffer.from(json.tokenid, 'base64');
+        console.log('Converted tokenid to hex:', coin.tokenid.toString('hex'));
     }
+    
+    return coin;
+}
 
     public static valueOf(satoshis: bigint, tokenid?: Buffer | string): Coin {
         return new Coin(satoshis, tokenid || Constants.BIGTANGLE_TOKENID);
