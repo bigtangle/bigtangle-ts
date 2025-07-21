@@ -400,11 +400,7 @@ export class Wallet extends WalletBase {
   ): FreeStandingTransactionOutput[] {
     const re: FreeStandingTransactionOutput[] = [];
     for (const u of l) {
-      if (
-        u.getValue() &&
-        u.getValue().getTokenid() &&
-        Utils.arraysEqual(u.getValue().getTokenid(), tokenid)
-      ) {
+      if (Utils.arraysEqual(u.getValue().getTokenid(), tokenid)) {
         re.push(u);
       }
     }
@@ -452,7 +448,7 @@ export class Wallet extends WalletBase {
     const url = this.getServerURL() + "/multiSign";
     const requestBody = Json.jsonmapper().stringify(multiSignBy);
     const response = await OkHttp3Util.post(url, Buffer.from(requestBody));
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -469,7 +465,7 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify({ domainName }))
     );
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -486,7 +482,7 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify({ tokenid: token.getTokenid() }))
     );
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -501,7 +497,7 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify([tokenid]))
     );
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -603,7 +599,7 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify([address]))
     );
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -623,7 +619,7 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify(payload))
     );
- 
+
     return Json.jsonmapper().parse(response);
   }
 
@@ -683,18 +679,18 @@ export class Wallet extends WalletBase {
     let totalInput = Coin.valueOf(0n, amount.getTokenid());
     const inputs = [];
     for (const candidate of candidates) {
-      const output =  candidate  .getUTXO();
+      const output = candidate.getUTXO();
       const value = output.getValue();
       totalInput = totalInput.add(value);
       // Create TransactionOutPoint and use the correct TransactionInput constructor
       const outPoint = new TransactionOutPoint(
-        this.params, 
+        this.params,
         output.getIndex(),
-         output.getBlockHash(),
-         null
+        output.getBlockHash(),
+        null
       );
       // Assuming output has a getScript() method that returns a Script object
-      const scriptBytes =Buffer.from( output.getScript().getProgram());
+      const scriptBytes = Buffer.from(output.getScript().getProgram());
       const input = new TransactionInput(
         this.params,
         tx,
@@ -922,7 +918,7 @@ export class Wallet extends WalletBase {
         null
       );
       // Assuming utxo has a getScript() method that returns a Script object
-      const scriptBytes = Buffer.from( utxo.getScript().getProgram());
+      const scriptBytes = Buffer.from(utxo.getScript().getProgram());
       const input = new TransactionInput(
         this.params,
         tx,
@@ -1016,18 +1012,12 @@ export class Wallet extends WalletBase {
     destination: string,
     amount: Coin,
     memoInfo: MemoInfo,
-    coinList: any[],
+    coinList: FreeStandingTransactionOutput[],
     split: number
   ): Promise<Block[]> {
     // Filter coinList by token id
     const tokenid = amount.getTokenid();
-    const coinTokenList = (this as any).filterTokenid
-      ? (this as any).filterTokenid(tokenid, coinList)
-      : coinList.filter(
-          (c: any) =>
-            c.getValue?.().getTokenid?.() &&
-            Buffer.compare(c.getValue().getTokenid(), tokenid) === 0
-        );
+    const coinTokenList =this.filterTokenid(tokenid, coinList) ;
 
     // Sum the filtered coins
     const sum = (this as any).sum
@@ -1128,13 +1118,7 @@ export class Wallet extends WalletBase {
   ): Promise<Block> {
     try {
       // filterTokenid may be a method or utility
-      const filtered = (this as any).filterTokenid
-        ? (this as any).filterTokenid(tokenid, coinList)
-        : coinList.filter(
-            (c: any) =>
-              c.getValue?.().getTokenid?.() &&
-              Buffer.compare(c.getValue?.().getTokenid?.(), tokenid) === 0
-          );
+      const filtered = this.filterTokenid(tokenid, coinList);
       return await (this as any).payToList(
         aesKey,
         giveMoneyResult,
@@ -1350,9 +1334,8 @@ export class Wallet extends WalletBase {
       url,
       Buffer.from(JSON.stringify(requestParam))
     );
- 
-    const tokenResponse: GetTokensResponse =
-      Json.jsonmapper().parse(resp);
+
+    const tokenResponse: GetTokensResponse = Json.jsonmapper().parse(resp);
     const tokens = tokenResponse?.getTokens?.();
     if (!tokens || tokens.length === 0) {
       throw new NoTokenException();
@@ -1574,21 +1557,27 @@ export class Wallet extends WalletBase {
     let beneficiary: ECKey | null = null;
 
     for (const spendableOutput of candidates) {
-   
       const blockHash = spendableOutput.getUTXO().getBlockHash();
       const tokenId = spendableOutput.getUTXO().getTokenId();
-    
-      if (blockHash && tokenId && orderBaseToken === tokenId ) {
-         beneficiary = await this.getECKey(aesKey, spendableOutput.getUTXO().getAddress());
-       
+
+      if (blockHash && tokenId && orderBaseToken === tokenId) {
+        beneficiary = await this.getECKey(
+          aesKey,
+          spendableOutput.getUTXO().getAddress()
+        );
+
         toBePaid = spendableOutput.getValue().add(toBePaid);
 
         // Create TransactionInput using getHash() instead of getOutPointHash()
-    
-        tx.addInputWithOutput(  this.params, spendableOutput.getUTXO().getBlockHash(), spendableOutput );
 
-        if (!toBePaid.isNegative()) { 
-          tx.addOutputCoin(this.params, toBePaid,beneficiary);
+        tx.addInputWithOutput(
+          this.params,
+          spendableOutput.getUTXO().getBlockHash(),
+          spendableOutput
+        );
+
+        if (!toBePaid.isNegative()) {
+          tx.addOutputCoin(this.params, toBePaid, beneficiary);
           break;
         }
       }
@@ -1764,7 +1753,7 @@ export class Wallet extends WalletBase {
     }
     return this.solveAndPost(block);
   }
- 
+
   async multiSignKey(
     tokenid: string,
     outKey: ECKey,
@@ -1914,12 +1903,22 @@ export class Wallet extends WalletBase {
 
       totalInputAmount += value.getValue();
       // Create TransactionOutPoint and use the correct TransactionInput constructor
-          const outpoint = new TransactionOutPoint(    this.params,   utxo.getBlockHash(), candidate);
- 
+      const outpoint = new TransactionOutPoint(
+        this.params,
+        utxo.getBlockHash(),
+        candidate
+      );
+
       // Assuming utxo has a getScript() method that returns a Script object
       const scriptBytes = utxo.getScript().getProgram();
       inputs.push(
-         new TransactionInput(this.params, tx, Buffer.from(scriptBytes), outpoint, value)
+        new TransactionInput(
+          this.params,
+          tx,
+          Buffer.from(scriptBytes),
+          outpoint,
+          value
+        )
       );
       usedOutputs.push(utxo);
 
