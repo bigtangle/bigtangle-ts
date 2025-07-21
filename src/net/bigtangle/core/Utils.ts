@@ -2,22 +2,9 @@ import { Buffer } from 'buffer';
 import { createHash } from 'crypto';
 import base58 from 'bs58';
 import { Sha256Hash } from './Sha256Hash';
-import { ECKey } from './ECKey';
-import { TransactionOutput } from './TransactionOutput';
-import { TokenInfo } from './TokenInfo'; // TokenType not exported
-import { Transaction } from './Transaction'; // TransactionInput not exported
-import { Coin } from './Coin';
-import { Token } from './Token';
-import { OrderOpenInfo } from './OrderOpenInfo'; // Side not exported
-import { Side } from './Side'; // Import Side from correct location
-import { TestParams } from '../params/TestParams';
 
 export class Utils {
-    public static readonly UTF8 = {
-        encode: (str: string): Buffer => Buffer.from(str, 'utf8'),
-        decode: (buf: Buffer): string => buf.toString('utf8')
-    };
-
+ 
     public static base58ToBytes(base58String: string): Buffer {
         return Buffer.from(base58.decode(base58String));
     }
@@ -48,28 +35,8 @@ export class Utils {
         return true;
     }
 
-    public static writeNBytesString(out: Buffer, str: string): void {
-        const bytes = Buffer.from(str, 'utf8');
-        out.writeUInt32BE(bytes.length);
-        out.write(str, out.length, bytes.length, 'utf8');
-    }
-
-    public static readNBytesString(input: Buffer): string {
-        const length = input.readUInt32BE();
-        return input.toString('utf8', 4, 4 + length);
-    }
-
-    public static concatArrays(...arrays: Uint8Array[]): Uint8Array {
-        const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
-        const result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const arr of arrays) {
-            result.set(arr, offset);
-            offset += arr.length;
-        }
-        return result;
-    }
-
+     
+ 
     public static reverseDwordBytes(bytes: Buffer, length: number): Buffer {
         if (length <= 0) { // Handle negative or zero length
             return Buffer.alloc(0);
@@ -93,90 +60,13 @@ export class Utils {
         return buf;
     }
     
-    // Corrected Sha256Hash usage throughout
-    public static createSha256Hash(data: Buffer): Sha256Hash {
-        return Sha256Hash.of(data);
-    }
-
+   
     public static dateTimeFormat(date: number | Date): string {
         const d = typeof date === 'number' ? new Date(date) : date;
         return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
     }
-
-    public static payMoneyToECKeyList(amount: number, keyList: ECKey[]): TransactionOutput[] {
-        const params = TestParams.get();
-        return keyList.map(key => {
-            const address = key.toAddress(params);
-            const scriptPubKey = Buffer.concat([Buffer.from([0x76, 0xa9, 0x14]), address.getHash160(), Buffer.from([0x88, 0xac])]);
-            return new TransactionOutput(params, null, Coin.valueOf(BigInt(amount)), scriptPubKey);
-        });
-    }
-
-    public static buildSimpleTokenInfo2(tokenName: string, symbol: string, amount: number): TokenInfo {
-        const token = new Token(symbol, tokenName);
-        token.setAmount(BigInt(amount));
-        token.setTokentype(0); // Assuming 0 for CURRENCY
-        const tokenInfo = new TokenInfo();
-        tokenInfo.setToken(token);
-        return tokenInfo;
-    }
-
-    public static createTestTransaction(inputs: any[], outputs: any[]): Transaction {
-        const tx = new Transaction(TestParams.get());
-        tx.setVersion(1);
-        tx.setLockTime(0);
-        if (inputs) {
-            for (const input of inputs) {
-                tx.addInput(input);
-            }
-        }
-        if (outputs) {
-            for (const output of outputs) {
-                tx.addOutput(output);
-            }
-        }
-        return tx;
-    }
-
-    public static createToken(name: string, symbol: string, amount: number): TokenInfo {
-        const token = new Token(symbol, name);
-        token.setAmount(BigInt(amount));
-        token.setTokentype(0); // Assuming 0 for CURRENCY
-        const tokenInfo = new TokenInfo();
-        tokenInfo.setToken(token);
-        return tokenInfo;
-    }
-
-    public static buyOrder(tokenId: Sha256Hash, amount: number, price: number): OrderOpenInfo {
-        return new OrderOpenInfo(
-            undefined,
-            tokenId.toString(),
-            undefined,
-            undefined,
-            undefined,
-            Side.BUY,
-            undefined,
-            undefined,
-            price,
-            amount
-        );
-    }
-
-    public static sellOrder(tokenId: Sha256Hash, amount: number, price: number): OrderOpenInfo {
-        return new OrderOpenInfo(
-            undefined,
-            tokenId.toString(),
-            undefined,
-            undefined,
-            undefined,
-            Side.SELL,
-            undefined,
-            undefined,
-            price,
-            amount
-        );
-    }
-
+  
+  
     public static maxOfMostFreq(...args: number[]): number {
         if (args.length === 0) {
             return 0;
