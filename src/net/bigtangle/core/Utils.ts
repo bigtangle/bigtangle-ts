@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { createHash } from 'crypto';
+import crypto from 'crypto';
 import base58 from 'bs58';
 
 export class Utils {
@@ -22,8 +22,8 @@ export class Utils {
 
     public static doubleDigest(buffer: Buffer | Uint8Array): Buffer {
         const inputBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-        const first = createHash('sha256').update(inputBuffer).digest();
-        return createHash('sha256').update(first).digest();
+        const first = crypto.createHash('sha256').update(inputBuffer).digest();
+        return crypto.createHash('sha256').update(first).digest();
     }
 
     public static arraysEqual(a: Buffer, b: Buffer): boolean {
@@ -148,4 +148,19 @@ export class Utils {
         }
         return compact;
     }
+
+    /**
+ * Calculates RIPEMD160(SHA256(input)). This is used in Address calculations.
+ * @param {Buffer|Uint8Array} input - The input data to hash
+ * @returns {Buffer} - 20-byte RIPEMD160 hash of SHA256(input)
+ */
+public  sha256hash160(input:Buffer|Uint8Array):Buffer {
+    // First apply SHA256
+    const sha256Hash = crypto.createHash('sha256').update(input).digest();
+    
+    // Then apply RIPEMD160 to the SHA256 result
+    const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
+    
+    return ripemd160Hash;
+}
 }

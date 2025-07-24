@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { ripemd160 } from '@noble/hashes/ripemd160';
 import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 import { VerificationException } from '../exception/VerificationException';
-import { Base58 } from '../utils/Base58';
+ 
 import { Buffer } from 'buffer';
 import { ContractEventInfo } from '../core/ContractEventInfo';
 import { Token } from '../core/Token';
@@ -370,22 +370,7 @@ export class Utils {
         return new TextDecoder(charsetName).decode(bytes);
     }
 
-    public static toBytes(str: string, charsetName: string): Uint8Array {
-        return new TextEncoder().encode(str);
-    }
-
-    public static parseAsHexOrBase58(data: string): Uint8Array | null {
-        try {
-            return Utils.HEX.decode(data);
-        } catch (e) {
-            try {
-                return Base58.decodeChecked(data);
-            } catch (e1) {
-                return null;
-            }
-        }
-    }
-
+    
     public static isWindows(): boolean {
         return false; // Node.js/browser environment, not Windows
     }

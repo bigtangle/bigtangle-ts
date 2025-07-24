@@ -8,10 +8,12 @@ import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
 
 import { TokenType } from "../../src/net/bigtangle/core/TokenType";
 import { RemoteTest } from "./Remote.test";
+ 
 
 class RemoteFromAddressTests extends RemoteTest {
   yuanTokenPub = '02a717921ede2c066a4da05b9cdce203f1002b7e2abeee7546194498ef2fa9b13a';
   yuanTokenPriv = '8db6bd17fa4a827619e165bfd4b0f551705ef2d549a799e7f07115e5c3abad55';
+  testPriv = "180cb41c7c600be951b5d3d0a7334acc7506173875834c742e0e78830092a00a";
   
   accountKey: ECKey | undefined;
   yuanWallet: Wallet | undefined;
@@ -197,21 +199,7 @@ class RemoteFromAddressTests extends RemoteTest {
     }
   }
  
-  async createToken(
-    key: ECKey,
-    tokename: string,
-    decimals: number,
-    domainname: string,
-    description: string,
-    amount: bigint,
-    multisig: boolean,
-    contract: any,
-    tokenType: number,
-    tokenPubKey: string,
-    wallet: Wallet
-  ) {
-    // Implementation would go here
-  }
+ 
 }
 describe('RemoteFromAddressTests', () => {
   const tests = new RemoteFromAddressTests();
@@ -223,4 +211,5 @@ describe('RemoteFromAddressTests', () => {
   test('testUserpay', async () => {
     await tests.testUserpay();
   });
+ 
 });

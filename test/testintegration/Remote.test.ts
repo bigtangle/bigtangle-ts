@@ -348,6 +348,55 @@ export abstract class RemoteTest {
     return sha256Hash;
   }
 
+  public async createToken(
+    key: ECKey,
+    tokename: string,
+    decimals: number,
+    domainname: string,
+    description: string,
+    amount: bigint,
+    sign: boolean,
+    aesKey: any,
+    tokentype: any, // TokenType
+    tokenid: string,
+    wallet: Wallet
+  ) {
+    const tokenInfo = new TokenInfo();
+    const basecoin = new Coin(amount, Buffer.from(tokenid, "hex"));
+
+    const tokenIndexResponse = await this.getServerCalTokenIndex(tokenid);
+    const tokenindex = tokenIndexResponse.getTokenindex() ?? 0;
+    const prevblockhash = tokenIndexResponse.getBlockhash() ?? Sha256Hash.ZERO_HASH;
+
+    const tokens = Token.buildSimpleTokenInfo2(
+      true,
+      prevblockhash,
+      tokenid,
+      tokename,
+      description,
+      1,
+      tokenindex,
+      amount,
+      sign,
+      decimals,
+      domainname
+    );
+    tokenInfo.setToken(tokens);
+    tokenInfo
+      .getMultiSignAddresses()
+      .push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
+
+    const b = await wallet.saveToken(
+      tokenInfo,
+      basecoin,
+      key,
+      aesKey,
+      key.getPubKey(),
+      new MemoInfo("coinbase")
+    );
+    return b;
+  }
+
   public async adjustSolve(block: Block): Promise<Block> {
     // save block
     const resp = await OkHttp3Util.post(

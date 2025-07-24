@@ -41,14 +41,10 @@ import { KeyChainGroup } from "./KeyChainGroup";
 import { LocalTransactionSigner } from "../signers/LocalTransactionSigner";
 import { FreeStandingTransactionOutput } from "./FreeStandingTransactionOutput";
 import { TransactionOutPoint } from "../core/TransactionOutPoint";
-import * as zlib from "zlib";
-import { promisify } from "util";
 import bigInt from "big-integer";
 import { WalletProtobufSerializer } from "./WalletProtobufSerializer";
 import { ECDSASignature } from "../crypto/ECDSASignature";
 import { secp256k1 } from "@noble/curves/secp256k1";
-
-const gunzip = promisify(zlib.gunzip);
 
 export class Wallet extends WalletBase {
   private static readonly log = console; // Replace with a logger if needed
@@ -113,19 +109,7 @@ export class Wallet extends WalletBase {
     }
   }
 
-  // TODO: Implement all methods from Java Wallet class here, adapting to TypeScript.
-  // Stubs for all methods (to be filled in next steps):
-
-  static fromKeysSingle(params: NetworkParameters, key: ECKey): Wallet {
-    throw new Error("Not implemented");
-  }
-  static fromKeysWithUrl(
-    params: NetworkParameters,
-    key: ECKey,
-    url: string
-  ): Wallet {
-    throw new Error("Not implemented");
-  }
+  
   async getTip(): Promise<Block> {
     const tipData = await this.getTipData();
     return this.params.getDefaultSerializer().makeBlock(Buffer.from(tipData));
@@ -1076,9 +1060,10 @@ export class Wallet extends WalletBase {
       ) {
         // Add fee transaction (should be a Transaction, not a Block)
         if (typeof this.feeTransaction === "function") {
+          const ownerKey = await this.getECKey(aesKey, coinList[0]?.getUTXO().getAddress());
           const feeTxBlock = await this.feeTransaction(
-            aesKey,
-            coinList[0]?.getValue?.(),
+            new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING),
+            ownerKey,
             aesKey
           );
           const feeTx = feeTxBlock?.getTransactions?.()?.[0];
@@ -1301,9 +1286,10 @@ export class Wallet extends WalletBase {
       !mainTokenId.equals(Buffer.from(tokenid))
     ) {
       if (typeof this.feeTransaction === "function") {
+        const ownerKey = await this.getECKey(aesKey, coinList[0]?.getUTXO().getAddress());
         const feeTxBlock = await this.feeTransaction(
-          aesKey,
-          coinList[0]?.getValue?.(),
+          new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING),
+          ownerKey,
           aesKey
         );
         const feeTx = feeTxBlock?.getTransactions?.()?.[0];
@@ -1515,7 +1501,7 @@ export class Wallet extends WalletBase {
     try {
       Address.fromBase58(this.params, address);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
