@@ -3,7 +3,6 @@ import { Transaction } from './Transaction';
 import { ContractEventRecord } from './ContractEventRecord';
 import { Spent } from './Spent';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class ContractExecutionResult extends Spent {
@@ -46,28 +45,36 @@ export class ContractExecutionResult extends Spent {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeNBytesString(this.contracttokenid || "");
-            dos.writeBytes(this.outputTxHash ? this.outputTxHash.bytes : Sha256Hash.ZERO_HASH.bytes);
-            dos.writeBytes(this.prevblockhash ? this.prevblockhash.bytes : Sha256Hash.ZERO_HASH.bytes);
-            dos.writeLong(this.chainlength);
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
+            baos.writeNBytesString(this.contracttokenid || "");
+            
+            const outputTxHashBytes = this.outputTxHash ? this.outputTxHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes();
+            baos.writeBytes(outputTxHashBytes, 0, outputTxHashBytes.length);
+            
+            const prevblockhashBytes = this.prevblockhash ? this.prevblockhash.getBytes() : Sha256Hash.ZERO_HASH.getBytes();
+            baos.writeBytes(prevblockhashBytes, 0, prevblockhashBytes.length);
+            
+            baos.writeLong(this.chainlength);
 
-            dos.writeInt(this.cancelRecords.size);
+            baos.writeInt(this.cancelRecords.size);
             for (const c of this.cancelRecords) {
-                dos.writeBytes(c.bytes);
+                const bytes = c.getBytes();
+                baos.writeBytes(bytes, 0, bytes.length);
             }
-            dos.writeInt(this.remainderRecords.size);
+            baos.writeInt(this.remainderRecords.size);
             for (const c of this.remainderRecords) {
-                dos.writeBytes(c.bytes);
+                const bytes = c.getBytes();
+                baos.writeBytes(bytes, 0, bytes.length);
             }
-            dos.writeInt(this.referencedBlocks.size);
+            baos.writeInt(this.referencedBlocks.size);
             for (const c of this.referencedBlocks) {
-                dos.writeBytes(c.bytes);
+                const bytes = c.getBytes();
+                baos.writeBytes(bytes, 0, bytes.length);
             }
 
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }
@@ -84,17 +91,26 @@ export class ContractExecutionResult extends Spent {
         this.cancelRecords = new Set();
         const cancelRecordsSize = dis.readInt();
         for (let i = 0; i < cancelRecordsSize; i++) {
-            this.cancelRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
+            const hash = Sha256Hash.wrap(dis.readBytes(32));
+            if (hash !== null) {
+                this.cancelRecords.add(hash);
+            }
         }
         this.remainderRecords = new Set();
         const remainderRecordsSize = dis.readInt();
         for (let i = 0; i < remainderRecordsSize; i++) {
-            this.remainderRecords.add(Sha256Hash.wrap(dis.readBytes(32)));
+            const hash = Sha256Hash.wrap(dis.readBytes(32));
+            if (hash !== null) {
+                this.remainderRecords.add(hash);
+            }
         }
         const blocksSize = dis.readInt();
         this.referencedBlocks = new Set();
         for (let i = 0; i < blocksSize; i++) {
-            this.referencedBlocks.add(Sha256Hash.wrap(dis.readBytes(32)));
+            const hash = Sha256Hash.wrap(dis.readBytes(32));
+            if (hash !== null) {
+                this.referencedBlocks.add(hash);
+            }
         }
 
         return this;

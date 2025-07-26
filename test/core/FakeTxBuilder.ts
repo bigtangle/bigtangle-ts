@@ -38,7 +38,11 @@ export class FakeTxBuilder {
         );
         const tx = new Transaction(params);
         tx.addOutput(output);
-        const input1 = new TransactionInput(params, tx, Buffer.from([]), prevTx.getOutput(0).getOutPointFor(Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'))));
+        const genesisPubHash = Sha256Hash.wrap(Buffer.from(params.getGenesisPub(), 'hex'));
+        if (genesisPubHash === null) {
+            throw new Error('Failed to create genesis public key hash');
+        }
+        const input1 = new TransactionInput(params, tx, Buffer.from([]), prevTx.getOutput(0).getOutPointFor(genesisPubHash));
         tx.addInput(input1);
         return tx;
     }
@@ -290,9 +294,9 @@ export class FakeTxBuilder {
     ): Transaction {
         try {
             const bs = params.getDefaultSerializer();
-            const bos = Buffer.from(tx.bitcoinSerialize());
+            const bos = Buffer.from(tx.bitcoinSerializeCopy());
             return bs.deserialize(bos) as Transaction;
-        } catch (e: unknown) {
+        } catch {
             // If deserialization fails, return the original transaction
             return tx;
         }
@@ -335,15 +339,12 @@ export class FakeTxBuilder {
         try {
             doubleSpends.t1 = params
                 .getDefaultSerializer()
-                .makeTransaction(Buffer.from(doubleSpends.t1.bitcoinSerialize()));
+                .makeTransaction(Buffer.from(doubleSpends.t1.bitcoinSerializeCopy()));
             doubleSpends.t2 = params
                 .getDefaultSerializer()
-                .makeTransaction(Buffer.from(doubleSpends.t2.bitcoinSerialize()));
-        } catch (e: unknown) {
-            if (e instanceof Error) {
-                throw new Error(e.message);
-            }
-            throw new Error(String(e));
+                .makeTransaction(Buffer.from(doubleSpends.t2.bitcoinSerializeCopy()));
+        } catch {
+            throw new Error('Failed to deserialize transaction');
         }
         return doubleSpends;
     }
@@ -358,7 +359,7 @@ export class FakeTxBuilder {
         for (const tx of transactions) {
             b.addTransaction(tx);
         }
-        b.solve();
+        b.solve(b.getDifficultyTargetAsInteger());
         return b;
     }
 
@@ -373,7 +374,7 @@ export class FakeTxBuilder {
         for (const tx of transactions) {
             b.addTransaction(tx);
         }
-        b.solve();
+        b.solve(b.getDifficultyTargetAsInteger());
         return b;
     }
 }

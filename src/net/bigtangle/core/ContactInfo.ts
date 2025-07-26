@@ -1,7 +1,6 @@
 import { DataClass } from './DataClass';
 import { Contact } from './Contact';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
@@ -12,14 +11,13 @@ export class ContactInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
         try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeInt(this.contactList.length);
+            baos.write(Buffer.from(super.toByteArray()));
+            baos.writeInt(this.contactList.length);
             for (const c of this.contactList) {
-                dos.write(Buffer.from(c.toByteArray()));
+                baos.write(Buffer.from(c.toByteArray()));
             }
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

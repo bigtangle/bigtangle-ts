@@ -1,7 +1,6 @@
 import { DataClass } from './DataClass';
 import { UserSettingData } from './UserSettingData';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
@@ -12,14 +11,15 @@ export class UserSettingDataInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeInt(this.userSettingDatas.length);
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
+            baos.writeInt(this.userSettingDatas.length);
             for (const c of this.userSettingDatas) {
-                dos.write(Buffer.from(c.toByteArray()));
+                const bytes = Buffer.from(c.toByteArray());
+                baos.writeBytes(bytes, 0, bytes.length);
             }
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

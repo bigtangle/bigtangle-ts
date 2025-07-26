@@ -40,16 +40,16 @@ export class FilteredBlock extends Message {
         }
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         if (this.header.getTransactions() === null) {
-            stream.write(this.header.bitcoinSerialize());
+            stream.write(this.header.unsafeBitcoinSerialize());
         } else {
             // If cloneAsHeader() does not exist, assume header is already a header or provide a way to get the header-only serialization
-            stream.write(this.header.bitcoinSerialize());
+            stream.write(this.header.unsafeBitcoinSerialize());
         }
         // Assuming PartialMerkleTree has a bitcoinSerializeToStream method
         // this.merkleTree.bitcoinSerializeToStream(stream);
-        stream.write(this.merkleTree.bitcoinSerialize());
+        stream.write(this.merkleTree.unsafeBitcoinSerialize());
     }
 
     protected parse(): void {

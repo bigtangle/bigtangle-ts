@@ -1,7 +1,6 @@
 import { DataClass } from './DataClass';
 import { KeyValue } from './KeyValue';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
@@ -16,14 +15,15 @@ export class KeyValueList extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos); // Pass baos to DataOutputStream
         try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeInt(this.keyvalues.length);
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
+            baos.writeInt(this.keyvalues.length);
             for (const c of this.keyvalues) {
-                dos.write(Buffer.from(c.toByteArray()));
+                const bytes = Buffer.from(c.toByteArray());
+                baos.writeBytes(bytes, 0, bytes.length);
             }
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

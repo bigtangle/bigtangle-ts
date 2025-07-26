@@ -1,32 +1,11 @@
-import { ScriptChunk } from './ScriptChunk.js';
-import { Script } from './Script.js';
-import { Address } from '../core/Address.js';
-import { ECKey } from '../core/ECKey.js';
-import { Utils } from '../utils/Utils.js';
-import { TransactionSignature } from '../crypto/TransactionSignature.js';
+import { ScriptChunk } from './ScriptChunk';
+import { Script } from './Script';
+import { Address } from '../core/Address';
+import { ECKey } from '../core/ECKey';
+import { Utils } from '../utils/Utils';
+import { TransactionSignature } from '../crypto/TransactionSignature';
 import bigInt from 'big-integer';
-
-// Re-export ScriptOpCodes from Script.ts or define them here if not in Script.ts
-// For now, assuming they will be defined in Script.ts or a separate ScriptOpCodes.ts
-// For simplicity, I'll define the necessary ones here for now.
-const OP_0 = 0x00;
-const OP_PUSHDATA1 = 0x4c;
-const OP_PUSHDATA2 = 0x4d;
-const OP_PUSHDATA4 = 0x4e;
-const OP_DUP = 0x76;
-const OP_HASH160 = 0xa9;
-const OP_EQUAL = 0x87;
-const OP_EQUALVERIFY = 0x88;
-const OP_CHECKSIG = 0xac;
-const OP_CHECKMULTISIG = 0xae;
-const OP_RETURN = 0x6a;
-const OP_IF = 0x63;
-const OP_ELSE = 0x67;
-const OP_ENDIF = 0x68;
-const OP_CHECKLOCKTIMEVERIFY = 0xb1;
-const OP_DROP = 0x75;
-const OP_CHECKSIGVERIFY = 0xad;
-const OP_CODESEPARATOR = 0xab; // Used in Script.removeAllInstancesOfOp
+import * as ScriptOpCodes from './ScriptOpCodes';
 
 export class ScriptBuilder {
     private chunks: ScriptChunk[];
@@ -41,7 +20,7 @@ export class ScriptBuilder {
     }
 
     op(opcode: number): ScriptBuilder {
-        if (opcode <= OP_PUSHDATA4) {
+        if (opcode <= ScriptOpCodes.OP_PUSHDATA4) {
             throw new Error("Opcode must be greater than OP_PUSHDATA4 for direct opcode addition.");
         }
         return this.addChunk(new ScriptChunk(opcode, null));
@@ -58,7 +37,7 @@ export class ScriptBuilder {
     private addDataChunk(data: Uint8Array): ScriptBuilder {
         let opcode: number;
         if (data.length === 0) {
-            opcode = OP_0;
+            opcode = ScriptOpCodes.OP_0;
         } else if (data.length === 1) {
             const b = data[0];
             if (b >= 1 && b <= 16) {
@@ -66,12 +45,12 @@ export class ScriptBuilder {
             } else {
                 opcode = 1;
             }
-        } else if (data.length < OP_PUSHDATA1) {
+        } else if (data.length < ScriptOpCodes.OP_PUSHDATA1) {
             opcode = data.length;
         } else if (data.length < 256) {
-            opcode = OP_PUSHDATA1;
+            opcode = ScriptOpCodes.OP_PUSHDATA1;
         } else if (data.length < 65536) {
-            opcode = OP_PUSHDATA2;
+            opcode = ScriptOpCodes.OP_PUSHDATA2;
         } else {
             throw new Error("Unimplemented: Data length too large for PUSHDATA opcodes.");
         }
@@ -133,21 +112,21 @@ export class ScriptBuilder {
         if (to instanceof Address) {
             if (to.isP2SHAddress()) {
                 return new ScriptBuilder()
-                    .op(OP_HASH160)
+                    .op(ScriptOpCodes.OP_HASH160)
                     .data(to.getHash160())
-                    .op(OP_EQUAL)
+                    .op(ScriptOpCodes.OP_EQUAL)
                     .build();
             } else {
                 return new ScriptBuilder()
-                    .op(OP_DUP)
-                    .op(OP_HASH160)
+                    .op(ScriptOpCodes.OP_DUP)
+                    .op(ScriptOpCodes.OP_HASH160)
                     .data(to.getHash160())
-                    .op(OP_EQUALVERIFY)
-                    .op(OP_CHECKSIG)
+                    .op(ScriptOpCodes.OP_EQUALVERIFY)
+                    .op(ScriptOpCodes.OP_CHECKSIG)
                     .build();
             }
         } else if (to instanceof ECKey) {
-            return new ScriptBuilder().data(to.getPubKey()).op(OP_CHECKSIG).build();
+            return new ScriptBuilder().data(to.getPubKey()).op(ScriptOpCodes.OP_CHECKSIG).build();
         }
         throw new Error("Invalid type for createOutputScript");
     }
@@ -172,7 +151,7 @@ export class ScriptBuilder {
             builder.data(key.getPubKey());
         }
         builder.smallNum(pubkeys.length);
-        builder.op(OP_CHECKMULTISIG);
+        builder.op(ScriptOpCodes.OP_CHECKMULTISIG);
         return builder.build();
     }
 
@@ -212,7 +191,7 @@ export class ScriptBuilder {
         const inputChunks = scriptSig.getChunks();
         const totalChunks = inputChunks.length;
 
-        const hasMissingSigs = inputChunks[totalChunks - sigsSuffixCount - 1].equalsOpCode(OP_0);
+        const hasMissingSigs = inputChunks[totalChunks - sigsSuffixCount - 1].equalsOpCode(ScriptOpCodes.OP_0);
         if (!hasMissingSigs) {
             throw new Error("ScriptSig is already filled with signatures");
         }
@@ -230,7 +209,7 @@ export class ScriptBuilder {
                 builder.data(signature);
                 pos++;
             }
-            if (!chunk.equalsOpCode(OP_0)) {
+            if (!chunk.equalsOpCode(ScriptOpCodes.OP_0)) {
                 builder.addChunk(chunk);
                 pos++;
             }
@@ -241,7 +220,7 @@ export class ScriptBuilder {
                 inserted = true;
                 builder.data(signature);
             } else {
-                builder.addChunk(new ScriptChunk(OP_0, null));
+                builder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
             }
             pos++;
         }
@@ -260,7 +239,7 @@ export class ScriptBuilder {
         if (hash.length !== 20) {
             throw new Error("Hash must be 20 bytes long for P2SH output script.");
         }
-        return new ScriptBuilder().op(OP_HASH160).data(hash).op(OP_EQUAL).build();
+        return new ScriptBuilder().op(ScriptOpCodes.OP_HASH160).data(hash).op(ScriptOpCodes.OP_EQUAL).build();
     }
 
     static createP2SHOutputScriptFromScript(redeemScript: Script): Script {
@@ -291,7 +270,7 @@ export class ScriptBuilder {
         if (data.length > 80) {
             throw new Error("Data too long for OP_RETURN script (max 80 bytes).");
         }
-        return new ScriptBuilder().op(OP_RETURN).data(data).build();
+        return new ScriptBuilder().op(ScriptOpCodes.OP_RETURN).data(data).build();
     }
 
     static createCLTVPaymentChannelOutput(time: bigInt.BigInteger, from: ECKey, to: ECKey): Script {
@@ -299,12 +278,12 @@ export class ScriptBuilder {
         if (timeBytes.length > 5) {
             throw new Error("Time too large to encode as 5-byte int");
         }
-        return new ScriptBuilder().op(OP_IF)
-            .data(to.getPubKey()).op(OP_CHECKSIGVERIFY) // Assuming OP_CHECKSIGVERIFY exists
-            .op(OP_ELSE)
-            .data(timeBytes).op(OP_CHECKLOCKTIMEVERIFY).op(OP_DROP)
-            .op(OP_ENDIF)
-            .data(from.getPubKey()).op(OP_CHECKSIG).build();
+        return new ScriptBuilder().op(ScriptOpCodes.OP_IF)
+            .data(to.getPubKey()).op(ScriptOpCodes.OP_CHECKSIGVERIFY) // Assuming OP_CHECKSIGVERIFY exists
+            .op(ScriptOpCodes.OP_ELSE)
+            .data(timeBytes).op(ScriptOpCodes.OP_CHECKLOCKTIMEVERIFY).op(ScriptOpCodes.OP_DROP)
+            .op(ScriptOpCodes.OP_ENDIF)
+            .data(from.getPubKey()).op(ScriptOpCodes.OP_CHECKSIG).build();
     }
 
     static createCLTVPaymentChannelRefund(signature: TransactionSignature): Script {

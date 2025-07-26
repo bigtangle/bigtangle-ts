@@ -11,6 +11,8 @@ import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 import { TransactionOutput } from './TransactionOutput';
 import { Address } from './Address';
+import { KeyBag } from '../wallet/KeyBag';
+import { RedeemData } from '../wallet/RedeemData';
 
 /**
  * <p>A transfer of coins from one address to another creates a transaction in which the outputs
@@ -89,9 +91,12 @@ export class TransactionInput extends ChildMessage {
     }
 
     protected parse(): void {
+        if (this.payload === null) {
+            throw new Error("Payload is null");
+        }
         this.outpoint = new TransactionOutPoint(this.params, this.payload, this.cursor, this, this.serializer);
         this.cursor += this.outpoint.getMessageSize();
-        const scriptLen = this.readVarInt();
+        const scriptLen = Number(this.readVarInt());
         this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
         this.sequence = this.readUint32();
@@ -105,8 +110,11 @@ export class TransactionInput extends ChildMessage {
     }
 
     public bitcoinSerializeToStream(stream: any): void {
-        stream.write(this.outpoint.bitcoinSerialize());
-        VarInt.write(this.scriptBytes.length, stream);
+        const outpointBuffer = this.outpoint.unsafeBitcoinSerialize();
+        stream.write(outpointBuffer);
+        const scriptBytesVarInt = new VarInt(this.scriptBytes.length);
+        const scriptBytesVarIntBuffer = scriptBytesVarInt.encode();
+        stream.write(scriptBytesVarIntBuffer);
         stream.write(this.scriptBytes);
         Utils.uint32ToByteStreamLE(this.sequence, stream);
         // This part is not standard Bitcoin serialization, so commenting out for now
@@ -291,20 +299,16 @@ export class TransactionInput extends ChildMessage {
 
     /** Returns a copy of the input detached from its containing transaction, if need be. */
     public duplicateDetached(): TransactionInput {
-        return new TransactionInput(this.params, null, Buffer.from(this.bitcoinSerialize()), 0);
+        const buffer = this.unsafeBitcoinSerialize();
+        return new TransactionInput(this.params, null, buffer, 0);
     }
 
     /**
      * Returns the redeem data required to spend this input.
      * @param keyBag The key bag containing redeem data
      */
-    public getConnectedRedeemData(keyBag: any): any {
-        const connectedOutput = this.getConnectedOutput();
-        if (!connectedOutput) {
-            throw new Error("No connected output.");
-        }
-        const scriptPubKey = connectedOutput.getScriptPubKey();
-        return keyBag.findRedeemDataFromScript(scriptPubKey);
+    public getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
+        return this.getOutpoint().getConnectedRedeemData(keyBag);
     }
 
     public equals(o: any): boolean {

@@ -31,23 +31,19 @@ const MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MB max message size
 
 const COMMAND_LEN = 12;
 
-export class BitcoinSerializer extends MessageSerializer {
+export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
     private static readonly names = new Map<Function, string>([
         [Block, "block"],
         [Transaction, "tx"],
         [BloomFilter, "filterload"]
     ]);
 
-    constructor(params: NetworkParameters, parseRetain: boolean) {
-        super(params, parseRetain);
-    }
-
     public serializeMessage(message: Message): Buffer {
         const name = BitcoinSerializer.names.get(message.constructor);
         if (!name) {
             throw new Error(`BitcoinSerializer doesn't currently know how to serialize ${message.constructor.name}`);
         }
-        const buffer = message.bitcoinSerialize();
+        const buffer = message.unsafeBitcoinSerialize();
         const chunks: Buffer[] = [];
         this.serialize(name, Buffer.from(buffer), chunks);
         return Buffer.concat(chunks);
@@ -58,7 +54,7 @@ export class BitcoinSerializer extends MessageSerializer {
         const messageBuffer = Buffer.from(message);
         
         const hash = Sha256Hash.hashTwice(messageBuffer);
-        const checksum = hash.toBuffer().subarray(0, 4);
+        const checksum = hash .subarray(0, 4);
 
         const packetMagic = (this.params as any).getPacketMagic ? 
             (this.params as any).getPacketMagic() : 
@@ -90,11 +86,11 @@ export class BitcoinSerializer extends MessageSerializer {
 
         // Verify checksum
         const hash = Sha256Hash.hashTwice(payloadBytes);
-        const checksum = hash.subarray(0, 4);
+        const calculatedChecksum = hash.subarray(0, 4);
         // Compare checksums manually
         let checksumMatch = true;
         for (let i = 0; i < 4; i++) {
-            if (checksum[i] !== header.checksum[i]) {
+            if (calculatedChecksum[i] !== header.checksum[i]) {
                 checksumMatch = false;
                 break;
             }
@@ -104,14 +100,17 @@ export class BitcoinSerializer extends MessageSerializer {
             throw new ProtocolException(`Checksum failed to verify`);
         }
 
-        return this.makeMessage(header.command, header.size, payloadBytes, hash.toBuffer(), header.checksum);
+        return this.makeMessage(header.command, header.size, payloadBytes, hash, header.checksum);
     }
-
+  
     private makeMessage(command: string, length: number, payloadBytes: Buffer, hash: Buffer, checksum: Buffer): Message {
         if (command === "block") {
-            return this.makeBlock(payloadBytes, 0, length);
+            const block = this.makeBlock(payloadBytes, 0, length);
+            // Ensure the block has a public bitcoinSerializeToStream method
+            (block as any).bitcoinSerializeToStream = block.bitcoinSerializeToStream.bind(block);
+            return block;
         } else if (command === "tx") {
-            return this.makeTransaction(payloadBytes);
+            return this.makeTransaction(payloadBytes, 0, length, hash);
         } else if (command === "alert") {
             return this.makeAlertMessage(payloadBytes);
         }  else {
@@ -119,8 +118,15 @@ export class BitcoinSerializer extends MessageSerializer {
         }
     }
 
-    getParameters(): NetworkParameters {
-        return this.params;
+    public makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
+        const tx = new Transaction(this.params, payloadBytes, offset, this, null, length);
+        if (hash) {
+            const wrappedHash = Sha256Hash.wrap(hash);
+            if (wrappedHash !== null) {
+                tx.setHash(wrappedHash);
+            }
+        }
+        return tx;
     }
 
     makeAlertMessage(payloadBytes: Buffer): AlertMessage {
@@ -133,16 +139,9 @@ export class BitcoinSerializer extends MessageSerializer {
         if (offset === undefined) {
             return Block.fromPayload(this.params, payloadBytes, this, payloadBytes.length);
         }
-        return Block.fromPayloadWithOffsetAndParent(this.params, payloadBytes, offset, null, this, length ?? payloadBytes.length);
-    }
-
-    public makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
-        const tx = new Transaction(this.params, payloadBytes, offset);
-        tx.parse();
-        if (hash) {
-            tx.setHash(Sha256Hash.wrap(hash));
-        }
-        return tx;
+        // Ensure length is not greater than the available bytes
+        const actualLength = Math.min(length ?? payloadBytes.length, payloadBytes.length - offset);
+        return Block.fromPayloadWithOffsetAndParent(this.params, payloadBytes, offset, null, this, actualLength);
     }
 
     public seekPastMagicBytes(inBuffer: Buffer): Buffer {
@@ -170,9 +169,6 @@ export class BitcoinSerializer extends MessageSerializer {
         throw new Error("Magic bytes not found");
     }
 
-    public isParseRetainMode(): boolean {
-        return typeof this.parseRetain !== 'undefined' ? !!this.parseRetain : false;
-    }
 
    
     deserializeHeader(inBuffer: Buffer): BitcoinPacketHeader {

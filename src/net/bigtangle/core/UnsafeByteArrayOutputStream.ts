@@ -1,4 +1,3 @@
-import { Buffer } from 'buffer';
 import { Utils } from '../utils/Utils';
 
 /**
@@ -8,8 +7,7 @@ import { Utils } from '../utils/Utils';
  * <p/>
  * Unless the final length can be accurately predicted the only performance this will yield is due to unsynchronized
  * methods.
- *
- * @author git
+ 
  */
 export class UnsafeByteArrayOutputStream {
     private buf: Buffer;
@@ -61,6 +59,17 @@ export class UnsafeByteArrayOutputStream {
     }
 
     /**
+     * Writes the complete contents of this byte array output stream to
+     * the specified output stream argument, as if by calling the output
+     * stream's write method using <code>out.write(buf, 0, count)</code>.
+     *
+     * @param out the output stream to which to write the data.
+     */
+    public writeTo(out: any): void {
+        out.write(this.buf, 0, this.count);
+    }
+
+    /**
      * Resets the <code>count</code> field of this byte array output
      * stream to zero, so that all currently accumulated output in the
      * output stream is discarded. The output stream can be used again,
@@ -94,4 +103,51 @@ export class UnsafeByteArrayOutputStream {
     public size(): number {
         return this.count;
     }
+
+     public writeByte(byte: number): void {
+        
+            this.write(byte);
+         
+    }
+
+ 
+    writeBoolean(val: boolean): void {
+        this.writeByte(val ? 1 : 0);
+    }
+
+    writeInt(val: number): void {
+        this.writeByte((val >>> 24) & 0xFF);
+        this.writeByte((val >>> 16) & 0xFF);
+        this.writeByte((val >>> 8) & 0xFF);
+        this.writeByte(val & 0xFF);
+    }
+
+    writeUInt32LE(val: number): void {
+        this.writeByte(val & 0xFF);
+        this.writeByte((val >>> 8) & 0xFF);
+        this.writeByte((val >>> 16) & 0xFF);
+        this.writeByte((val >>> 24) & 0xFF);
+    }
+
+    writeLong(val: number): void {
+        this.writeInt(Math.floor(val / 0x100000000));
+        this.writeInt(val & 0xFFFFFFFF);
+    }
+
+    writeNBytesString(s: string | null | undefined): void {
+        if (s === null || s === undefined) {
+            this.writeBoolean(false);
+        } else {
+            this.writeBoolean(true);
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(s);
+            this.writeInt(bytes.length);
+            this.writeBytes(Buffer.from(bytes), 0, bytes.length);
+        }
+    }
+
+    close(): void {
+        // No-op since we're just buffering in memory
+    }
+ 
 }

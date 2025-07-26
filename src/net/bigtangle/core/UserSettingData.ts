@@ -1,5 +1,5 @@
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class UserSettingData {
     private key: string | null = null;
@@ -7,7 +7,7 @@ export class UserSettingData {
     private domain: string | null = null;
 
     public toByteArray(): Uint8Array {
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         try {
             dos.writeNBytesString(this.key || "");
             dos.writeNBytesString(this.value || "");

@@ -15,7 +15,7 @@ export class UtilGeneseBlock {
     private static genesisKey: ECKey = ECKey.fromPrivate(bigInt('18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725', 16));
 
     public static createGenesis(params: NetworkParameters): Block {
-        const block = Block.fromVersion(params, NetworkParameters.BLOCK_VERSION_GENESIS);
+        const block = new  Block (params, NetworkParameters.BLOCK_VERSION_GENESIS);
         // Use the public key hash from the genesisKey for the miner address
         block.setMinerAddress(Buffer.from(UtilGeneseBlock.genesisKey.getPubKeyHash()));
         block.setPrevBlockHash(Sha256Hash.ZERO_HASH);
@@ -29,7 +29,7 @@ export class UtilGeneseBlock {
             null as unknown as TokenInfo, // Cast to TokenInfo | null
             null as unknown as MemoInfo // Cast to MemoInfo | null
         );
-        block.solve();
+        block.solveWithoutTarget();
         try {
             block.verifyHeader();
         } catch (e: unknown) {

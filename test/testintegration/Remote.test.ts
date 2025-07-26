@@ -344,8 +344,99 @@ export abstract class RemoteTest {
   protected getRandomSha256Hash(): Sha256Hash {
     const rawHashBytes = new Uint8Array(32);
     crypto.getRandomValues(rawHashBytes);
-    const sha256Hash = Sha256Hash.wrap(Buffer.from(rawHashBytes));
+    const sha256Hash = Sha256Hash.wrap(Buffer.from(rawHashBytes.buffer));
+    if (sha256Hash === null) {
+      throw new Error("Failed to create Sha256Hash");
+    }
     return sha256Hash;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected async getPrevTokenMultiSignAddressList(
+    token: Token
+  ): Promise<PermissionedAddressesResponse> {
+    const requestParam = new Map<string, string>();
+    requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash()!);
+    const resp = await OkHttp3Util.postStringSingle(
+      this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
+      this.objectMapper.stringify(Object.fromEntries(requestParam))
+    );
+    return this.objectMapper.parse(resp, {
+      // Removed .toString("utf8")
+      mainCreator: () => [PermissionedAddressesResponse],
+    });
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async pullBlockDoMultiSign(
+    tokenid: string,
+    outKey: ECKey,
+    aesKey: any
+  ): Promise<Block | null> {
+    const requestParam = new Map<string, any>();
+
+    const address = outKey.toAddress(this.networkParameters).toBase58();
+    requestParam.set("address", address);
+    requestParam.set("tokenid", tokenid);
+
+    const resp: string = await OkHttp3Util.postStringSingle(
+      // Explicitly declare resp as string
+      this.contextRoot + ReqCmd.getTokenSignByAddress,
+      this.objectMapper.stringify(Object.fromEntries(requestParam))
+    );
+
+    const trimmedResp = resp.trim(); // Introduce intermediate variable
+
+    const multiSignResponse = this.objectMapper.parse(trimmedResp, {
+      mainCreator: () => [MultiSignResponse],
+    }) as MultiSignResponse;
+    if (
+      multiSignResponse.getMultiSigns() === null ||
+      multiSignResponse.getMultiSigns()!.length == 0
+    )
+      return null;
+    const multiSign = multiSignResponse.getMultiSigns()![0];
+
+    const payloadBytes = Buffer.from(
+      multiSign.getBlockhashHex() as string,
+      "hex"
+    );
+    const block0 = this.networkParameters
+      .getDefaultSerializer()
+      .makeBlock(payloadBytes);
+    const transaction = block0.getTransactions()![0];
+
+    let multiSignBies: MultiSignBy[] | null = null;
+    if (transaction.getDataSignature() === null) {
+      multiSignBies = new Array<MultiSignBy>();
+    } else {
+      const multiSignByRequest = this.objectMapper.parse(
+        transaction.getDataSignature()!.toString("utf8"),
+        { mainCreator: () => [MultiSignByRequest] }
+      ) as MultiSignByRequest;
+      multiSignBies = multiSignByRequest.getMultiSignBies()!;
+    }
+    const sighash = transaction.getHash();
+     const party1Signature = await outKey.sign(sighash!.getBytes());
+    const buf1 = party1Signature.encodeDER();
+
+    const multiSignBy0 = new MultiSignBy();
+
+    multiSignBy0.setTokenid(multiSign.getTokenid()!);
+    multiSignBy0.setTokenindex(multiSign.getTokenindex()!);
+    multiSignBy0.setAddress(
+      outKey.toAddress(this.networkParameters).toBase58()
+    );
+    multiSignBy0.setPublickey(Utils.toHexString(outKey.getPubKey()));
+    multiSignBy0.setSignature(Utils.toHexString(buf1));
+    multiSignBies!.push(multiSignBy0);
+    const multiSignByRequest = MultiSignByRequest.create(multiSignBies!);
+    transaction.setDataSignature(
+      Buffer.from(this.objectMapper.stringify(multiSignByRequest))
+    );
+    await OkHttp3Util.post(
+      this.contextRoot + ReqCmd.signToken,
+      block0.bitcoinSerializeCopy()
+    );
+    return block0;
   }
 
   public async createToken(
@@ -401,7 +492,7 @@ export abstract class RemoteTest {
     // save block
     const resp = await OkHttp3Util.post(
       this.contextRoot + ReqCmd.adjustHeight,
-      block.bitcoinSerialize()
+      block.bitcoinSerializeCopy()
     );
 
     const result = this.objectMapper.parse(resp )  ;
@@ -410,7 +501,7 @@ export abstract class RemoteTest {
     const adjust = this.networkParameters
       .getDefaultSerializer()
       .makeBlock(Buffer.from(dataHex, "hex"));
-    adjust.solve();
+    adjust.solve(adjust.getDifficultyTargetAsInteger());
     return adjust;
   }
 
@@ -430,7 +521,7 @@ export abstract class RemoteTest {
 
     const amount = Coin.valueOf(
       BigInt(2),
-      Utils.toHexString(NetworkParameters.BIGTANGLE_TOKENID)
+    NetworkParameters.BIGTANGLE_TOKENID_STRING
     );
     const tx = new Transaction(this.networkParameters);
 
@@ -458,7 +549,7 @@ export abstract class RemoteTest {
     const input = new TransactionInput(
       this.networkParameters,
       tx,
-      Buffer.from(outPoint.bitcoinSerialize())
+     outPoint.bitcoinSerializeCopy()
     );
     tx.addInput(input);
 
@@ -468,6 +559,9 @@ export abstract class RemoteTest {
       spendableOutput.getScriptBytes(),
       Transaction.SigHash.ALL
     );
+    if (!sighash) {
+      throw new Error("Unable to create sighash for transaction");
+    }
     const signature = await genesiskey.sign(sighash.getBytes());
     const inputScript = ScriptBuilder.createInputScript(
       new TransactionSignature(
@@ -588,7 +682,7 @@ export abstract class RemoteTest {
 
     public logUTXOs(list: FreeStandingTransactionOutput[]) {
     for (const coin of list) {
-      console.debug( `  ${JSON.stringify(coin)}`);
+      console.debug( `  ${coin.toString()}`);
     }
   }
   // get balance for the walletKeys
@@ -613,9 +707,6 @@ export abstract class RemoteTest {
 
     return listUTXO;
   }
-
-  // Remove duplicate implementation
-  // This method is defined only once
 
   protected async testCreateTokenWithBlocks(
     outKey: ECKey,
@@ -657,22 +748,6 @@ export abstract class RemoteTest {
       BigInt(77777),
       blocksAddedAll
     );
-  }
-
-  // Simplified implementation that matches Wallet.ts
-  protected async getPrevTokenMultiSignAddressList(
-    token: Token
-  ): Promise<PermissionedAddressesResponse> {
-    const requestParam = new Map<string, string>();
-    requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash()!);
-    const resp = await OkHttp3Util.postStringSingle(
-      this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
-    );
-    return this.objectMapper.parse(resp, {
-      // Removed .toString("utf8")
-      mainCreator: () => [PermissionedAddressesResponse],
-    });
   }
 
   protected async testCreateTokenFull(
@@ -882,7 +957,7 @@ export abstract class RemoteTest {
     let block = this.networkParameters.getDefaultSerializer().makeBlock(data);
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
     block.addCoinbaseTransaction(
-      keys[2].getPubKey(),
+      Buffer.from(keys[2].getPubKey()),
       basecoin,
       tokenInfo,
       new MemoInfo("coinbase")
@@ -893,7 +968,7 @@ export abstract class RemoteTest {
 
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.signToken,
-      block.bitcoinSerialize()
+      block.bitcoinSerializeCopy()
     );
 
     const ecKeys = new Array<ECKey>();
@@ -937,7 +1012,7 @@ export abstract class RemoteTest {
         multiSignBies = multiSignByRequest.getMultiSignBies()!;
       }
       const sighash = transaction.getHash();
-      const party1Signature = await ecKey.sign(sighash!);
+      const party1Signature = await ecKey.sign(sighash!.getBytes());
       const buf1 = party1Signature.encodeDER();
 
       const multiSignBy0 = new MultiSignBy();
@@ -956,7 +1031,7 @@ export abstract class RemoteTest {
    
         await OkHttp3Util.post(
           this.contextRoot + ReqCmd.signToken,
-          block0.bitcoinSerialize()
+          block0.bitcoinSerializeCopy()
         )
       ;
     }
@@ -1051,7 +1126,7 @@ export abstract class RemoteTest {
     );
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.signToken,
-      block.bitcoinSerialize()
+      block.bitcoinSerializeCopy()
     );
 
     const permissionedAddressesResponse =
@@ -1179,7 +1254,7 @@ export abstract class RemoteTest {
     }
 
     block.addCoinbaseTransaction(
-      outKey.getPubKey(),
+       Buffer.from(outKey.getPubKey()),
       basecoin,
       tokenInfo,
       new MemoInfo("coinbase")
@@ -1191,7 +1266,7 @@ export abstract class RemoteTest {
 
     const multiSignBies = new Array<MultiSignBy>();
 
-    const party1Signature = await outKey.sign(sighash!);
+      const party1Signature = await outKey.sign(sighash!.getBytes());
     const buf1 = party1Signature.encodeDER();
     let multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
@@ -1204,7 +1279,7 @@ export abstract class RemoteTest {
     multiSignBies.push(multiSignBy0);
 
     const genesiskey = ECKey.fromPrivateString(RemoteTest.testPriv);
-    const party2Signature = await genesiskey.sign(sighash!);
+     const party2Signature = await genesiskey.sign(sighash!.getBytes());
     const buf2 = party2Signature.encodeDER();
     multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
@@ -1227,16 +1302,15 @@ export abstract class RemoteTest {
       [outKey],
       this.contextRoot
     );
-    block.addTransaction(
-      await w.feeTransaction(
+    const feeBlock = await w.feeTransaction(
         new Coin(
           BigInt(w.getFee() || 0),
           NetworkParameters.BIGTANGLE_TOKENID_STRING
         ),
         outKey,
         aesKey
-      )
-    );
+      );
+      block.addTransaction(feeBlock.getTransactions()[0]);
 
     // save block
     const adjustedBlock = await this.adjustSolve(block);
@@ -1255,82 +1329,6 @@ export abstract class RemoteTest {
     )) as TokenIndexResponse;
   }
 
-  public async pullBlockDoMultiSign(
-    tokenid: string,
-    outKey: ECKey,
-    aesKey: any
-  ): Promise<Block | null> {
-    const requestParam = new Map<string, any>();
-
-    const address = outKey.toAddress(this.networkParameters).toBase58();
-    requestParam.set("address", address);
-    requestParam.set("tokenid", tokenid);
-
-    const resp: string = await OkHttp3Util.postStringSingle(
-      // Explicitly declare resp as string
-      this.contextRoot + ReqCmd.getTokenSignByAddress,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
-    );
-
-    const trimmedResp = resp.trim(); // Introduce intermediate variable
-
-    const multiSignResponse = this.objectMapper.parse(trimmedResp, {
-      mainCreator: () => [MultiSignResponse],
-    }) as MultiSignResponse;
-    if (
-      multiSignResponse.getMultiSigns() === null ||
-      multiSignResponse.getMultiSigns()!.length == 0
-    )
-      return null;
-    const multiSign = multiSignResponse.getMultiSigns()![0];
-
-    const payloadBytes = Buffer.from(
-      multiSign.getBlockhashHex() as string,
-      "hex"
-    );
-    const block0 = this.networkParameters
-      .getDefaultSerializer()
-      .makeBlock(payloadBytes);
-    const transaction = block0.getTransactions()![0];
-
-    let multiSignBies: MultiSignBy[] | null = null;
-    if (transaction.getDataSignature() === null) {
-      multiSignBies = new Array<MultiSignBy>();
-    } else {
-      const multiSignByRequest = this.objectMapper.parse(
-        transaction.getDataSignature()!.toString("utf8"),
-        { mainCreator: () => [MultiSignByRequest] }
-      ) as MultiSignByRequest;
-      multiSignBies = multiSignByRequest.getMultiSignBies()!;
-    }
-    const sighash = transaction.getHash();
-    const party1Signature = await outKey.sign(sighash!);
-    const buf1 = party1Signature.encodeDER();
-
-    const multiSignBy0 = new MultiSignBy();
-
-    multiSignBy0.setTokenid(multiSign.getTokenid()!);
-    multiSignBy0.setTokenindex(multiSign.getTokenindex()!);
-    multiSignBy0.setAddress(
-      outKey.toAddress(this.networkParameters).toBase58()
-    );
-    multiSignBy0.setPublickey(Utils.toHexString(outKey.getPubKey()));
-    multiSignBy0.setSignature(Utils.toHexString(buf1));
-    multiSignBies!.push(multiSignBy0);
-    const multiSignByRequest = MultiSignByRequest.create(multiSignBies!);
-    transaction.setDataSignature(
-      Buffer.from(this.objectMapper.stringify(multiSignByRequest))
-    );
-    await OkHttp3Util.post(
-      this.contextRoot + ReqCmd.signToken,
-      block0.bitcoinSerialize()
-    );
-    return block0;
-  }
-
-  // Remove duplicate implementation
-  // This method is already defined above
-
   public async send() {
     const requestParam = new Map<string, string>();
     const data = await OkHttp3Util.postAndGetBlock(
@@ -1341,11 +1339,11 @@ export abstract class RemoteTest {
     const rollingBlock = this.networkParameters
       .getDefaultSerializer()
       .makeBlock(data);
-    rollingBlock.solve();
+    rollingBlock.solve(BigInt(0));
 
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.saveBlock,
-      rollingBlock.bitcoinSerialize()
+      rollingBlock.bitcoinSerializeCopy()
     );
   }
 

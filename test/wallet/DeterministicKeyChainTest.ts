@@ -11,7 +11,7 @@ describe('DeterministicKeyChainTest', () => {
     let chain: DeterministicKeyChain;
     const ENTROPY = Sha256Hash.hash(
         Buffer.from("don't use a string seed like this in real life"),
-    ).bytes;
+    )  ;
 
     beforeEach(async () => {
         const secs = 1389353062;

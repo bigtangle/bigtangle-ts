@@ -2,6 +2,7 @@ import { Message } from './Message';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { MessageSerializer } from './MessageSerializer';
 import { Buffer } from 'buffer';
+import { ProtocolVersion } from './ProtocolVersion';
 
 /**
  * <p>Represents a Message type that can be contained within another Message.  ChildMessages that have a cached
@@ -13,9 +14,14 @@ export abstract class ChildMessage extends Message {
 
     public parent: Message | null = null;
 
-    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer, parent?: Message) {
-        super(params, payload, offset, serializer);
+    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer<any>, parent?: Message) {
+        super(params);
         this.parent = parent || null;
+        
+        // If we have payload data, we need to parse it
+        if (payload) {
+            this.parseWithParams(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer || params.getDefaultSerializer(), payload.length - offset);
+        }
     }
 
     public setParent(parent: Message | null): void {

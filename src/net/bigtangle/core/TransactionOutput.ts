@@ -12,6 +12,7 @@ import { TransactionInput } from './TransactionInput';
 import { Sha256Hash } from './Sha256Hash';
 import { ScriptBuilder } from '../script/ScriptBuilder';
 import { TransactionOutPoint } from './TransactionOutPoint';
+import { TransactionBag } from './TransactionBag';
 
  
 /**
@@ -54,6 +55,7 @@ export class TransactionOutput extends ChildMessage {
         return new TransactionOutput(params, parent, value, Buffer.from(ScriptBuilder.createOutputScript(to).getProgram()), 0);
     }
 
+    
     // TypeScript constructor
     constructor(params: NetworkParameters, parent: Transaction | null, value: Coin, scriptBytes: Buffer, index: number = 0) {
         super(params);
@@ -69,6 +71,26 @@ export class TransactionOutput extends ChildMessage {
             + VarInt.sizeOf(scriptBytes.length) + scriptBytes.length
             + VarInt.sizeOf(TransactionOutput.bigintToBuffer(this.value.getValue(), 32).length) + TransactionOutput.bigintToBuffer(this.value.getValue(), 32).length;
     }
+
+    /**
+     * Constructs a TransactionOutput from the given parameters.
+     * @param params Network parameters
+     * @param parent The parent transaction, if any
+     * @param payload The raw payload bytes
+     * @param offset The offset into the payload where this message starts
+     * @throws ProtocolException if there's a parsing issue
+     */
+    static fromPayload(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number): TransactionOutput {
+        console.log(`Parsing TransactionOutput at offset ${offset}`);
+        const output = new TransactionOutput(params, parent, Coin.ZERO, Buffer.alloc(0));
+        output.payload = payload;
+        output.offset = offset;
+        output.cursor = offset;
+        output.parse();
+        console.log(`Parsed TransactionOutput length: ${output.length}`);
+        return output;
+    }
+
 
 
     private calculateLength(): number {
@@ -99,12 +121,12 @@ export class TransactionOutput extends ChildMessage {
     }
 
     protected parse(): void {
-        const vlen = this.readVarInt();
+        const vlen = Number(this.readVarInt());
         const v = this.readBytes(vlen);
-        this.tokenLen = this.readVarInt();
+        this.tokenLen = Number(this.readVarInt());
         this.value = new Coin(BigInt('0x' + Utils.HEX.encode(v)), this.readBytes(this.tokenLen));
         
-        this.scriptLen = this.readVarInt();
+        this.scriptLen = Number(this.readVarInt());
         this.scriptBytes = this.readBytes(this.scriptLen);
         this.length = this.cursor - this.offset;
     }
@@ -114,12 +136,19 @@ export class TransactionOutput extends ChildMessage {
         if (!this.value) throw new Error("value is null");
 
         const valuebytes = TransactionOutput.bigintToBuffer(this.value.getValue(), 32);
-        VarInt.write(valuebytes.length, stream); // Corrected
+        const valueBytesVarInt = new VarInt(valuebytes.length);
+        const valueBytesVarIntBuffer = valueBytesVarInt.encode();
+        stream.write(valueBytesVarIntBuffer);
         stream.write(valuebytes);
 
-        VarInt.write(this.value.getTokenid().length, stream); // Corrected
+        const tokenIdVarInt = new VarInt(this.value.getTokenid().length);
+        const tokenIdVarIntBuffer = tokenIdVarInt.encode();
+        stream.write(tokenIdVarIntBuffer);
         stream.write(this.value.getTokenid());
-        VarInt.write(this.scriptBytes.length, stream); // Corrected
+        
+        const scriptBytesVarInt = new VarInt(this.scriptBytes.length);
+        const scriptBytesVarIntBuffer = scriptBytesVarInt.encode();
+        stream.write(scriptBytesVarIntBuffer);
         stream.write(this.scriptBytes);
     }
 
@@ -248,5 +277,55 @@ export class TransactionOutput extends ChildMessage {
         output.parse();
         const size = output.getMessageSize();
         return [output, size];
+    }
+
+
+    /**
+     * Returns true if this output is to a key in the wallet or to an
+     * address/script we are watching.
+     */
+    public isMineOrWatched(transactionBag: TransactionBag): boolean {
+        return this.isMine(transactionBag) || this.isWatched(transactionBag);
+    }
+
+    /**
+     * Returns true if this output is to a key, or an address we have the keys
+     * for, in the wallet.
+     */
+    public isWatched(transactionBag: TransactionBag): boolean {
+        try {
+            const script = this.getScriptPubKey();
+            return transactionBag.isWatchedScript(script);
+        } catch (e: any) {
+            // Just means we didn't understand the output of this transaction:
+            // ignore it.
+            console.debug("Could not parse tx output script: " + e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if this output is to a key, or an address we have the keys
+     * for, in the wallet.
+     */
+    public isMine(transactionBag: TransactionBag): boolean {
+        try {
+            const script = this.getScriptPubKey();
+            if (script.isSentToRawPubKey()) {
+                const pubkey = script.getPubKey();
+                return transactionBag.isPubKeyMine(pubkey);
+            }
+            if (script.isPayToScriptHash()) {
+                return transactionBag.isPayToScriptHashMine(script.getPubKeyHash());
+            } else {
+                const pubkeyHash = script.getPubKeyHash();
+                return transactionBag.isPubKeyHashMine(pubkeyHash);
+            }
+        } catch (e: any) {
+            // Just means we didn't understand the output of this transaction:
+            // ignore it.
+            console.debug("Could not parse tx " + (this.parent ? this.parent.getHash() : "(no parent)") + " output script: " + e.toString());
+            return false;
+        }
     }
 }

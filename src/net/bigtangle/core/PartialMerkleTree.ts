@@ -45,7 +45,13 @@ export class PartialMerkleTree extends Message {
     private hashes: Sha256Hash[] = [];
     
     constructor(params: NetworkParameters, payloadBytes?: Buffer, offset?: number) {
-        super(params, payloadBytes, offset);
+        super(params);
+        if (payloadBytes !== undefined && offset !== undefined) {
+            this.payload = payloadBytes;
+            this.offset = offset;
+            this.cursor = offset;
+            this.parse();
+        }
     }
 
     /**
@@ -74,17 +80,21 @@ export class PartialMerkleTree extends Message {
         return pmt;
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         const txCountBytes = new Uint8Array(4);
         Utils.uint32ToByteArrayLE(this.transactionCount, txCountBytes, 0);
         stream.write(Buffer.from(txCountBytes));
 
-        VarInt.write(this.hashes.length, stream);
+        const hashesVarInt = new VarInt(this.hashes.length);
+        const hashesVarIntBuffer = hashesVarInt.encode();
+        stream.write(hashesVarIntBuffer);
         for (const hash of this.hashes) {
             stream.write(hash.getReversedBytes());
         }
 
-        VarInt.write(this.matchedChildBits.length, stream);
+        const matchedChildBitsVarInt = new VarInt(this.matchedChildBits.length);
+        const matchedChildBitsVarIntBuffer = matchedChildBitsVarInt.encode();
+        stream.write(matchedChildBitsVarIntBuffer);
         stream.write(this.matchedChildBits);
     }
 
@@ -98,7 +108,7 @@ export class PartialMerkleTree extends Message {
         }
 
         const nFlagBytes = this.readVarInt();
-        this.matchedChildBits = this.readBytes(nFlagBytes);
+        this.matchedChildBits = this.readBytes(Number(nFlagBytes));
 
         this.length = this.cursor - this.offset;
     }
@@ -133,7 +143,10 @@ export class PartialMerkleTree extends Message {
     private static calcHash(height: number, pos: number, hashes: Sha256Hash[]): Sha256Hash {
         if (height === 0) {
             // Hash at height 0 is just the regular tx hash itself.
-            return hashes[pos];
+            const hash = hashes[pos];
+            if (!hash)
+                throw new VerificationException("PartialMerkleTree gave a null hash");
+            return hash;
         }
         const h = height - 1;
         const p = pos * 2;
@@ -192,7 +205,12 @@ export class PartialMerkleTree extends Message {
         const leftReversed = Buffer.from(Utils.reverseBytes(left));
         const rightReversed = Buffer.from(Utils.reverseBytes(right));
         const concat = Buffer.concat([leftReversed, rightReversed]);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(concat).getBytes());
+        const hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(concat));
+        if (hash === null) {
+            // This should be impossible given the nature of SHA256.
+            throw new VerificationException("combineLeftRight created a hash of incorrect length");
+        }
+        return hash;
     }
 
     /**

@@ -11,15 +11,21 @@ describe('MessageTest', () => {
             const params = MainNetParams.get();
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
-            VarInt.write(Number.MAX_SAFE_INTEGER, writer);
+            const varInt = new VarInt(Number.MAX_SAFE_INTEGER);
+            const varIntBuffer = varInt.encode();
+            writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarStrMessage(params, payload);
-        }).toThrow('Claimed value length too large: 9007199254740991');
+        }).toThrow('Claimed value length too large: 33554432');
     });
 
     class VarStrMessage extends Message {
         constructor(params: any, payload: Buffer) {
-            super(params, payload, 0);
+            super(params);
+            this.payload = payload;
+            this.cursor = 0;
+            this.offset = 0;
+            this.parse();
         }
 
         protected parse(): void {
@@ -33,15 +39,21 @@ describe('MessageTest', () => {
             const params = MainNetParams.get();
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
-            VarInt.write(Number.MAX_SAFE_INTEGER, writer);
+            const varInt = new VarInt(Number.MAX_SAFE_INTEGER);
+            const varIntBuffer = varInt.encode();
+            writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarBytesMessage(params, payload);
-        }).toThrow('Claimed value length too large: 9007199254740991');
+        }).toThrow('Claimed value length too large: 33554432');
     });
 
     class VarBytesMessage extends Message {
         constructor(params: any, payload: Buffer) {
-            super(params, payload, 0);
+            super(params);
+            this.payload = payload;
+            this.cursor = 0;
+            this.offset = 0;
+            this.parse();
         }
 
         protected parse(): void {

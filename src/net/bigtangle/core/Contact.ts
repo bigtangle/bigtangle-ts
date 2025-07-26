@@ -1,5 +1,4 @@
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class Contact {
@@ -24,11 +23,10 @@ export class Contact {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
         try {
-            dos.writeNBytesString(this.name);
-            dos.writeNBytesString(this.address);
-            dos.close();
+            baos.writeNBytesString(this.name);
+            baos.writeNBytesString(this.address);
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

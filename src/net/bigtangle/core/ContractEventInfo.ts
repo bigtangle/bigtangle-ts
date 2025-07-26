@@ -2,7 +2,6 @@ import { DataClass } from './DataClass';
 import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty } from "jackson-js";
 export class ContractEventInfo extends DataClass {
@@ -36,18 +35,17 @@ export class ContractEventInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
         try {
-            dos.writeBytes(Buffer.from(super.toByteArray()));
-            dos.writeNBytesString(this.beneficiaryAddress);
-            dos.writeNBytesString(this.offerTokenid);
-            dos.writeNBytesString(this.contractTokenid);
-            dos.writeNBytesString(this.offerSystem);
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
+            baos.writeNBytesString(this.beneficiaryAddress);
+            baos.writeNBytesString(this.offerTokenid);
+            baos.writeNBytesString(this.contractTokenid);
+            baos.writeNBytesString(this.offerSystem);
             const b = Utils.bigIntToBytes(this.offerValue!, 32)
-            dos.writeBytes(
-                b
-            ); // Assuming 32 bytes for BigInteger
-            dos.close();
+            const buffer = Buffer.from(b);
+            baos.writeBytes(buffer, 0, buffer.length); // Assuming 32 bytes for BigInteger
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

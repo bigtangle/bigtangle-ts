@@ -48,17 +48,20 @@ export abstract class CustomTransactionSigner extends StatelessTransactionSigner
                 inputScript.correctlySpends(tx, i, txIn.getConnectedOutput()!.getScriptPubKey(), Script.ALL_VERIFY_FLAGS);
                 console.warn(`Input ${i} already correctly spends output, assuming SIGHASH type used will be safe and skipping signing.`);
                 continue;
-            } catch (e) {
+            } catch {
                 // Expected.
             }
 
-            const redeemData = txIn.getConnectedRedeemData(keyBag);
+            const redeemData = await txIn.getConnectedRedeemData(keyBag);
             if (redeemData === null) {
                 console.warn(`No redeem data found for input ${i}`);
                 continue;
             }
 
-            const sighash = tx.hashForSignature(i, redeemData.redeemScript, Transaction.SigHash.ALL);
+            const sighash = tx.hashForSignature(i, redeemData.redeemScript.getProgram(), Transaction.SigHash.ALL);
+            if (sighash === null) {
+                throw new Error(`Hash for signature is null for input ${i}`);
+            }
             const sigKey = this.getSignature(sighash, propTx.keyPaths.get(scriptPubKey));
             const txSig = new TransactionSignature(sigKey.sig.r, sigKey.sig.s, Transaction.SigHash.ALL);
             const sigIndex = inputScript.getSigInsertionIndex(sighash, sigKey.pubKey);

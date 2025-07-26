@@ -4,7 +4,7 @@ import { TokenType } from "./TokenType";
 import { TokenKeyValues } from "./TokenKeyValues";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { KeyValue } from "./KeyValue";
-import { UtilGeneseBlock } from "./../utils/UtilGeneseBlock";
+import { UtilGeneseBlock } from "./UtilGeneseBlock";
 import { JsonProperty } from "jackson-js";
 import {
   Sha256HashDeserializer,

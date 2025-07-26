@@ -43,11 +43,11 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 txIn.getScriptSig().correctlySpends(tx, i, txIn.getConnectedOutput()!.getScriptPubKey(), LocalTransactionSigner.MINIMUM_VERIFY_FLAGS);
                 console.warn(`Input ${i} already correctly spends output, assuming SIGHASH type used will be safe and skipping signing.`);
                 continue;
-            } catch (e) {
+            } catch {
                 // Expected.
             }
 
-            const redeemData = txIn.getConnectedRedeemData(keyBag);
+            const redeemData = await txIn.getConnectedRedeemData(keyBag);
             if (redeemData === null) {
                 continue;
             }
@@ -70,10 +70,13 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 continue;
             }
 
-            const inputScript = txIn.getScriptSig();
             const script = redeemData.redeemScript.getProgram();
             try {
                 const sighash = tx.hashForSignature(i, script, Transaction.SigHash.ALL);
+                if (sighash === null) {
+                    console.warn(`Unable to create sighash for input ${i}`);
+                    continue;
+                }
                 const signature = await key.sign(sighash.getBytes());
                 // Create a DER-encoded signature
                 const derSignature = await signature.encodeDER();

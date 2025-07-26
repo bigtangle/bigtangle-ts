@@ -26,7 +26,11 @@ describe('SerializationTest', () => {
         for (let i = 0; i < rawHashBytes.length; i++) {
             rawHashBytes[i] = Math.floor(Math.random() * 256);
         }
-        return Sha256Hash.wrap(rawHashBytes);
+        const hash = Sha256Hash.wrap(rawHashBytes);
+        if (hash === null) {
+            throw new Error('Failed to create Sha256Hash');
+        }
+        return hash;
     }
 
     test('testContactInfoSerialization', () => {

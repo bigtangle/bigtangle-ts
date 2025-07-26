@@ -16,7 +16,7 @@ describe('UtilsTest', () => {
                 UtilGeneseBlock.createGenesis(TestParams.get())
             );
             console.time('Solve time');
-            block.solve();
+            block.solve(block.getDifficultyTargetAsInteger());
             console.timeEnd('Solve time');
         }
     });
@@ -147,7 +147,7 @@ export class UtilsTest {
         mineraddress: Buffer,
     ): Block {
         // Use a static factory method to create the Block instance
-        const b = Block.fromVersion(prevBlock.getParams(), version);
+        const b = new Block(prevBlock.getParams(), version);
 
         b.setMinerAddress(mineraddress);
         b.setPrevBlockHash(prevBlock.getHash());
@@ -175,7 +175,7 @@ export class UtilsTest {
         const minTime = Math.max(currTime, branchBlock.getTimeSeconds());
         if (currTime >= minTime) b.setTime(currTime + 1);
         else b.setTime(minTime);
-        b.solve();
+        b.solve(b.getDifficultyTargetAsInteger());
         try {
             b.verifyHeader();
         } catch (e: unknown) {

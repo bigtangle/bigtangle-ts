@@ -1,5 +1,4 @@
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty } from 'jackson-js';
 
@@ -11,10 +10,9 @@ export abstract class DataClass {
  
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
         try {
-            dos.writeInt(this.version);
-            dos.close();
+            baos.writeInt(this.version);
+            baos.close();
         } catch (e: any) {
             throw new Error(e.message || 'Error during serialization');
         }

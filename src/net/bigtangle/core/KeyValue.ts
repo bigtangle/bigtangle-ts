@@ -1,5 +1,5 @@
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
+ 
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty } from 'jackson-js';
 
@@ -31,8 +31,8 @@ export class KeyValue {
     }
 
     public toByteArray(): Uint8Array {
-        const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos); // Pass baos to DataOutputStream
+        const dos = new UnsafeByteArrayOutputStream();
+        
         try {
             dos.writeNBytesString(this.key);
             dos.writeNBytesString(this.value);
@@ -40,7 +40,7 @@ export class KeyValue {
         } catch (e: any) {
             throw new Error(e);
         }
-        return baos.toByteArray();
+        return dos.toByteArray();
     }
 
     public parseDIS(dis: DataInputStream): KeyValue {

@@ -69,7 +69,7 @@ export class WalletProtobufSerializer {
 
     public static hashToByteString(hash: Sha256Hash): Uint8Array {
         // Use toBuffer if available, else fallback to value property
-        if (typeof hash.toBuffer === 'function') return hash.toBuffer();
+      
         // @ts-ignore
         if (hash.value) return hash.value;
         throw new Error('Sha256Hash does not support toBuffer or value');
@@ -78,10 +78,15 @@ export class WalletProtobufSerializer {
     public static byteStringToHash(bs: Uint8Array): Sha256Hash {
         // Convert Uint8Array to Buffer if needed
         const buf = Buffer.from(bs);
-        return Sha256Hash.wrap(buf);
+        const hash = Sha256Hash.wrap(buf);
+        if (hash === null) {
+            throw new Error('Failed to create Sha256Hash from buffer');
+        }
+        return hash;
     }
 
-    public readWallet(input: any, forceReset: boolean, extensions: WalletExtension[]): Wallet {
+    public readWallet(input: any, _forceReset: boolean, extensions: WalletExtension[]): Wallet {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const walletProto = this.parseToProto(input);
         // Access properties directly instead of calling methods
         const paramsID = walletProto.networkIdentifier;
@@ -89,10 +94,11 @@ export class WalletProtobufSerializer {
         if (params === null) {
             throw new UnreadableWalletException(`Unknown network parameters ID ${paramsID}`);
         }
-        return this.readWalletInternal(params, extensions, walletProto, forceReset);
+        return this.readWalletInternal(params, extensions, walletProto, _forceReset);
     }
 
-    public readWalletInternal(params: NetworkParameters, extensions: WalletExtension[], walletProto: any, forceReset: boolean): Wallet {
+    public readWalletInternal(params: NetworkParameters, extensions: WalletExtension[], walletProto: any, _forceReset: boolean): Wallet {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         // Check version directly as a property
         if (walletProto.version && walletProto.version > WalletProtobufSerializer.CURRENT_WALLET_VERSION) {
             throw new UnreadableWalletException.FutureVersion();

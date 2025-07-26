@@ -59,7 +59,7 @@ export class Address {
             throw new WrongNetworkException(version, params.getAcceptableAddressCodes());
         }
 
-        const checksum = Sha256Hash.hashTwice(Buffer.from(bytes.slice(0, bytes.length - 4))).toBuffer().subarray(0, 4);
+        const checksum = Sha256Hash.hashTwice(Buffer.from(bytes.slice(0, bytes.length - 4))) .subarray(0, 4);
         if (!Buffer.from(bytes.slice(bytes.length - 4)).equals(checksum)) {
             throw new AddressFormatException('Checksum does not validate');
         }
@@ -72,7 +72,7 @@ export class Address {
         bytes[0] = this.version;
         this.hash160.copy(bytes, 1, 0, 20);
 
-        const checksum = Sha256Hash.hashTwice(bytes).toBuffer().slice(0, 4);
+        const checksum = Sha256Hash.hashTwice(bytes) .slice(0, 4);
         return Utils.bytesToBase58(Buffer.concat([bytes, checksum]));
     }
 

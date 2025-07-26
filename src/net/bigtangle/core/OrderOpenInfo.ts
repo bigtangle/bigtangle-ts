@@ -2,7 +2,7 @@ import { DataClass } from './DataClass';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Side } from './Side';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty } from "jackson-js";
 
 export class OrderOpenInfo extends DataClass {
@@ -66,7 +66,7 @@ export class OrderOpenInfo extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         try {
             dos.write(Buffer.from(super.toByteArray()));
 

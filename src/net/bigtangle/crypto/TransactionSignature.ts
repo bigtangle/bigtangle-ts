@@ -1,6 +1,6 @@
 import bigInt from 'big-integer';
 import { ECDSASignature } from './ECDSASignature';
-import { SigHash } from '../core/Transaction';
+import { SigHash, Transaction } from '../core/Transaction';
 import { VerificationException } from '../exception/VerificationException';
 import { secp256k1 } from '@noble/curves/secp256k1';
 
@@ -26,7 +26,7 @@ export class TransactionSignature extends ECDSASignature {
     constructor(...args: any[]) {
         if (args.length === 2) {
             super(args[0], args[1]);
-            this.sighashFlags = SigHash.ALL;
+            this.sighashFlags = Transaction.SigHash.ALL;
         } else if (args.length === 3) {
             if (typeof args[2] === 'number') {
                 super(args[0], args[1]);
@@ -55,12 +55,12 @@ export class TransactionSignature extends ECDSASignature {
 
     /** Calculates the byte used in the protocol to represent the combination of mode and anyoneCanPay. */
     public static calcSigHashValue(mode: SigHash, anyoneCanPay: boolean): number {
-        if (!(mode === SigHash.ALL || mode === SigHash.NONE || mode === SigHash.SINGLE)) {
+        if (!(mode === Transaction.SigHash.ALL || mode === Transaction.SigHash.NONE || mode === Transaction.SigHash.SINGLE)) {
             throw new Error("Unsupported SigHash mode");
         }
         let sighashFlags = mode;
         if (anyoneCanPay) {
-            sighashFlags |= SigHash.ANYONECANPAY;
+            sighashFlags |= Transaction.SigHash.ANYONECANPAY;
         }
         return sighashFlags;
     }
@@ -83,8 +83,8 @@ export class TransactionSignature extends ECDSASignature {
             return false;
         }
 
-        const hashType = (signature[signature.length - 1] & 0xff) & ~SigHash.ANYONECANPAY; // mask the byte to prevent sign-extension hurting us
-        if (hashType < SigHash.ALL || hashType > SigHash.SINGLE) {
+        const hashType = (signature[signature.length - 1] & 0xff) & ~Transaction.SigHash.ANYONECANPAY; // mask the byte to prevent sign-extension hurting us
+        if (hashType < Transaction.SigHash.ALL || hashType > Transaction.SigHash.SINGLE) {
             return false;
         }
 
@@ -122,17 +122,17 @@ export class TransactionSignature extends ECDSASignature {
     }
 
     public anyoneCanPay(): boolean {
-        return (this.sighashFlags & SigHash.ANYONECANPAY) !== 0;
+        return (this.sighashFlags & Transaction.SigHash.ANYONECANPAY) !== 0;
     }
 
     public sigHashMode(): SigHash {
         const mode = this.sighashFlags & 0x1f;
-        if (mode === SigHash.NONE) {
-            return SigHash.NONE;
-        } else if (mode === SigHash.SINGLE) {
-            return SigHash.SINGLE;
+        if (mode === Transaction.SigHash.NONE) {
+            return Transaction.SigHash.NONE;
+        } else if (mode === Transaction.SigHash.SINGLE) {
+            return Transaction.SigHash.SINGLE;
         } else {
-            return SigHash.ALL;
+            return Transaction.SigHash.ALL;
         }
     }
 

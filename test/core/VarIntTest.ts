@@ -3,14 +3,8 @@ import { VarInt } from '../../src/net/bigtangle/core/VarInt';
 
 // Helper function to encode a VarInt
 function encodeVarInt(value: number): Buffer {
-    const chunks: Buffer[] = [];
-    const writer = {
-        write: (chunk: Buffer) => {
-            chunks.push(chunk);
-        }
-    };
-    VarInt.write(value, writer);
-    return Buffer.concat(chunks);
+    const varInt = new VarInt(value);
+    return varInt.encode();
 }
 
 describe('VarIntTest', () => {
@@ -19,55 +13,55 @@ describe('VarIntTest', () => {
         const value = 10;
         const size = VarInt.sizeOf(value);
         const encoded = encodeVarInt(value);
-        const decoded = VarInt.read(encoded, 0);
+        const decoded = VarInt.fromBuffer(encoded, 0);
         
         expect(size).toBe(1);
         expect(encoded.length).toBe(1);
-        expect(decoded.value).toBe(value);
+        expect(decoded.value.toJSNumber()).toBe(value);
     });
 
     it('testShorts', () => {
         const value = 64000;
         const size = VarInt.sizeOf(value);
         const encoded = encodeVarInt(value);
-        const decoded = VarInt.read(encoded, 0);
+        const decoded = VarInt.fromBuffer(encoded, 0);
         
         expect(size).toBe(3);
         expect(encoded.length).toBe(3);
-        expect(decoded.value).toBe(value);
+        expect(decoded.value.toJSNumber()).toBe(value);
     });
 
     it('testShortFFFF', () => {
         const value = 0xFFFF;
         const size = VarInt.sizeOf(value);
         const encoded = encodeVarInt(value);
-        const decoded = VarInt.read(encoded, 0);
+        const decoded = VarInt.fromBuffer(encoded, 0);
         
         expect(size).toBe(3);
         expect(encoded.length).toBe(3);
-        expect(decoded.value).toBe(value);
+        expect(decoded.value.toJSNumber()).toBe(value);
     });
 
     it('testInts', () => {
         const value = 0xAABBCCDD;
         const size = VarInt.sizeOf(value);
         const encoded = encodeVarInt(value);
-        const decoded = VarInt.read(encoded, 0);
+        const decoded = VarInt.fromBuffer(encoded, 0);
         
         expect(size).toBe(5);
         expect(encoded.length).toBe(5);
-        expect(decoded.value >>> 0).toBe(value);
+        expect(decoded.value.toJSNumber() >>> 0).toBe(value);
     });
 
     it('testIntFFFFFFFF', () => {
         const value = 0xFFFFFFFF;
         const size = VarInt.sizeOf(value);
         const encoded = encodeVarInt(value);
-        const decoded = VarInt.read(encoded, 0);
+        const decoded = VarInt.fromBuffer(encoded, 0);
         
         expect(size).toBe(5);
         expect(encoded.length).toBe(5);
-        expect(decoded.value >>> 0).toBe(value);
+        expect(decoded.value.toJSNumber() >>> 0).toBe(value);
     });
 
     it('testSizeOfNegativeInt', () => {

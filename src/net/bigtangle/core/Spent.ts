@@ -1,7 +1,6 @@
 import { DataClass } from './DataClass';
 import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
@@ -20,14 +19,15 @@ export class Spent extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
-            dos.writeBoolean(this.confirmed);
-            dos.writeBoolean(this.spent);
-            dos.writeBytes(this.spenderBlockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.spenderBlockHash.getBytes());
-            dos.writeLong(this.time);
-            dos.close();
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
+            baos.writeBoolean(this.confirmed);
+            baos.writeBoolean(this.spent);
+            const bytes = this.spenderBlockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.spenderBlockHash.getBytes();
+            baos.writeBytes(bytes, 0, bytes.length);
+            baos.writeLong(this.time);
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }
@@ -39,7 +39,7 @@ export class Spent extends DataClass {
         this.confirmed = dis.readBoolean();
         this.spent = dis.readBoolean(); // This line appears twice in Java, replicating for now
         this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
-        if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
+        if (this.spenderBlockHash!== null && this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
             this.spenderBlockHash = null;
         }
         this.time = dis.readLong();

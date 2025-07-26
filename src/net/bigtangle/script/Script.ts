@@ -19,8 +19,8 @@ import {
     OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256, OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY, OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY,
     OP_CHECKLOCKTIMEVERIFY, OP_NOP1, OP_NOP3, OP_NOP4, OP_NOP5, OP_NOP6, OP_NOP7, OP_NOP8, OP_NOP9, OP_NOP10, OP_INVALIDOPCODE,
 } from './ScriptOpCodes.js';
-import { DataOutputStream } from '../utils/DataOutputStream.js';
 import { UnsafeByteArrayOutputStream } from '../core/UnsafeByteArrayOutputStream.js';
+ 
 
 /**
  * <p>Programs embedded inside transactions that control redemption of payments.</p>
@@ -108,7 +108,7 @@ export class Script {
             return new Uint8Array(this.program);
         }
         // const bos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         for (const chunk of this.chunks) {
             chunk.write(dos);
         }
@@ -332,7 +332,7 @@ export class Script {
      * Writes out the given byte buffer to the output stream with the correct opcode prefix
      * To write an integer call writeBytes(out, Utils.reverseBytes(Utils.encodeMPI(val, false)));
      */
-    static writeBytes(os: DataOutputStream, buf: Uint8Array): void {
+    static writeBytes(os: UnsafeByteArrayOutputStream, buf: Uint8Array): void {
         if (buf.length < OP_PUSHDATA1) {
             os.writeByte(buf.length);
             os.write(Buffer.from(buf));
@@ -360,7 +360,7 @@ export class Script {
         //     Script.log.warn(`Creating a multi-signature output that is non-standard: ${pubkeys.length} pubkeys, should be <= 3`);
         // }
 
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         dos.writeByte(Script.encodeToOpN(threshold));
         for (const key of pubkeys) {
             Script.writeBytes(dos, key.getPubKey());
@@ -373,7 +373,7 @@ export class Script {
     static createInputScript(signature: Uint8Array, pubkey: Uint8Array): Script; // Changed return type to Script
     static createInputScript(signature: Uint8Array): Script; // Changed return type to Script
     static createInputScript(param1: Uint8Array, param2?: Uint8Array): Script { // Changed return type to Script
-        const bits = new DataOutputStream();
+        const bits = new UnsafeByteArrayOutputStream();
         if (param2 !== undefined) {
             // createInputScript(byte[] signature, byte[] pubkey)
             Script.writeBytes(bits, param1); // signature
@@ -402,7 +402,7 @@ export class Script {
             // For P2SH, create a script with OP_0 followed by dummy signatures and the redeem script
             const threshold = redeemScript.getNumberOfSignaturesRequiredToSpend();
             const dummySig = new Uint8Array(Script.SIG_SIZE);
-            const dos = new DataOutputStream();
+            const dos = new UnsafeByteArrayOutputStream();
             dos.writeByte(OP_0);
             for (let i = 0; i < threshold; i++) {
                 Script.writeBytes(dos, dummySig);
@@ -413,7 +413,7 @@ export class Script {
             // For multisig, create a script with OP_0 followed by dummy signatures
             const threshold = this.getNumberOfSignaturesRequiredToSpend();
             const dummySig = new Uint8Array(Script.SIG_SIZE);
-            const dos = new DataOutputStream();
+            const dos = new UnsafeByteArrayOutputStream();
             dos.writeByte(OP_0);
             for (let i = 0; i < threshold; i++) {
                 Script.writeBytes(dos, dummySig);
@@ -585,8 +585,12 @@ export class Script {
      * Gets the count of regular SigOps in the script program (counting multisig ops as 20)
      */
     static getSigOpCount(program: Uint8Array): number {
-        const script = new Script(program);
-        return Script.countSigOps(script.chunks, false);
+        try {
+            const script = new Script(program);
+            return Script.countSigOps(script.chunks, false);
+        } catch (e) {
+            return 0;
+        }
     }
 
     /**
@@ -1308,7 +1312,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hash(Buffer.from(stack.pop()!)).getBytes());
+                    stack.push(Sha256Hash.hash(Buffer.from(stack.pop()!)) );
                     break;
                 case OP_HASH160:
                     if (stack.length < 1) {
@@ -1320,7 +1324,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hashTwice(Buffer.from(stack.pop()!)).getBytes());
+                    stack.push(Sha256Hash.hashTwice(Buffer.from(stack.pop()!)) );
                     break;
                 case OP_CODESEPARATOR:
                     lastCodeSepLocation = chunk.getStartLocationInProgram() + 1;
@@ -1441,7 +1445,7 @@ export class Script {
         const prog = script.getProgram();
         let connectedScript = prog.slice(lastCodeSepLocation, prog.length);
 
-        const outStream = new DataOutputStream();
+        const outStream = new UnsafeByteArrayOutputStream();
         Script.writeBytes(outStream, sigBytes);
         connectedScript = Script.removeAllInstancesOf(connectedScript, outStream.toByteArray());
 
@@ -1455,7 +1459,9 @@ export class Script {
             const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
             // Convert to core ECDSASignature for verification
             const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
-            sigValid = ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify);
+            if (hash !== null) {
+                sigValid = ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify);
+            }
         } catch (e: any) {
             // There is (at least) one exception that could be hit here (EOFException, if the sig is too short)
             // Because I can't verify there aren't more, we use a very generic Exception catch
@@ -1521,7 +1527,7 @@ export class Script {
         let connectedScript = prog.slice(lastCodeSepLocation, prog.length);
 
         for (const sig of sigs) {
-            const outStream = new DataOutputStream();
+            const outStream = new UnsafeByteArrayOutputStream();
             Script.writeBytes(outStream, sig);
             connectedScript = Script.removeAllInstancesOf(connectedScript, outStream.toByteArray());
         }
@@ -1536,7 +1542,7 @@ export class Script {
                 const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
                 // Convert to core ECDSASignature for verification
                 const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
-                if (ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify)) {
+                if (hash !== null && ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify)) {
                     sigs.shift(); // Remove the used signature
                 }
             } catch (e: any) {
@@ -1583,7 +1589,7 @@ export class Script {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
-            const payloadBytes = txContainingThis.bitcoinSerialize();
+            const payloadBytes = txContainingThis.bitcoinSerializeCopy();
             txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.

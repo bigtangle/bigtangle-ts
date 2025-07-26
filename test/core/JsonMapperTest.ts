@@ -37,14 +37,20 @@ describe('JsonMapperTest', () => {
             rawHashBytes[i] = Math.floor(Math.random() * 256);
         }
         let sha256Hash = Sha256Hash.wrap(rawHashBytes);
+        if (sha256Hash === null) {
+            throw new Error('Failed to create Sha256Hash from raw bytes');
+        }
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
         let jsonStr = JSON.stringify(sha256Hash);
 
         const parsedJson2 = JSON.parse(jsonStr);
         sha256Hash = Sha256Hash.wrap(Buffer.from(parsedJson2.bytes.data));
+        if (sha256Hash === null) {
+            throw new Error('Failed to create Sha256Hash from parsed JSON bytes');
+        }
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
 
-        let coin = Coin.valueOf(BigInt(10000), NetworkParameters.BIGTANGLE_TOKENID);
+        let coin = Coin.valueOf(BigInt(10000), NetworkParameters.BIGTANGLE_TOKENID_STRING);
         jsonStr = JSON.stringify(coin);
 
         console.log(jsonStr);

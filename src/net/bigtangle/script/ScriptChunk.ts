@@ -4,7 +4,7 @@ import {
 } from './ScriptOpCodes';
 import { Utils } from '../utils/Utils';
 import { ScriptUtils } from './ScriptUtils'; // Use ScriptUtils instead of Script
-import { DataOutputStream } from '../utils/DataOutputStream'; // For OutputStream equivalent
+import { UnsafeByteArrayOutputStream } from '../core/UnsafeByteArrayOutputStream'; // For OutputStream equivalent
 
 /**
  * A script element that is either a data push (signature, pubkey, etc) or a non-push (logic, numeric, etc) operation.
@@ -127,7 +127,7 @@ export class ScriptChunk {
         return this.opcode === OP_PUSHDATA4;
     }
 
-    write(stream: DataOutputStream): void {
+    write(stream: UnsafeByteArrayOutputStream): void {
         if (this.isOpCode()) {
             if (this.data !== null) {
                 throw new Error("Opcode chunk should not have data.");
@@ -162,7 +162,7 @@ export class ScriptChunk {
                 // Handle any other opcodes by writing the opcode byte and then the data
                 stream.writeByte(this.opcode);
             }
-            stream.write(this.data);
+            stream.write(Buffer.from(this.data));
         } else if (this.isSmallNumOpCode(this.opcode)) {
             // This case is for small numbers (OP_0, OP_1 to OP_16, OP_1NEGATE) where data is null
             stream.writeByte(this.opcode);

@@ -30,18 +30,25 @@ export class HeadersMessage extends Message {
         }
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
-        VarInt.write(this.blockHeaders.length, stream);
+    public bitcoinSerializeToStream(stream: any): void {
+        const varInt = new VarInt(this.blockHeaders.length);
+        const varIntBuffer = varInt.encode();
+        stream.write(varIntBuffer);
         for (const header of this.blockHeaders) {
-            stream.write(header.bitcoinSerialize()); // Serialize header and write to stream
+            const headerBuffer = header.unsafeBitcoinSerialize();
+            stream.write(headerBuffer); // Serialize header and write to stream
             stream.write(Buffer.from([0])); // Trailing null byte
         }
     }
 
     protected parse(): void {
+        if (this.payload === null) {
+            throw new ProtocolException("Payload is null");
+        }
         let cursor = 0;
-        const numHeaders = VarInt.read(this.payload, cursor).value;
-        cursor += VarInt.read(this.payload, cursor).size;
+        const varInt = VarInt.fromBuffer(this.payload, cursor);
+        const numHeaders = varInt.value.toJSNumber();
+        cursor += varInt.getOriginalSizeInBytes();
 
         if (numHeaders > HeadersMessage.MAX_HEADERS) {
             throw new ProtocolException(`Too many headers: got ${numHeaders} which is larger than ${HeadersMessage.MAX_HEADERS}`);

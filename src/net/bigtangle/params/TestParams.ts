@@ -21,11 +21,7 @@ export class TestParams extends NetworkParameters {
         return BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     }
 
-    getDefaultSerializer(): any {
-        // Placeholder implementation
-        return null;
-    }
-
+    
     getProtocolVersionNum(version: number): number {
         return version;
     }

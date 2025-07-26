@@ -1,25 +1,22 @@
 import { NetworkParameters } from '../params/NetworkParameters';
- import { ProtocolVersion } from './ProtocolVersion';
-import { ProtocolException } from '../exception/Exceptions';
 import { MessageSerializer } from './MessageSerializer';
-import { DummySerializer } from './DummySerializer';
-import { Sha256Hash } from './Sha256Hash';
+import { ProtocolException } from '../exception/ProtocolException';
 import { VarInt } from './VarInt';
-import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
-import { DataOutputStream } from '../utils/DataOutputStream'; // Use DataOutputStream
 import { Utils } from '../utils/Utils';
-import { Buffer } from 'buffer';
+import { Sha256Hash } from './Sha256Hash';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+ 
 
 /**
- * <p>A Message is a data structure that can be serialized/deserialized using the Bitcoin serialization format.
+ * A Message is a data structure that can be serialized/deserialized using the Bitcoin serialization format.
  * Specific types of messages that are used both in the block chain, and on the wire, are derived from this
- * class.</p>
- * 
- * <p>Instances of this class are not safe for use by multiple threads.</p>
+ * class.
+ *
+ * Instances of this class are not safe for use by multiple threads.
  */
 export abstract class Message {
     public static readonly MAX_SIZE = 0x02000000; // 32MB
-    public static readonly UNKNOWN_LENGTH = -1;
+    public static readonly UNKNOWN_LENGTH = Number.MIN_SAFE_INTEGER;
 
     // The offset is how many bytes into the provided byte array this message payload starts at.
     protected offset: number = 0;
@@ -27,95 +24,111 @@ export abstract class Message {
     // Note that it's relative to the start of the array NOT the start of the message payload.
     protected cursor: number = 0;
 
-    public length: number = Message.UNKNOWN_LENGTH;
+    protected length: number = Message.UNKNOWN_LENGTH;
 
     // The raw message payload bytes themselves.
-    protected payload: Buffer;
+    protected payload: Buffer | null = null;
 
     protected recached: boolean = false;
-    protected serializer: MessageSerializer;
+    protected serializer: MessageSerializer<NetworkParameters>;
 
-    protected protocolVersion: number;
-    protected parent: Message | null = null;
+    protected protocolVersion: number = 0;
 
-    protected params: NetworkParameters;
+    protected params!: NetworkParameters;
 
-    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer) {
-        this.params = params;
-        this.serializer = serializer || params.getDefaultSerializer() || new DummySerializer();
-        this.payload = payload || Buffer.alloc(0);
-        this.offset = offset;
-        // Set protocolVersion from params or default to 1 if not available
-        this.protocolVersion = params.getProtocolVersionNum(ProtocolVersion.CURRENT)
-
-        if (payload) {
-            this.parse();
-
-            if (this.length === Message.UNKNOWN_LENGTH) {
-                throw new Error(`Length field has not been set in constructor for ${this.constructor.name} after parse.`);
-            }
-            
-            if (!this.serializer.isParseRetainMode()) {
-                this.payload = Buffer.alloc(0); // Clear payload if not retaining
-            }
+    protected constructor(params?: NetworkParameters) {
+        if (params) {
+            this.params = params;
+            this.serializer = params.getDefaultSerializer();
+        } else {
+            // Using DummySerializer.DEFAULT equivalent
+            this.serializer = {
+                params: null,
+                parseRetain: false,
+                isParseRetainMode: () => false,
+                deserialize: () => { throw new Error("Not implemented"); },
+                makeAlertMessage: () => { throw new Error("Not implemented"); },
+                makeBlock: () => { throw new Error("Not implemented"); },
+                makeZippedBlock: async () => { throw new Error("Not implemented"); },
+                makeZippedBlockStream: async () => { throw new Error("Not implemented"); },
+                makeTransaction: () => { throw new Error("Not implemented"); },
+                makeTransactionFromBytes: () => { throw new Error("Not implemented"); },
+                seekPastMagicBytes: () => { throw new Error("Not implemented"); },
+                serialize: () => { throw new Error("Not implemented"); },
+                serializeMessage: () => { throw new Error("Not implemented"); }
+            } as unknown as MessageSerializer<NetworkParameters>;
         }
     }
 
+    /**
+     * @param params NetworkParameters object.
+     * @param payload Bitcoin protocol formatted byte array containing message content.
+     * @param offset The location of the first payload byte within the array.
+     * @param protocolVersion Bitcoin protocol version.
+     * @param serializer the serializer to use for this message.
+     * @param length The length of message payload if known. Usually this is provided when deserializing of the wire
+     * as the length will be provided as part of the header. If unknown then set to Message.UNKNOWN_LENGTH
+     * @throws ProtocolException
+     */
+    protected parseWithParams(
+        params: NetworkParameters,
+        payload: Buffer,
+        offset: number,
+        protocolVersion: number,
+        serializer: MessageSerializer<any>,
+        length: number
+    ): void {
+        this.serializer = serializer;
+        this.protocolVersion = protocolVersion;
+        this.params = params;
+        this.payload = payload;
+        this.cursor = this.offset = offset;
+        this.length = length;
+
+        this.parse();
+
+        if (this.length === Message.UNKNOWN_LENGTH) {
+            throw new Error(`Length field has not been set in constructor for ${this.constructor.name} after parse.`);
+        }
+
+        if (!serializer.isParseRetainMode()) {
+            this.payload = null;
+        }
+    }
+
+    // These methods handle the serialization/deserialization using the custom Bitcoin protocol.
     protected abstract parse(): void;
 
     /**
-     * <p>To be called before any change of internal values including any setters. This ensures any cached byte array is
-     * removed.<p/>
-     * <p>Child messages of this object(e.g. Transactions belonging to a Block) will not have their internal byte caches
-     * invalidated unless they are also modified internally.</p>
+     * Serialize this message to the provided OutputStream using the bitcoin wire format.
+     *
+     * @param stream
      */
-    public unCache(): void {
-        this.payload = Buffer.alloc(0);
-        this.recached = false;
-    }
+    public bitcoinSerialize(stream: UnsafeByteArrayOutputStream): void {
+        // 1st check for cached bytes.
+        if (this.payload != null && this.length !== Message.UNKNOWN_LENGTH) {
+            if (this.offset === 0 && this.payload.length === this.length) {
+                stream.write(this.payload);
+            } else {
+                stream.write(this.payload.subarray(this.offset, this.offset + this.length));
+            }
+            return;
+        }
 
-    public adjustLength(newArraySize: number, adjustment: number): void {
-        if (this.length === Message.UNKNOWN_LENGTH) {
-            return;
-        }
-        // Our own length is now unknown if we have an unknown length adjustment.
-        if (adjustment === Message.UNKNOWN_LENGTH) {
-            this.length = Message.UNKNOWN_LENGTH;
-            return;
-        }
-        this.length += adjustment;
-        // Check if we will need more bytes to encode the length prefix.
-        if (newArraySize === 1) {
-            this.length++;  // The assumption here is we never call adjustLength with the same arraySize as before.
-        } else if (newArraySize !== 0) {
-            this.length += VarInt.sizeOf(newArraySize) - VarInt.sizeOf(newArraySize - 1);
-        }
+        this.bitcoinSerializeToStream(stream);
     }
 
     /**
      * used for unit testing
      */
     public isCached(): boolean {
-        return this.payload.length > 0;
+        return this.payload !== null;
     }
 
     public isRecached(): boolean {
         return this.recached;
     }
-
-    /**
-     * Returns a copy of the array returned by {@link Message#unsafeBitcoinSerialize()}, which is safe to mutate.
-     * If you need extra performance and can guarantee you won't write to the array, you can use the unsafe version.
-     *
-     * @return a freshly allocated serialized byte array
-     */
-    public bitcoinSerialize(): Uint8Array {
-        const bytes = this.unsafeBitcoinSerialize();
-        const copy = new Uint8Array(bytes.length);
-        copy.set(bytes);
-        return copy;
-    }
-
+ 
     /**
      * Serialize this message to a byte array that conforms to the bitcoin wire protocol.
      * <br/>
@@ -133,43 +146,59 @@ export abstract class Message {
      *
      * @return a byte array owned by this object, do NOT mutate it.
      */
-    public unsafeBitcoinSerialize(): Uint8Array {
+    public unsafeBitcoinSerialize(): Buffer {
         // 1st attempt to use a cached array.
-        if (this.payload.length > 0) {
+        if (this.payload) {
             if (this.offset === 0 && this.length === this.payload.length) {
                 // Cached byte array is the entire message with no extras so we can return as is and avoid an array
                 // copy.
                 return this.payload;
             }
 
-            const buf = new Uint8Array(this.length);
-            this.payload.copy(buf, 0, this.offset, this.offset + this.length);
-            return buf;
+            return this.payload.subarray(this.offset, this.offset + this.length);
         }
 
         // No cached array available so serialize parts by stream.
-        const stream = new DataOutputStream(); // Use DataOutputStream
+        const stream = new UnsafeByteArrayOutputStream(
+            this.length < 32 ? 32 : this.length + 32
+        );
         this.bitcoinSerializeToStream(stream);
 
         if (this.serializer.isParseRetainMode()) {
-            this.payload = Buffer.from(stream.toByteArray());
+            // A free set of steak knives!
+            // If there happens to be a call to this method we gain an opportunity to recache
+            // the byte array and in this case it contains no bytes from parent messages.
+            // This give a dual benefit.  Releasing references to the larger byte array so that it
+            // it is more likely to be GC'd.  And preventing double serializations.  E.g. calculating
+            // merkle root calls this method.  It is will frequently happen prior to serializing the block
+            // which means another call to bitcoinSerialize is coming.  If we didn't recache then internal
+            // serialization would occur a 2nd time and every subsequent time the message is serialized.
+            this.payload = stream.toByteArray();
             this.cursor = this.cursor - this.offset;
             this.offset = 0;
             this.recached = true;
-            this.length = this.payload.length;
+            this.length = stream.size();
             return this.payload;
         }
-        const buf = stream.toByteArray();
-        this.length = buf.length;
-        return buf;
+        // Record length. If this Message wasn't parsed from a byte stream it won't have length field
+        // set (except for static length message types).  Setting it makes future streaming more efficient
+        // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
+        return stream.toByteArray();
+    }
+    public adjustLength(newArraySize: number, adjustment: number): void {
+        // Default implementation - can be overridden by subclasses
+        this.length += adjustment;
     }
 
- 
+  
     /**
-     * Serializes this message to the provided stream. If you just want the raw bytes use bitcoinSerialize().
+     * Serialize this message to the provided OutputStream using the bitcoin wire format.
+     *
+     * @param stream
      */
-    protected bitcoinSerializeToStream(stream: DataOutputStream): void { // Type stream as DataOutputStream
-        console.error(`Error: ${this.constructor.name} class has not implemented bitcoinSerializeToStream method.  Generating message with no payload`);
+    public bitcoinSerializeToStream(stream: UnsafeByteArrayOutputStream): void {
+        // Default implementation does nothing
+        // This method should be overridden by subclasses
     }
 
     /**
@@ -177,13 +206,13 @@ export abstract class Message {
      * so BitcoinSerializer can avoid 2 instanceof checks + a casting.
      */
     public getHash(): Sha256Hash {
-        throw new Error("UnsupportedOperationException");
+        throw new Error('Method not implemented.');
     }
 
     /**
      * This returns a correct value by parsing the message.
      */
-    public  getMessageSize(): number {
+    public getMessageSize(): number {
         if (this.length === Message.UNKNOWN_LENGTH) {
             throw new Error(`Length field has not been set in ${this.constructor.name}.`);
         }
@@ -192,81 +221,95 @@ export abstract class Message {
 
     protected readUint32(): number {
         try {
-            const u = this.payload.readUInt32LE(this.cursor);
+            if (!this.payload) throw new Error("Payload is null");
+            const u = Utils.readUint32(this.payload, this.cursor);
             this.cursor += 4;
             return u;
-        } catch (e: any) {
-            throw new ProtocolException(e);
+        } catch (e) {
+            throw new ProtocolException(e instanceof Error ? e.message : String(e));
         }
     }
 
-    protected readInt64(): number {
+    protected readInt64(): bigint {
         try {
-            // JavaScript numbers are 64-bit floats, so direct conversion might lose precision for large integers.
-            // For full 64-bit integer support, a library like 'long.js' or BigInt would be needed.
-            const low = this.payload.readUInt32LE(this.cursor);
-            const high = this.payload.readUInt32LE(this.cursor + 4);
+            if (!this.payload) throw new Error("Payload is null");
+            const u = Utils.readInt64(this.payload, this.cursor);
             this.cursor += 8;
-            // Combine low and high parts. This is a simplified representation.
-            // For actual 64-bit integers, use BigInt or a dedicated library.
-            return low + high * Math.pow(2, 32);
-        } catch (e: any) {
-            throw new ProtocolException(e);
+            return BigInt(u);
+        } catch (e) {
+            throw new ProtocolException(e instanceof Error ? e.message : String(e));
         }
     }
 
-    protected readUint64(): BigInteger {
+    protected readUint64(): bigint {
         // Java does not have an unsigned 64 bit type. So scrape it off the wire then flip.
-        // In TypeScript, we can use BigInt directly.
-        const bytes = this.readBytes(8);
-        // Assuming little-endian for readUint64 based on common Bitcoin protocol practices
-        const value = bigInt(Utils.HEX.encode(bytes.reverse()), 16); // Read as hex, then convert to BigInteger
-        return value;
+        return BigInt(`0x${Utils.reverseBytes(this.readBytes(8)).toString()}`);
     }
 
-    protected readVarInt(): number {
-        const varint = VarInt.read(this.payload, this.cursor);
-        this.cursor += varint.size;
-        return varint.value;
+    protected readVarInt(offset: number = 0): bigint {
+        try {
+            if (!this.payload) throw new Error("Payload is null");
+            const varint = VarInt.fromBuffer(this.payload, this.cursor + offset);
+            this.cursor += offset + varint.getOriginalSizeInBytes();
+            return BigInt(varint.value.toString());
+        } catch (e) {
+            throw new ProtocolException(e instanceof Error ? e.message : String(e));
+        }
     }
-
     protected readBytes(length: number): Buffer {
         if (length > Message.MAX_SIZE) {
-            throw new ProtocolException(`Claimed value length too large: ${length}`);
+            throw new ProtocolException(`Claimed value length too large: ${Message.MAX_SIZE}`);
         }
         try {
+            if (!this.payload) throw new Error("Payload is null");
+            // Check if we have enough bytes to read
+            if (this.cursor + length > this.payload.length) {
+                throw new ProtocolException(`Not enough bytes to read: requested ${length}, available ${this.payload.length - this.cursor}`);
+            }
             const b = this.payload.subarray(this.cursor, this.cursor + length);
             this.cursor += length;
             return b;
-        } catch (e: any) {
-            throw new ProtocolException(e);
+        } catch (e) {
+            throw new ProtocolException(e instanceof Error ? e.message : String(e));
         }
     }
-    
     protected readByteArray(): Buffer {
         const len = this.readVarInt();
-        return this.readBytes(len);
+        return this.readBytes(Number(len));
     }
-
     protected readStr(): string {
         const length = this.readVarInt();
-        const bytes = this.readBytes(length);
-        return new TextDecoder('utf-8').decode(bytes);
+        return length === 0n ? '' : Utils.toString(this.readBytes(Number(length)), 'utf-8'); // optimization for empty strings
     }
-
     protected readHash(): Sha256Hash {
         // We have to flip it around, as it's been read off the wire in little endian.
         // Not the most efficient way to do this but the clearest.
         const bytes = this.readBytes(32);
-        return Sha256Hash.wrapReversed(bytes);
+        const wrapped = Sha256Hash.wrapReversed(bytes);
+        return wrapped || Sha256Hash.ZERO_HASH;
     }
-
     protected hasMoreBytes(): boolean {
-        return this.cursor < this.payload.length;
+        return this.payload !== null && this.cursor < this.payload.length;
+    }
+    public unCache(payload: Buffer | null = null): void {
+        this.payload = null;
     }
 
-    /** Network parameters this message was created with. */
     public getParams(): NetworkParameters {
         return this.params;
+    }
+  
+    /**
+     * Serialize this message to a byte array that conforms to the bitcoin wire protocol.
+     * <br/>
+     * This method returns a freshly allocated copy of the serialized byte array.
+     * bitcoinSerialize()
+     * @return a freshly allocated serialized byte array
+     */
+    public bitcoinSerializeCopy(): Buffer {
+        const bytes = this.unsafeBitcoinSerialize();
+        const copy = Buffer.alloc(bytes.length);
+        bytes.copy(copy, 0, 0, bytes.length);
+        return copy;
     }
 }

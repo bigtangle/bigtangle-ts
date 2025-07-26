@@ -1,6 +1,5 @@
 import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class ContractEventCancelInfo {
@@ -22,10 +21,10 @@ export class ContractEventCancelInfo {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
         try {
-            dos.writeBytes(this.blockHash === null ? Sha256Hash.ZERO_HASH.bytes : this.blockHash.bytes);
-            dos.close();
+            const bytes = this.blockHash === null ? Sha256Hash.ZERO_HASH.getBytes() : this.blockHash.getBytes();
+            baos.writeBytes(bytes, 0, bytes.length);
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }
@@ -33,7 +32,7 @@ export class ContractEventCancelInfo {
     }
     
     public parseDIS(dis: DataInputStream): ContractEventCancelInfo {
-        const buf = dis.readBytes(Sha256Hash.ZERO_HASH.bytes.length);
+        const buf = dis.readBytes(Sha256Hash.ZERO_HASH.getBytes().length);
         this.blockHash = Sha256Hash.wrap(buf);
         return this;
     }

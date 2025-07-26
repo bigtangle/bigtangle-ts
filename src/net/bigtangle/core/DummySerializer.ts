@@ -10,7 +10,7 @@ import { Buffer } from 'buffer';
  * Dummy serializer used ONLY for objects which do not have network parameters
  * set.
  */
-export class DummySerializer extends MessageSerializer {
+export class DummySerializer extends MessageSerializer<null> {
     public serializeMessage(message: Message, out: any): void {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
@@ -19,15 +19,11 @@ export class DummySerializer extends MessageSerializer {
     private static readonly DEFAULT_EXCEPTION_MESSAGE = "Dummy serializer cannot serialize/deserialize objects as it does not know which network they belong to.";
 
     constructor() {
-        super(null as any, false); // Pass null for params and false for parseRetain as it's a dummy
+        super(null, false); // Pass null for params and false for parseRetain as it's a dummy
     }
 
     deserialize(inBuffer: Buffer): Message {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
-    }
-
-    isParseRetainMode(): boolean {
-        return false;
     }
 
     makeAlertMessage(payloadBytes: Buffer): AlertMessage {

@@ -9,7 +9,7 @@ import { Token } from '../core/Token';
 import { TokenKeyValues } from '../core/TokenKeyValues';
 import { BaseEncoding } from './BaseEncoding';
 
-import { DataOutputStream } from '../utils/DataOutputStream';
+import { UnsafeByteArrayOutputStream } from '../core/UnsafeByteArrayOutputStream';
 import { DataInputStream } from '../utils/DataInputStream';
 
 /**
@@ -172,7 +172,7 @@ export class Utils {
         }
     }
 
-    public static writeNBytesString(dos: DataOutputStream, message: string | null): void {
+    public static writeNBytesString(dos: UnsafeByteArrayOutputStream, message: string | null): void {
         dos.writeBoolean(message !== null);
         if (message !== null) {
             const bytes = new TextEncoder().encode(message);
@@ -181,7 +181,7 @@ export class Utils {
         }
     }
 
-    public static writeLong(dos: DataOutputStream, message: number | null): void {
+    public static writeLong(dos: UnsafeByteArrayOutputStream, message: number | null): void {
         dos.writeBoolean(message !== null);
         if (message !== null) {
             dos.writeLong(message);
@@ -197,7 +197,7 @@ export class Utils {
         }
     }
 
-    public static writeNBytes(dos: DataOutputStream, message: Uint8Array | null): void {
+    public static writeNBytes(dos: UnsafeByteArrayOutputStream, message: Uint8Array | null): void {
         dos.writeBoolean(message !== null);
         if (message !== null) {
             dos.writeInt(message.length);

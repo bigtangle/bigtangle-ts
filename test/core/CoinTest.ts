@@ -36,23 +36,23 @@ describe('CoinTest', () => {
                 .isGreaterThan(Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(true);
         expect(
-            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING)
                 .isGreaterThan(Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(false);
         expect(
-            Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID_STRING)
                 .isGreaterThan(Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(false);
         expect(
-            Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID_STRING)
                 .isLessThan(Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(true);
         expect(
-            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING)
                 .isLessThan(Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(false);
         expect(
-            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(2n, NetworkParameters.BIGTANGLE_TOKENID_STRING)
                 .isLessThan(Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID_STRING))
         ).toBe(false);
     });

@@ -1,7 +1,7 @@
 import { SpentBlock } from './SpentBlock';
 import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { Buffer } from 'buffer';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
@@ -36,10 +36,12 @@ export class TXReward extends SpentBlock {
     }
 
     public toByteArray(): Buffer {
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         try {
-            dos.write(super.toByteArray());
-            dos.writeBytes(this.prevBlockHash ? this.prevBlockHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
+            const superBytes = super.toByteArray();
+            dos.write(Buffer.from(superBytes));
+            const prevBlockHashBytes = this.prevBlockHash ? this.prevBlockHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes();
+            dos.writeBytes(prevBlockHashBytes, 0, prevBlockHashBytes.length);
             dos.writeLong(this.difficulty);
             dos.writeLong(this.chainLength);
             dos.close();

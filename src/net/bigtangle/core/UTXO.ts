@@ -101,7 +101,10 @@ export class UTXO extends SpentBlock {
     }
 
     public setHashHex(hashHex: string): void {
-        this.hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(hashHex)));
+        const hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(hashHex)));
+        if (hash !== null) {
+            this.hash = hash;
+        }
     }
 
     public setValue(value: Coin): void {

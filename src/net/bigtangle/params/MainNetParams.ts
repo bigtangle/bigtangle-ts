@@ -17,20 +17,12 @@ export class MainNetParams extends NetworkParameters {
         return NetworkParameters.ID_MAINNET;
     }
 
-    getSerializer(): any {
-        // Placeholder implementation
-        return null;
-    }
+     
 
     getMaxTarget(): bigint {
         return BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     }
-
-    getDefaultSerializer(): any {
-        // Placeholder implementation
-        return null;
-    }
-
+ 
     getProtocolVersionNum(version: number): number {
         return version;
     }

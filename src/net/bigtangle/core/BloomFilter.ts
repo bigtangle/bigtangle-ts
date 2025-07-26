@@ -45,6 +45,11 @@ export class BloomFilter extends Message {
     protected parse(): void {
         let localOffset = this.offset;
         
+        // Ensure payload exists
+        if (!this.payload || this.payload.length === 0) {
+            throw new Error("Invalid data: missing or empty payload");
+        }
+        
         // Read data length (varint)
         let dataLength = 0;
         const firstByte = this.payload[localOffset];
@@ -88,7 +93,7 @@ export class BloomFilter extends Message {
         this.length = localOffset - this.offset;
     }
     
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         const serialized = this.serialize();
         stream.write(serialized);
     }

@@ -32,7 +32,7 @@ export class VersionedChecksummedBytes {
         const addressBytes = new Uint8Array(1 + this.bytes.length + 4);
         addressBytes[0] = this.version;
         addressBytes.set(this.bytes, 1);
-        const checksum = Sha256Hash.hashTwice(Buffer.from(addressBytes.subarray(0, this.bytes.length + 1))).getBytes();
+        const checksum = Sha256Hash.hashTwice(Buffer.from(addressBytes.subarray(0, this.bytes.length + 1))) ;
         addressBytes.set(checksum.subarray(0, 4), this.bytes.length + 1);
         return Base58.encode(addressBytes);
     }

@@ -55,13 +55,13 @@ describe('ScriptTest', () => {
         try {
             ScriptBuilder.createMultiSigOutputScript(4, keys);
             throw new Error('fail');
-        } catch (e) {
+        } catch {
             // Expected.
         }
         try {
             ScriptBuilder.createMultiSigOutputScript(0, keys);
             throw new Error('fail');
-        } catch (e) {
+        } catch {
             // Expected.
         }
     });
@@ -220,6 +220,9 @@ describe('ScriptTest', () => {
         const validHash = Buffer.alloc(32);
         const blockHash = Sha256Hash.ZERO_HASH;
         const txHash = Sha256Hash.wrap(validHash);
+        if (txHash === null) {
+            throw new Error('Failed to create transaction hash from valid hash bytes');
+        }
         const outpoint = new TransactionOutPoint(PARAMS, 0, blockHash, txHash);
         tx.addInput(new TransactionInput(PARAMS, tx, Buffer.from([]), outpoint));
         const script = new ScriptBuilder().smallNum(0).build();

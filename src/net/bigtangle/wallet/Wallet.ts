@@ -110,10 +110,11 @@ export class Wallet extends WalletBase {
   }
 
   
-  async getTip(): Promise<Block> {
-    const tipData = await this.getTipData();
-    return this.params.getDefaultSerializer().makeBlock(Buffer.from(tipData));
-  }
+    async getTip(): Promise<Block> {
+        const tipData = await this.getTipData();
+        
+        return this.params.getDefaultSerializer().makeBlock(Buffer.from(tipData));
+    }
 
   getTipData(): Promise<Uint8Array> {
     const requestParam = {};
@@ -121,7 +122,18 @@ export class Wallet extends WalletBase {
     return OkHttp3Util.postAndGetBlock(
       this.getServerURL() + ReqCmd.getTip,
       Json.jsonmapper().stringify(requestParam)
-    );
+    ).then((data) => {
+      console.log('tipData', data);
+      // Check if data has enough bytes to be a valid block
+      if (!data || data.length < NetworkParameters.HEADER_SIZE) {
+        throw new Error(`Insufficient data for tip block: ${data?.length || 0} bytes`);
+      }
+      return data;
+    }).catch((error) => {
+      // Handle network errors or invalid responses
+      console.error('Failed to get tip from server:', error);
+      throw new Error('Unable to retrieve tip block from server');
+    });
   }
 
   saveToFileStream(f: any): void {
@@ -167,10 +179,12 @@ export class Wallet extends WalletBase {
     for (const ecKey of keys) {
       pubKeyHashs.push(Utils.HEX.encode(ecKey.getPubKeyHash()));
     }
-    // OkHttp3Util.post expects (urls: string[], data: Buffer)
+    // Convert pubKeyHashs to JSON string and encode
+    // Convert pubKeyHashs to JSON string and encode as Buffer
+    const requestData = Buffer.from(JSON.stringify(pubKeyHashs));
     const response = await OkHttp3Util.post(
       this.getServerURL() + String(ReqCmd.getOutputs),
-      Buffer.from(JSON.stringify(pubKeyHashs))
+      requestData
     );
 
     const getOutputsResponse: GetOutputsResponse = Json.jsonmapper().parse(
@@ -239,11 +253,11 @@ export class Wallet extends WalletBase {
       Utils.isBlank(token.getDomainNameBlockHash?.()) &&
       !Utils.isBlank(domainName)
     ) {
-      const domainResp = await this.getDomainNameBlockHash(domainName!); // Non-null assertion
-      const domain = domainResp.getdomainNameToken?.();
-      if (domain) {
-        token.setDomainNameBlockHash?.(domain.getBlockHashHex?.() ?? null);
-      }
+    const domainResp = await this.getDomainNameBlockHash(domainName!); // Non-null assertion
+    const domain = domainResp.getdomainNameToken?.();
+    if (domain) {
+      token.setDomainNameBlockHash?.(domain.getBlockHashHex?.() ?? null);
+    }
     }
     const multiSignAddresses = tokenInfo.getMultiSignAddresses?.() ?? [];
     const permissionedAddressesResponse =
@@ -340,7 +354,9 @@ export class Wallet extends WalletBase {
     const transaction = block.getTransactions?.()?.[0];
     const sighash = transaction?.getHash?.();
     if (sighash && ownerKey.sign) {
-      const signature = await ownerKey.sign(sighash as any, aesKey);
+      // Convert Sha256Hash to Uint8Array for signing
+      const messageHash = new Uint8Array(sighash.getBytes());
+      const signature = await ownerKey.sign(messageHash, aesKey);
       if (signature && typeof signature.encodeDER === "function") {
         // Optionally use signature.encodeDER() if needed
       }
@@ -352,30 +368,6 @@ export class Wallet extends WalletBase {
       }
     }
     return block;
-  }
-
-  /**
-   * Encrypts a message using ECIES encryption.
-   * @param message The message to encrypt.
-   * @param pubKey The public key to encrypt with as a Buffer.
-   * @returns A Promise resolving to the encrypted message as a Buffer.
-   */
-
-  /**
-   * Decrypts a message using ECIES decryption.
-   * @param encryptedMessage The encrypted message as a Buffer.
-   * @param privKey The private key to decrypt with.
-   * @returns A Promise resolving to the decrypted message as a string.
-   */
-  sum(coinList: FreeStandingTransactionOutput[]): Coin {
-    if (!coinList || coinList.length === 0) {
-      return new Coin(BigInt(0), new Uint8Array(0));
-    }
-    let sum = new Coin(BigInt(0), coinList[0].getValue().getTokenid());
-    for (const u of coinList) {
-      sum = u.getValue().add(sum);
-    }
-    return sum;
   }
 
   filterTokenid(
@@ -718,7 +710,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(memo);
+    tx.setMemo(new MemoInfo(memo));
 
     return tx;
   }
@@ -728,8 +720,8 @@ export class Wallet extends WalletBase {
     for (const tx of transactions) {
       if (typeof block.addTransaction === "function") {
         block.addTransaction(tx);
-      } else if (Array.isArray(block.transactions)) {
-        block.transactions.push(tx);
+      } else if (Array.isArray((block as any).transactions)) {
+        (block as any).transactions.push(tx);
       }
     }
     return block;
@@ -773,7 +765,7 @@ export class Wallet extends WalletBase {
     const response = await OkHttp3Util.post(url, blockBytes);
     // Optionally, parse the response as a Block if needed
     if (response && this.params?.getDefaultSerializer) {
-      return this.params.getDefaultSerializer().makeBlock(response);
+      return this.params.getDefaultSerializer().makeBlock(Buffer.from(response));
     }
     return block;
   }
@@ -941,7 +933,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(memoInfo.toString()); // Set memo
+    tx.setMemo(new MemoInfo(memoInfo.toString())); // Set memo
 
     // Optionally sign the transaction here if needed
     // ...
@@ -958,28 +950,28 @@ export class Wallet extends WalletBase {
    * @param tipBlock The tip Block to add the transaction to.
    * @returns The updated Block with the new transaction.
    */
-  async payFromListNoSplit(
-    aesKey: any,
-    destination: string,
-    amount: Coin,
-    memoInfo: MemoInfo,
-    candidates: any[],
-    tipBlock: Block
-  ): Promise<Block> {
-    const tx = await this.payFromListNoSplitTransaction(
-      aesKey,
-      destination,
-      amount,
-      memoInfo,
-      candidates
-    );
-    if (typeof tipBlock.addTransaction === "function") {
-      tipBlock.addTransaction(tx);
-    } else if (Array.isArray((tipBlock as any).transactions)) {
-      (tipBlock as any).transactions.push(tx);
+    async payFromListNoSplit(
+        aesKey: any,
+        destination: string,
+        amount: Coin,
+        memoInfo: MemoInfo,
+        candidates: any[],
+        tipBlock: Block
+    ): Promise<Block> {
+        const tx = await this.payFromListNoSplitTransaction(
+            aesKey,
+            destination,
+            amount,
+            memoInfo,
+            candidates
+        );
+        if (typeof tipBlock.addTransaction === "function") {
+            tipBlock.addTransaction(tx);
+        } else if (Array.isArray((tipBlock as any).transactions)) {
+            (tipBlock as any).transactions.push(tx);
+        }
+        return tipBlock;
     }
-    return tipBlock;
-  }
 
   /**
    * Pay from a list of UTXOs, splitting into multiple blocks if needed.
@@ -1200,8 +1192,8 @@ export class Wallet extends WalletBase {
    */
   async adjustSolveAndSign(block: Block): Promise<Block> {
     try {
-      if (typeof block.solve === "function") {
-        const result = block.solve();
+      if (typeof block.solveWithoutTarget === "function") {
+        const result = block.solveWithoutTarget();
         if (
           typeof result !== "undefined" &&
           typeof (result as any).then === "function"
@@ -1211,7 +1203,7 @@ export class Wallet extends WalletBase {
       }
       await OkHttp3Util.post(
         this.getServerURL() + (ReqCmd.signToken || "/signToken"),
-        block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.from([])
+        block.bitcoinSerializeCopy() 
       );
       return block;
     } catch (e: any) {
@@ -1248,32 +1240,53 @@ export class Wallet extends WalletBase {
    * @returns A Promise resolving to the created and posted Block, or null if giveMoneyResult is empty.
    * @throws InsufficientMoneyException if funds are insufficient.
    */
-  async payToList(
-    aesKey: any,
-    giveMoneyResult: Map<string, bigint>,
-    tokenid: Uint8Array,
-    memo: string,
-    coinList: any[]
-  ): Promise<Block | null> {
-    if (!giveMoneyResult || giveMoneyResult.size === 0) {
-      return null;
-    }
+async payToList(
+  aesKey: any,
+  giveMoneyResult: Map<string, bigint>,
+  tokenid: Uint8Array,
+  memo: string,
+  coinList: any[]
+): Promise<Block | null> {
+  if (!giveMoneyResult || giveMoneyResult.size === 0) {
+    return null;
+  }
 
-    // payToListTransaction should be implemented elsewhere
-    const multispent: Transaction = await (this as any).payToListTransaction(
-      aesKey,
-      giveMoneyResult,
-      tokenid,
-      memo,
-      coinList
-    );
+  const multispent: Transaction = await (this as any).payToListTransaction(
+    aesKey,
+    giveMoneyResult,
+    tokenid,
+    memo,
+    coinList
+  );
 
-    const block: Block = await this.getTip();
-    if (typeof block.addTransaction === "function") {
+  // Get the tip block with validation
+  const block: Block | null = await this.getTip();
+  if (!block) {
+    throw new Error('Tip block not found - cannot proceed with transaction');
+  }
+  
+  // Validate block structure before modifying
+  if (typeof block.addTransaction === "function") {
+    try {
       block.addTransaction(multispent);
-    } else if (Array.isArray((block as any).transactions)) {
-      (block as any).transactions.push(multispent);
+    } catch (error) {
+      // Handle any errors with addTransaction method
+      const err = error as Error;
+      console.error('Error adding transaction:', err);
+      throw new Error(`Failed to add transaction to block: ${err.message}`);
     }
+  } else if (Array.isArray((block as any).transactions)) {
+    try {
+      (block as any).transactions.push(multispent);
+    } catch (error) {
+      // Handle any errors with array push
+      const err = error as Error;
+      console.error('Error pushing transaction:', err);
+      throw new Error(`Failed to add transaction to block: ${err.message}`);
+    }
+  } else {
+    throw new Error('Invalid block transaction structure - neither addTransaction method nor transactions array found');
+  }
 
     // Check if a fee transaction is needed
     const mainTokenId = Buffer.from(
@@ -1335,8 +1348,8 @@ export class Wallet extends WalletBase {
    * @returns A Promise resolving to the posted Block.
    */
   async solveAndPost(block: Block): Promise<Block> {
-    if (typeof block.solve === "function") {
-      const result = block.solve();
+    if (typeof block.solveWithoutTarget === "function") {
+      const result = block.solveWithoutTarget();
       if (
         typeof result !== "undefined" &&
         typeof (result as any).then === "function"
@@ -1345,14 +1358,13 @@ export class Wallet extends WalletBase {
       }
     }
     // Serialize the block
-    const blockBytes = block.bitcoinSerialize
-      ? block.bitcoinSerialize()
-      : Buffer.from([]);
+    const blockBytes = block.bitcoinSerializeCopy();
+   
     // Post to the server
     const url = this.getServerURL() + (ReqCmd.saveBlock || "/saveBlock");
     const response = await OkHttp3Util.post(url, blockBytes);
     if (response && this.params?.getDefaultSerializer) {
-      return this.params.getDefaultSerializer().makeBlock(response);
+      return this.params.getDefaultSerializer().makeBlock(Buffer.from(response));
     }
     return block;
   }
@@ -1379,8 +1391,8 @@ export class Wallet extends WalletBase {
   async submitSignedTransaction(signedTx: Transaction): Promise<any> {
     const url = this.getServerURL() + "/submitSignedTx";
     let txBytes: Buffer = Buffer.from([]);
-    if (signedTx.bitcoinSerialize) {
-      const serialized = signedTx.bitcoinSerialize();
+    if (signedTx.bitcoinSerializeCopy) {
+      const serialized = signedTx.bitcoinSerializeCopy();
       txBytes = Buffer.isBuffer(serialized)
         ? serialized
         : Buffer.from(serialized);
@@ -1452,11 +1464,10 @@ export class Wallet extends WalletBase {
    */
   estimateFee(tx: Transaction, feeRatePerByte: bigint): bigint {
     let txSize = 0;
-    if (tx.bitcoinSerialize) {
-      const serialized = tx.bitcoinSerialize();
-      txSize = Buffer.isBuffer(serialized)
-        ? serialized.length
-        : serialized.byteLength;
+    if (tx.bitcoinSerializeCopy) {
+      const serialized = tx.bitcoinSerializeCopy();
+      txSize =   serialized.length
+       
     }
     return BigInt(txSize) * feeRatePerByte;
   }
@@ -1556,14 +1567,30 @@ export class Wallet extends WalletBase {
 
         // Create TransactionInput using getHash() instead of getOutPointHash()
 
-        tx.addInputWithOutput(
+        const outpoint = new TransactionOutPoint(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput
         );
+        tx.addInput(
+          new TransactionInput(
+            this.params,
+            tx,
+            Buffer.from(spendableOutput.getUTXO().getScript().getProgram()),
+            outpoint,
+            spendableOutput.getValue()
+          )
+        );
 
         if (!toBePaid.isNegative()) {
-          tx.addOutputCoin(this.params, toBePaid, beneficiary);
+          tx.addOutput(
+            new TransactionOutput(
+              this.params,
+              tx,
+              toBePaid,
+              beneficiary.toAddress(this.params).getHash160()
+            )
+          );
           break;
         }
       }
@@ -1665,15 +1692,31 @@ export class Wallet extends WalletBase {
         );
         myCoin = spendableOutput.getValue().add(myCoin);
 
-        // Create TransactionInput using  spendableOutput
-        tx.addInputWithOutput(
+        // Create TransactionInput using spendableOutput
+        const outpoint = new TransactionOutPoint(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput
         );
+        tx.addInput(
+          new TransactionInput(
+            this.params,
+            tx,
+            Buffer.from(spendableOutput.getUTXO().getScript().getProgram()),
+            outpoint,
+            spendableOutput.getValue()
+          )
+        );
 
         if (!myCoin.isNegative()) {
-          tx.addOutputCoin(this.params, myCoin, beneficiary);
+          tx.addOutput(
+            new TransactionOutput(
+              this.params,
+              tx,
+              myCoin,
+              beneficiary.toAddress(this.params).getHash160()
+            )
+          );
           break;
         }
       }
@@ -1740,99 +1783,100 @@ export class Wallet extends WalletBase {
     return this.solveAndPost(block);
   }
 
-  async multiSignKey(
-    tokenid: string,
-    outKey: ECKey,
-    aesKey: any
-  ): Promise<Block | null> {
-    const requestParam = new Map<string, string>();
-
-    const address = outKey.toAddress(this.params).toBase58();
-    requestParam.set("address", address);
-    requestParam.set("tokenid", tokenid);
-
-    // Use post instead of postString
-    const response = await OkHttp3Util.post(
-      this.getServerURL() + ReqCmd.getTokenSignByAddress,
-      Buffer.from(Json.jsonmapper().writeValueAsString(requestParam))
-    );
-    const resp = response.toString();
-
-    const multiSignResponse: MultiSignResponse = Json.jsonmapper().readValue(
-      resp,
-      MultiSignResponse
-    );
-    // Check if getMultiSigns exists and has items
-    if (
-      !multiSignResponse.getMultiSigns ||
-      typeof multiSignResponse.getMultiSigns !== "function"
-    ) {
-      return null;
-    }
-    const multiSigns = multiSignResponse.getMultiSigns();
-    if (!multiSigns || multiSigns.length === 0) {
-      return null;
-    }
-    const multiSign: MultiSign = multiSigns[0];
-
+    async multiSignKey(
+        tokenid: string,
+        outKey: ECKey,
+        aesKey: any
+    ): Promise<Block | null> {
+        const requestParam = new Map<string, string>();
+    
+        const address = outKey.toAddress(this.params).toBase58();
+        requestParam.set("address", address);
+        requestParam.set("tokenid", tokenid);
+    
+        // Use post instead of postString
+        const response = await OkHttp3Util.post(
+            this.getServerURL() + ReqCmd.getTokenSignByAddress,
+            Buffer.from(JSON.stringify(requestParam))
+        );
+        const resp = response.toString();
+    
+        const multiSignResponse: MultiSignResponse = Json.jsonmapper().readValue(
+            resp,
+            MultiSignResponse
+        );
+        // Check if getMultiSigns exists and has items
+        if (
+            !multiSignResponse.getMultiSigns ||
+            typeof multiSignResponse.getMultiSigns !== "function"
+        ) {
+            return null;
+        }
+        const multiSigns = multiSignResponse.getMultiSigns();
+        if (!multiSigns || multiSigns.length === 0) {
+            return null;
+        }
+        const multiSign: MultiSign = multiSigns[0];
+    
     const blockhashHex = multiSign.getBlockhashHex();
     if (!blockhashHex) {
       throw new Error("BlockhashHex is missing in multiSign");
     }
-    const payloadBytes = Utils.HEX.decode(blockhashHex);
-    const block = this.params.getDefaultSerializer().makeBlock(payloadBytes);
-    if (!block) {
-      throw new Error("Failed to create block from payload");
-    }
-
-    const transactions = block.getTransactions();
-    if (!transactions || transactions.length === 0) {
-      throw new Error("Block has no transactions");
-    }
-    const transaction = transactions[0];
-    if (!transaction) {
-      throw new Error("Transaction is missing in block");
-    }
-
-    let multiSignBies: MultiSignBy[] = [];
-    if (transaction.getDataSignature() === null) {
-      multiSignBies = [];
-    } else {
-      const multiSignByRequest: MultiSignByRequest =
-        Json.jsonmapper().readValue(
-          transaction.getDataSignature(),
-          MultiSignByRequest
+    // Convert hex string to Buffer directly
+    const blockData = Buffer.from(blockhashHex, "hex");
+    const block = this.params.getDefaultSerializer().makeBlock(blockData);
+        if (!block) {
+            throw new Error("Failed to create block from payload");
+        }
+    
+        const transactions = block.getTransactions();
+        if (!transactions || transactions.length === 0) {
+            throw new Error("Block has no transactions");
+        }
+        const transaction = transactions[0];
+        if (!transaction) {
+            throw new Error("Transaction is missing in block");
+        }
+    
+        let multiSignBies: MultiSignBy[] = [];
+        if (transaction.getDataSignature() === null) {
+            multiSignBies = [];
+        } else {
+            const multiSignByRequest: MultiSignByRequest =
+                Json.jsonmapper().readValue(
+                    transaction.getDataSignature(),
+                    MultiSignByRequest
+                );
+            if (multiSignByRequest && multiSignByRequest.getMultiSignBies) {
+                // Call the method if it exists
+                multiSignBies = multiSignByRequest.getMultiSignBies() || [];
+            }
+        }
+    
+        const sighash = transaction.getHash();
+        if (!sighash) {
+            throw new Error("Transaction hash is missing");
+        }
+    
+        // Await the signature promise
+        const party1Signature = await outKey.sign(sighash.getBytes(), aesKey);
+        const buf1 = party1Signature.encodeDER(); // Fixed method name
+    
+        const multiSignBy0 = new MultiSignBy();
+        multiSignBy0.setTokenid(multiSign.getTokenid());
+        multiSignBy0.setTokenindex(multiSign.getTokenindex());
+        multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
+        multiSignBy0.setPublickey(Utils.HEX.encode(outKey.getPubKey()));
+        multiSignBy0.setSignature(Utils.HEX.encode(buf1));
+        multiSignBies.push(multiSignBy0);
+    
+        const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
+        transaction.setDataSignature(
+            Json.jsonmapper().writeValueAsBytes(multiSignByRequest)
         );
-      if (multiSignByRequest && multiSignByRequest.getMultiSignBies) {
-        // Call the method if it exists
-        multiSignBies = multiSignByRequest.getMultiSignBies() || [];
-      }
+    
+        return this.adjustSolveAndSign(block);
     }
-
-    const sighash = transaction.getHash();
-    if (!sighash) {
-      throw new Error("Transaction hash is missing");
-    }
-
-    // Await the signature promise
-    const party1Signature = await outKey.sign(sighash, aesKey);
-    const buf1 = party1Signature.encodeDER(); // Fixed method name
-
-    const multiSignBy0 = new MultiSignBy();
-    multiSignBy0.setTokenid(multiSign.getTokenid());
-    multiSignBy0.setTokenindex(multiSign.getTokenindex());
-    multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
-    multiSignBy0.setPublickey(Utils.HEX.encode(outKey.getPubKey()));
-    multiSignBy0.setSignature(Utils.HEX.encode(buf1));
-    multiSignBies.push(multiSignBy0);
-
-    const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-    transaction.setDataSignature(
-      Json.jsonmapper().writeValueAsBytes(multiSignByRequest)
-    );
-
-    return this.adjustSolveAndSign(block);
-  }
 
   /**
    * Creates a transaction that pays to a list of addresses with specified amounts, using the given UTXOs.
@@ -1901,7 +1945,7 @@ export class Wallet extends WalletBase {
         new TransactionInput(
           this.params,
           tx,
-          Buffer.from(scriptBytes),
+          Buffer.from(scriptBytes.buffer, scriptBytes.byteOffset, scriptBytes.byteLength),
           outpoint,
           value
         )
@@ -1928,7 +1972,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(memo); // Set memo
+    tx.setMemo(new MemoInfo(memo)); // Set memo
 
     // Handle change
     const changeAmount = totalInputAmount - totalOutputAmount;
@@ -1970,11 +2014,16 @@ export class Wallet extends WalletBase {
         scriptProgram,
         Transaction.SigHash.ALL
       );
+      if (!sighash) {
+        throw new Error(`Unable to create sighash for input ${i}`);
+      }
       const signingKey = await this.getECKey(
         aesKey,
         connectedOutput.getAddress()
       );
-      const signature = await signingKey.sign(sighash.getBytes());
+      // Convert Sha256Hash to Uint8Array for signing
+      const messageHash = sighash.getBytes();
+      const signature = await signingKey.sign(messageHash);
       const inputScript = ScriptBuilder.createInputScript(
         new TransactionSignature(
           bigInt(signature.r.toString()),

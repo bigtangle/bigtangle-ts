@@ -2,7 +2,6 @@ import { DataClass } from './DataClass';
 import { Tokensums } from './Tokensums';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
@@ -22,16 +21,17 @@ export class TokensumsMap extends DataClass {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
+            const superBytes = Buffer.from(super.toByteArray());
+            baos.writeBytes(superBytes, 0, superBytes.length);
             // Sort keys to ensure consistent serialization
             const sortedKeys = Array.from(this.tokensumsMap.keys()).sort((a, b) => a.localeCompare(b));
             for (const key of sortedKeys) {
-                Utils.writeNBytesString(dos, key);
-                dos.write(Buffer.from(this.tokensumsMap.get(key)!.toByteArray()));
+                Utils.writeNBytesString(baos, key);
+                const tokensumsBytes = Buffer.from(this.tokensumsMap.get(key)!.toByteArray());
+                baos.writeBytes(tokensumsBytes, 0, tokensumsBytes.length);
             }
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

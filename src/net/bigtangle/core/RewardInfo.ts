@@ -3,7 +3,8 @@ import { Sha256Hash } from './Sha256Hash.js';
 import bigInt, { BigInteger } from 'big-integer';
 import { Utils } from '../utils/Utils.js';
 import { DataInputStream } from '../utils/DataInputStream.js';
-import { DataOutputStream } from '../utils/DataOutputStream.js';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream.js';
+ 
 import { JsonProperty, JsonClassType, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer.js";
 
@@ -108,22 +109,26 @@ export class RewardInfo extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         try {
             dos.writeLong(this.chainlength);
-            dos.writeBytes(this.prevRewardHash ? this.prevRewardHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes());
+            const prevRewardHashBytes = this.prevRewardHash ? this.prevRewardHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes();
+            dos.writeBytes(prevRewardHashBytes, 0, prevRewardHashBytes.length);
             dos.writeInt(this.blocks.size);
             for (const bHash of this.blocks) {
-                dos.writeBytes(bHash.getBytes());
+                const bytes = bHash.getBytes();
+                dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.writeLong(this.difficultyTargetReward);
             dos.writeBoolean(this.ordermatchingResult !== null);
             if (this.ordermatchingResult !== null) {
-                dos.writeBytes(this.ordermatchingResult.getBytes());
+                const bytes = this.ordermatchingResult.getBytes();
+                dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.writeBoolean(this.miningResult !== null);
             if (this.miningResult !== null) {
-                dos.writeBytes(this.miningResult.getBytes());
+                const bytes = this.miningResult.getBytes();
+                dos.writeBytes(bytes, 0, bytes.length);
             }
             
             dos.close();
@@ -150,7 +155,10 @@ export class RewardInfo extends DataClass {
             const blocksSize = bain.readInt();
             r.blocks = new Set();
             for (let i = 0; i < blocksSize; ++i) {
-                r.blocks.add(Sha256Hash.wrap(bain.readBytes(32)));
+                const hash = Sha256Hash.wrap(bain.readBytes(32));
+                if (hash !== null) {
+                    r.blocks.add(hash);
+                }
             }
             r.difficultyTargetReward = bain.readLong();
             

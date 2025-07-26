@@ -5,7 +5,7 @@ import { OrderRecord } from './OrderRecord';
 import { ContractEventRecord } from './ContractEventRecord';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
-import { DataOutputStream } from '../utils/DataOutputStream';
+import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class Tokensums extends DataClass {
@@ -79,20 +79,26 @@ export class Tokensums extends DataClass {
     }
 
     public toByteArray(): Uint8Array {
-        const dos = new DataOutputStream();
+        const dos = new UnsafeByteArrayOutputStream();
         try {
-            dos.writeBytes(Buffer.from(super.toByteArray()));
+            const superBytes = Buffer.from(super.toByteArray());
+            dos.writeBytes(superBytes, 0, superBytes.length);
             dos.writeNBytesString(this.tokenid ?? "");
-            dos.writeBytes(Buffer.from(Utils.bigIntToBytes(this.initial, 32)));
-            dos.writeBytes(Buffer.from(Utils.bigIntToBytes(this.unspent, 32)));
-            dos.writeBytes(Buffer.from(Utils.bigIntToBytes(this.order, 32)));
+            const initialBytes = Buffer.from(Utils.bigIntToBytes(this.initial, 32));
+            dos.writeBytes(initialBytes, 0, initialBytes.length);
+            const unspentBytes = Buffer.from(Utils.bigIntToBytes(this.unspent, 32));
+            dos.writeBytes(unspentBytes, 0, unspentBytes.length);
+            const orderBytes = Buffer.from(Utils.bigIntToBytes(this.order, 32));
+            dos.writeBytes(orderBytes, 0, orderBytes.length);
             dos.writeInt(this.utxos.length);
             for (const c of this.utxos) {
-                dos.writeBytes(Buffer.from(c.toByteArray()));
+                const bytes = Buffer.from(c.toByteArray());
+                dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.writeInt(this.orders.length);
             for (const c of this.orders) {
-                dos.writeBytes(Buffer.from(c.toByteArray()));
+                const bytes = Buffer.from(c.toByteArray());
+                dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.close();
         } catch (e: any) {

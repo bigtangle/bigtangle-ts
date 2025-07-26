@@ -1,5 +1,4 @@
 import { DataInputStream } from '../utils/DataInputStream';
-import { DataOutputStream } from '../utils/DataOutputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 export class MyHomeAddress {
@@ -12,16 +11,15 @@ export class MyHomeAddress {
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
-        const dos = new DataOutputStream(baos);
         try {
-            dos.writeNBytesString(this.country);
-            dos.writeNBytesString(this.province);
-            dos.writeNBytesString(this.city);
-            dos.writeNBytesString(this.street);
-            dos.writeNBytesString(this.email);
-            dos.writeNBytesString(this.remark);
+            baos.writeNBytesString(this.country);
+            baos.writeNBytesString(this.province);
+            baos.writeNBytesString(this.city);
+            baos.writeNBytesString(this.street);
+            baos.writeNBytesString(this.email);
+            baos.writeNBytesString(this.remark);
             
-            dos.close();
+            baos.close();
         } catch (e: any) {
             throw new Error(e);
         }

@@ -34,8 +34,30 @@ export class Utils {
         return true;
     }
 
-     
- 
+    public static uint32ToByteStreamLE(value: number, stream: any): void {
+        // Ensure the value is within the valid range for a 32-bit unsigned integer
+        if (value < 0 || value > 0xFFFFFFFF) {
+            throw new RangeError(`The value of "value" is out of range. It must be >= 0 and <= 4294967295. Received ${value}`);
+        }
+        const buffer = Buffer.alloc(4);
+        buffer.writeUInt32LE(value, 0);
+        stream.write(buffer);
+    }
+
+    public static int64ToByteStreamLE(value: bigint, stream: any): void {
+        const buffer = Buffer.alloc(8);
+        buffer.writeBigUInt64LE(BigInt(value), 0);
+        stream.write(buffer);
+    }
+
+    public static readUint32(buffer: Buffer, offset: number): number {
+        return buffer.readUInt32LE(offset);
+    }
+
+    public static readInt64(buffer: Buffer, offset: number): bigint {
+        return buffer.readBigUInt64LE(offset);
+    }
+    
     public static reverseDwordBytes(bytes: Buffer, length: number): Buffer {
         if (length <= 0) { // Handle negative or zero length
             return Buffer.alloc(0);
@@ -150,17 +172,17 @@ export class Utils {
     }
 
     /**
- * Calculates RIPEMD160(SHA256(input)). This is used in Address calculations.
- * @param {Buffer|Uint8Array} input - The input data to hash
- * @returns {Buffer} - 20-byte RIPEMD160 hash of SHA256(input)
- */
-public  sha256hash160(input:Buffer|Uint8Array):Buffer {
-    // First apply SHA256
-    const sha256Hash = crypto.createHash('sha256').update(input).digest();
-    
-    // Then apply RIPEMD160 to the SHA256 result
-    const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
-    
-    return ripemd160Hash;
-}
+     * Calculates RIPEMD160(SHA256(input)). This is used in Address calculations.
+     * @param {Buffer|Uint8Array} input - The input data to hash
+     * @returns {Buffer} - 20-byte RIPEMD160 hash of SHA256(input)
+     */
+    public static sha256hash160(input: Buffer | Uint8Array): Buffer {
+        // First apply SHA256
+        const sha256Hash = crypto.createHash('sha256').update(input).digest();
+        
+        // Then apply RIPEMD160 to the SHA256 result
+        const ripemd160Hash = crypto.createHash('ripemd160').update(sha256Hash).digest();
+        
+        return ripemd160Hash;
+    }
 }

@@ -2,7 +2,6 @@ import { Message } from './Message';
 import { Block } from './Block';
 import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
-import { NetworkParameters } from '../params/NetworkParameters';
 import { Gzip } from '../utils/Gzip';
 import { Buffer } from 'buffer';
 
@@ -10,11 +9,11 @@ import { Buffer } from 'buffer';
  * Generic interface for classes which serialize/deserialize messages.
  * Implementing classes should be immutable.
  */
-export abstract class MessageSerializer {
-    protected params: NetworkParameters;
+export abstract class MessageSerializer<T> {
+    protected params: T;
     protected parseRetain: boolean;
 
-    constructor(params: NetworkParameters, parseRetain: boolean) {
+    constructor(params: T, parseRetain: boolean) {
         this.params = params;
         this.parseRetain = parseRetain;
     }

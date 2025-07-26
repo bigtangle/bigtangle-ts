@@ -2,7 +2,6 @@ import { DataClass } from "./DataClass";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils } from "../utils/Utils";
 import { DataInputStream } from "../utils/DataInputStream";
-import { DataOutputStream } from "../utils/DataOutputStream";
 import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
@@ -38,26 +37,26 @@ export class SpentBlock extends DataClass {
 
   public toByteArray(): Uint8Array {
     const baos = new UnsafeByteArrayOutputStream();
-    const dos = new DataOutputStream(baos);
 
     // Write superclass data
-    const superBytes = super.toByteArray();
-    dos.write(superBytes);
+    const superBytes = Buffer.from(super.toByteArray());
+    baos.writeBytes(superBytes, 0, superBytes.length);
 
     // Write class-specific data
-    dos.writeBytes(
-      this.blockHash === null
-        ? Sha256Hash.ZERO_HASH.getBytes()
-        : this.blockHash.getBytes()
-    );
-    dos.writeBoolean(this.confirmed);
-    dos.writeBoolean(this.spent);
-    dos.writeBytes(
-      this.spenderBlockHash === null
-        ? Sha256Hash.ZERO_HASH.getBytes()
-        : this.spenderBlockHash.getBytes()
-    );
-    dos.writeLong(this.time);
+    const blockHashBytes = Buffer.from(this.blockHash === null
+      ? Sha256Hash.ZERO_HASH.getBytes()
+      : this.blockHash.getBytes());
+    baos.writeBytes(blockHashBytes, 0, blockHashBytes.length);
+    
+    baos.writeBoolean(this.confirmed);
+    baos.writeBoolean(this.spent);
+    
+    const spenderBlockHashBytes = Buffer.from(this.spenderBlockHash === null
+      ? Sha256Hash.ZERO_HASH.getBytes()
+      : this.spenderBlockHash.getBytes());
+    baos.writeBytes(spenderBlockHashBytes, 0, spenderBlockHashBytes.length);
+    
+    baos.writeLong(this.time);
 
     return baos.toByteArray();
   }
@@ -68,7 +67,7 @@ export class SpentBlock extends DataClass {
     this.confirmed = dis.readBoolean();
     this.spent = dis.readBoolean();
     this.spenderBlockHash = Sha256Hash.wrap(dis.readBytes(32));
-    if (this.spenderBlockHash.equals(Sha256Hash.ZERO_HASH)) {
+    if (this.spenderBlockHash?.equals(Sha256Hash.ZERO_HASH)) {
       this.spenderBlockHash = null;
     }
     this.time = dis.readLong();

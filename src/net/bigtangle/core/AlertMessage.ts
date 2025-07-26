@@ -3,8 +3,9 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
 import { Sha256Hash } from './Sha256Hash';
 import { Buffer } from 'buffer';
-// TODO: Implement DataOutputStream
-// import { DataOutputStream } from './DataOutputStream';
+import { ProtocolVersion } from './ProtocolVersion';
+// TODO: Implement UnsafeByteArrayOutputStream
+// import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
 // Chosen arbitrarily to avoid memory blowups.
 const MAX_SET_SIZE = 100;
@@ -43,8 +44,8 @@ export class AlertMessage extends Message {
     private reserved!: string;
 
     constructor(params: NetworkParameters, payloadBytes: Buffer) {
-        super(params, payloadBytes, 0);
-        this.parse();
+        super(params);
+        this.parseWithParams(params, payloadBytes, 0, params.getProtocolVersionNum(ProtocolVersion.CURRENT), params.getDefaultSerializer(), payloadBytes.length);
     }
 
     public toString(): string {
@@ -237,7 +238,7 @@ export class AlertMessage extends Message {
     }
     
     // Implementation of abstract method from Message class
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         // This is a minimal implementation to satisfy the abstract requirement
         // Full implementation would require proper serialization logic
         throw new Error("bitcoinSerializeToStream not implemented for AlertMessage");

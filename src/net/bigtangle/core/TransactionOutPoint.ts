@@ -2,7 +2,7 @@ import { ChildMessage } from './ChildMessage';
 import { Sha256Hash } from './Sha256Hash';
 import { Transaction } from './Transaction';
 import { TransactionOutput } from './TransactionOutput';
-import { Script } from '../script/Script';
+ 
 import { ECKey } from './ECKey';
 import { NetworkParameters } from '../params/NetworkParameters'; 
 import { Utils } from '../utils/Utils';
@@ -10,12 +10,10 @@ import { Buffer } from 'buffer';
 import { MessageSerializer } from './MessageSerializer';
 import { DummySerializer } from './DummySerializer';
 import { Message } from './Message';
-
-// Placeholder for KeyBag and RedeemData
-interface KeyBag {}
-class RedeemData {
-    static of(key: ECKey | null, script: Script): RedeemData { return new RedeemData(); }
-}
+import { KeyBag } from '../wallet/KeyBag';
+import { RedeemData } from '../wallet/RedeemData';
+import { ScriptException } from '../exception/ScriptException';
+ 
 
 /**
  * <p>
@@ -41,7 +39,7 @@ export class TransactionOutPoint extends ChildMessage {
     constructor(params: NetworkParameters, index: number, blockHash: Sha256Hash, transactionHash: Sha256Hash);
     constructor(params: NetworkParameters, blockHash: Sha256Hash | null, connectedOutput: TransactionOutput);
     constructor(params: NetworkParameters, payload: Buffer, offset: number);
-    constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer);
+    constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer<any>);
     constructor(...args: any[]) {
         // Call super first unconditionally
         super(args[0]);
@@ -57,12 +55,63 @@ export class TransactionOutPoint extends ChildMessage {
             if (typeof args[1] === 'number') {
                 // (params, index, blockHash, fromTx)
                 this.index = args[1];
-                this.blockHash = args[2];
+                // Ensure blockHash is a Sha256Hash object
+                if (args[2] instanceof Sha256Hash) {
+                    this.blockHash = args[2];
+                } else if (args[2] === null) {
+                    this.blockHash = null;
+                } else {
+                    // If it's not a Sha256Hash object, try to convert it
+                    try {
+                        // Check if args[2] is a Buffer or can be converted to one
+                        let buffer: Buffer;
+                        if (Buffer.isBuffer(args[2])) {
+                            buffer = args[2];
+                        } else if (typeof args[2] === 'object' && args[2] !== null && 'getBytes' in args[2]) {
+                            // If it's already a Sha256Hash-like object with getBytes method
+                            buffer = (args[2] as any).getBytes();
+                        } else {
+                            // Try to convert to Buffer
+                            buffer = Buffer.from(args[2]);
+                        }
+                        this.blockHash = Sha256Hash.wrap(buffer);
+                    } catch (e) {
+                        this.blockHash = Sha256Hash.ZERO_HASH;
+                    }
+                }
                 this.fromTx = args[3];
-                this.txHash = this.fromTx?.getHash() || Sha256Hash.ZERO_HASH;
+                // Only call getHash() if fromTx is not null and has the method
+                if (this.fromTx && typeof this.fromTx.getHash === 'function') {
+                    this.txHash = this.fromTx.getHash();
+                } else {
+                    this.txHash = Sha256Hash.ZERO_HASH;
+                }
             } else {
                 // (params, blockHash, connectedOutput)
-                this.blockHash = args[1];
+                // Ensure blockHash is a Sha256Hash object
+                if (args[1] instanceof Sha256Hash) {
+                    this.blockHash = args[1];
+                } else if (args[1] === null) {
+                    this.blockHash = null;
+                } else {
+                    // If it's not a Sha256Hash object, try to convert it
+                    try {
+                        // Check if args[1] is a Buffer or can be converted to one
+                        let buffer: Buffer;
+                        if (Buffer.isBuffer(args[1])) {
+                            buffer = args[1];
+                        } else if (typeof args[1] === 'object' && args[1] !== null && 'getBytes' in args[1]) {
+                            // If it's already a Sha256Hash-like object with getBytes method
+                            buffer = (args[1] as any).getBytes();
+                        } else {
+                            // Try to convert to Buffer
+                            buffer = Buffer.from(args[1]);
+                        }
+                        this.blockHash = Sha256Hash.wrap(buffer);
+                    } catch (e) {
+                        this.blockHash = Sha256Hash.ZERO_HASH;
+                    }
+                }
                 this.connectedOutput = args[2];
                 if (this.connectedOutput) {
                     this.index = this.connectedOutput.getIndex();
@@ -75,7 +124,28 @@ export class TransactionOutPoint extends ChildMessage {
         } else if (args.length === 3 && !(args[1] instanceof Buffer)) {
             // (params, index, blockHash, transactionHash)
             this.index = args[1];
-            this.blockHash = args[2];
+            // Ensure blockHash is a Sha256Hash object
+            if (args[2] instanceof Sha256Hash) {
+                this.blockHash = args[2];
+            } else {
+                // If it's not a Sha256Hash object, try to convert it
+                try {
+                    // Check if args[2] is a Buffer or can be converted to one
+                    let buffer: Buffer;
+                    if (Buffer.isBuffer(args[2])) {
+                        buffer = args[2];
+                    } else if (typeof args[2] === 'object' && args[2] !== null && 'getBytes' in args[2]) {
+                        // If it's already a Sha256Hash-like object with getBytes method
+                        buffer = (args[2] as any).getBytes();
+                    } else {
+                        // Try to convert to Buffer
+                        buffer = Buffer.from(args[2]);
+                    }
+                    this.blockHash = Sha256Hash.wrap(buffer);
+                } catch (e) {
+                    this.blockHash = Sha256Hash.ZERO_HASH;
+                }
+            }
             this.txHash = args[3];
         } else {
             // Default initialization
@@ -89,12 +159,27 @@ export class TransactionOutPoint extends ChildMessage {
         
         // Initialize serializer to prevent null errors
         if (!this.serializer) {
-            this.serializer = new DummySerializer();
+            // Using DummySerializer equivalent that matches MessageSerializer<NetworkParameters> type
+            this.serializer = {
+                params: null,
+                parseRetain: false,
+                isParseRetainMode: () => false,
+                deserialize: () => { throw new Error("Not implemented"); },
+                makeAlertMessage: () => { throw new Error("Not implemented"); },
+                makeBlock: () => { throw new Error("Not implemented"); },
+                makeZippedBlock: async () => { throw new Error("Not implemented"); },
+                makeZippedBlockStream: async () => { throw new Error("Not implemented"); },
+                makeTransaction: () => { throw new Error("Not implemented"); },
+                makeTransactionFromBytes: () => { throw new Error("Not implemented"); },
+                seekPastMagicBytes: () => { throw new Error("Not implemented"); },
+                serialize: () => { throw new Error("Not implemented"); },
+                serializeMessage: () => { throw new Error("Not implemented"); }
+            } as unknown as MessageSerializer<NetworkParameters>;
         }
     }
     
     // Helper method to handle payload-based initialization
-    private parseFromPayload(payload: Buffer, offset: number, serializer?: MessageSerializer, parent?: Message): void {
+    private parseFromPayload(payload: Buffer, offset: number, serializer?: MessageSerializer<any>, parent?: Message): void {
         // Set payload and offset for parsing
         this.payload = payload;
         this.offset = offset;
@@ -118,7 +203,7 @@ export class TransactionOutPoint extends ChildMessage {
         this.index = this.readUint32();
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         stream.write(this.blockHash ? this.blockHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
         stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
         Utils.uint32ToByteStreamLE(this.index, stream);
@@ -161,19 +246,28 @@ export class TransactionOutPoint extends ChildMessage {
      * @return an ECKey or null if the connected key cannot be found in the
      *         wallet.
      */
-    public getConnectedKey(keyBag: KeyBag): ECKey | null {
+    public getConnectedKey(keyBag: KeyBag): Promise<ECKey | null> {
         const connectedOutput = this.getConnectedOutput();
         if (!connectedOutput) throw new Error("Input is not connected so cannot retrieve key");
         const connectedScript = connectedOutput.getScriptPubKey();
-        // Placeholder for script type checks and key retrieval
-        return null;
+        if (connectedScript.isSentToAddress()) {
+            const addressBytes = connectedScript.getPubKeyHash();
+            return keyBag.findKeyFromPubHash(addressBytes);
+        } else if (connectedScript.isSentToRawPubKey()) {
+            const pubkeyBytes = connectedScript.getPubKey();
+            return keyBag.findKeyFromPubKey(pubkeyBytes);
+        } else if (connectedScript.isSentToMultiSig()) {
+            return this.getConnectedKeyWithECKeys(keyBag, connectedScript.getPubKeys());
+        } else {
+            throw new ScriptException("Could not understand form of connected output script: " + connectedScript.toString());
+        }
     }
 
-    public getConnectedKeyWithECKeys(keyBag: KeyBag, ecs: ECKey[]): ECKey | null {
+    public getConnectedKeyWithECKeys(keyBag: KeyBag, ecs: ECKey[]): Promise<ECKey | null> {
         for (const ec of ecs) {
-            // Placeholder for key retrieval
+            return keyBag.findKeyFromPubKey(ec.getPubKey());
         }
-        return null;
+        throw new ScriptException("Could not understand form of connected output script: " + ecs.toString());
     }
 
     /**
@@ -184,12 +278,30 @@ export class TransactionOutPoint extends ChildMessage {
      * @return a RedeemData or null if the connected data cannot be found in the
      *         wallet.
      */
-    public getConnectedRedeemData(keyBag: KeyBag): RedeemData | null {
+    public getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
         const connectedOutput = this.getConnectedOutput();
         if (!connectedOutput) throw new Error("Input is not connected so cannot retrieve key");
         const connectedScript = connectedOutput.getScriptPubKey();
-        // Placeholder for script type checks and redeem data retrieval
-        return null;
+        if (connectedScript.isSentToAddress()) {
+            const addressBytes = connectedScript.getPubKeyHash();
+            return keyBag.findKeyFromPubHash(addressBytes).then(key => 
+                key ? RedeemData.of(key, connectedScript) : null
+            );
+        } else if (connectedScript.isSentToRawPubKey()) {
+            const pubkeyBytes = connectedScript.getPubKey();
+            return keyBag.findKeyFromPubKey(pubkeyBytes).then(key => 
+                key ? RedeemData.of(key, connectedScript) : null
+            );
+        } else if (connectedScript.isPayToScriptHash()) {
+            const scriptHash = connectedScript.getPubKeyHash();
+            return keyBag.findRedeemDataFromScriptHash(scriptHash);
+        } else if (connectedScript.isSentToMultiSig()) {
+            return this.getConnectedKey(keyBag).then(key => 
+                key ? RedeemData.of([key], connectedScript) : null
+            );
+        } else {
+            throw new ScriptException("Could not understand form of connected output script: " + connectedScript.toString());
+        }
     }
 
     public toString(): string {
@@ -231,7 +343,7 @@ export class TransactionOutPoint extends ChildMessage {
     public isCoinBase(): boolean {
         return (this.blockHash ? this.blockHash.equals(Sha256Hash.ZERO_HASH) : true) &&
                (this.txHash ? this.txHash.equals(Sha256Hash.ZERO_HASH) : true) &&
-               this.index === Transaction.UNCONNECTED;
+               this.index === 0xFFFFFFFF;
     }
 
     public equals(o: any): boolean {

@@ -9,21 +9,17 @@ import * as zlib from "zlib";
 import { promisify } from "util";
 import * as https from "https";
 import { Buffer } from "buffer";
-import {
-  ObjectMapper 
-} from "jackson-js";
-
+import {   ObjectMapper  } from "jackson-js";
+import { Utils } from "./Utils";
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
 export class OkHttp3Util {
-  private static logger = console;
+  private readonly static logger = console;
   public static readonly timeoutMinute = 45;
   private static instance: AxiosInstance;
-  public static pubkey: string | null = null;
-  public static signHex: string | null = null;
-  public static contentHex: string | null = null;
-  private static objectMapper: ObjectMapper = new ObjectMapper();
+ 
+  private  readonly static objectMapper: ObjectMapper = new ObjectMapper();
   public static  readonly contextRoot: string = "";
 
   private static getAxiosInstance(): AxiosInstance {
@@ -101,15 +97,9 @@ export class OkHttp3Util {
     const response = await this.postStringSingle(url, data); // Now returns string
     const json = JSON.parse(response); // Parse the string directly
 
-    // Add error code checking for JSON responses
-    if (json && json.errorcode) {
-      const error = json.errorcode;
-      const message = json.message || `Server Error: ${error}`;
-      throw new Error(`Server: ${url} Server Error: ${message}`);
-    }
-
+ 
     const dataHex = json.dataHex;
-    return dataHex ? Buffer.from(dataHex, "hex") : Buffer.alloc(0);
+    return dataHex ? Buffer.of(Utils.HEX.decode(dataHex )) : Buffer.alloc(0);
   }
 
   public static async postStringSingle(

@@ -179,9 +179,13 @@ export class ECKey {
   }
 
   public async sign(
-    messageHash: Uint8Array,
+    messageHash: Uint8Array |null,
     aesKey?: KeyParameter
   ): Promise<ECDSASignature> {
+     if (messageHash== null) {
+      throw new Error("Message hash cannot be null");
+     }
+
     if (this.isEncrypted()) {
       if (!aesKey) {
         throw new Error("AES key is required for signing an encrypted key");
@@ -353,18 +357,12 @@ export class ECKey {
     const messageBuffer = Buffer.from(message, "utf-8");
 
     // Create a buffer to write the VarInt
-    const varIntBuffer = Buffer.alloc(5); // Max size for VarInt is 5 bytes
-    let offset = 0;
-    VarInt.write(messageBuffer.length, {
-      write: (chunk: Buffer) => {
-        chunk.copy(varIntBuffer, offset);
-        offset += chunk.length;
-      },
-    });
+    const varInt = new VarInt(messageBuffer.length);
+    const varIntBuffer = varInt.encode();
 
     const buffer = Buffer.concat([
       prefix,
-      varIntBuffer.slice(0, offset),
+      varIntBuffer,
       messageBuffer,
     ]);
     const hash = sha256(sha256(buffer));
@@ -380,18 +378,12 @@ export class ECKey {
     const messageBuffer = Buffer.from(message, "utf-8");
 
     // Create a buffer to write the VarInt
-    const varIntBuffer = Buffer.alloc(5);
-    let offset = 0;
-    VarInt.write(messageBuffer.length, {
-      write: (chunk: Buffer) => {
-        chunk.copy(varIntBuffer, offset);
-        offset += chunk.length;
-      },
-    });
+    const varInt = new VarInt(messageBuffer.length);
+    const varIntBuffer = varInt.encode();
 
     const buffer = Buffer.concat([
       prefix,
-      varIntBuffer.slice(0, offset),
+      varIntBuffer,
       messageBuffer,
     ]);
     const messageHash = sha256(sha256(buffer));
@@ -453,4 +445,4 @@ export class ECKey {
     // Placeholder for isWatching logic
     return this.isPubKeyOnly();
   }
-} 
+}
