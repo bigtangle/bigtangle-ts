@@ -1,6 +1,8 @@
 import { NetworkParameters } from './NetworkParameters.js';
 
 export class TestParams extends NetworkParameters {
+    private packetMagic: number = 0xfabfb5da;
+
     getP2SHHeader(): number {
         return 196; // Testnet P2SH header
     }
@@ -15,6 +17,10 @@ export class TestParams extends NetworkParameters {
 
     getId(): string {
         return 'test';
+    }
+
+    getPacketMagic(): number {
+        return this.packetMagic;
     }
 
     getMaxTarget(): bigint {

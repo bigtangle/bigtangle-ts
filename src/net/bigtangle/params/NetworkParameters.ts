@@ -40,6 +40,7 @@ export abstract class NetworkParameters {
     abstract getDumpedPrivateKeyHeader(): number;
     abstract serverSeeds(): string[];
     abstract getGenesisPub(): string;
+    abstract getPacketMagic(): number;
 
 	public  getSerializer( parseRetain: boolean) :BitcoinSerializer {
 		return new BitcoinSerializer(this, parseRetain);

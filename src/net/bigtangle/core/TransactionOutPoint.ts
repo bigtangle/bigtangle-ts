@@ -197,6 +197,12 @@ export class TransactionOutPoint extends ChildMessage {
     }
 
     protected parse(): void {
+        // Check if we have enough bytes to parse a TransactionOutPoint
+        if (!this.payload) throw new Error("Payload is null");
+        if (this.cursor + TransactionOutPoint.MESSAGE_LENGTH > this.payload.length) {
+            throw new Error(`Not enough bytes to read TransactionOutPoint: requested ${TransactionOutPoint.MESSAGE_LENGTH}, available ${this.payload.length - this.cursor}`);
+        }
+        
         this.length = TransactionOutPoint.MESSAGE_LENGTH;
         this.blockHash = this.readHash();
         this.txHash = this.readHash();

@@ -25,6 +25,11 @@ export class VarInt {
      * @param offset the offset of the value
      */
     public static fromBuffer(buf: Buffer, offset: number): VarInt {
+        // Check if offset is within bounds
+        if (offset >= buf.length) {
+            throw new Error(`Offset ${offset} is beyond buffer length ${buf.length}`);
+        }
+        
         const first = buf[offset] & 0xFF;
         let value: BigInteger;
         let originallyEncodedSize: number;
@@ -33,12 +38,24 @@ export class VarInt {
             value = bigInt(first);
             originallyEncodedSize = 1; // 1 data byte (8 bits)
         } else if (first === 253) {
+            // Check if we have enough bytes for 3-byte VarInt
+            if (offset + 2 >= buf.length) {
+                throw new Error(`Not enough bytes to read 3-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
+            }
             value = bigInt(buf[offset + 1] & 0xFF).or(bigInt(buf[offset + 2] & 0xFF).shiftLeft(8));
             originallyEncodedSize = 3; // 1 marker + 2 data bytes (16 bits)
         } else if (first === 254) {
+            // Check if we have enough bytes for 5-byte VarInt
+            if (offset + 4 >= buf.length) {
+                throw new Error(`Not enough bytes to read 5-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
+            }
             value = bigInt(Utils.readUint32(buf, offset + 1));
             originallyEncodedSize = 5; // 1 marker + 4 data bytes (32 bits)
         } else {
+            // Check if we have enough bytes for 9-byte VarInt
+            if (offset + 8 >= buf.length) {
+                throw new Error(`Not enough bytes to read 9-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
+            }
             value = bigInt(Utils.readInt64(buf, offset + 1));
             originallyEncodedSize = 9; // 1 marker + 8 data bytes (64 bits)
         }

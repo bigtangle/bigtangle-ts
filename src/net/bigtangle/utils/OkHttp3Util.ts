@@ -9,18 +9,18 @@ import * as zlib from "zlib";
 import { promisify } from "util";
 import * as https from "https";
 import { Buffer } from "buffer";
-import {   ObjectMapper  } from "jackson-js";
+import { ObjectMapper } from "jackson-js";
 import { Utils } from "./Utils";
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
 export class OkHttp3Util {
-  private readonly static logger = console;
+  private static readonly logger = console;
   public static readonly timeoutMinute = 45;
   private static instance: AxiosInstance;
- 
-  private  readonly static objectMapper: ObjectMapper = new ObjectMapper();
-  public static  readonly contextRoot: string = "";
+
+  private static readonly objectMapper: ObjectMapper = new ObjectMapper();
+  public static readonly contextRoot: string = "";
 
   private static getAxiosInstance(): AxiosInstance {
     if (!this.instance) {
@@ -48,8 +48,15 @@ export class OkHttp3Util {
 
           // Compress request body if needed
           if (config.data && !config.headers["Content-Encoding"]) {
-            config.data = await gzip(config.data as Buffer);
-            config.headers["Content-Encoding"] = "gzip";
+            // Only compress if data is not empty
+            if (Buffer.isBuffer(config.data) && config.data.length > 0) {
+              config.data = await gzip(config.data as Buffer);
+              config.headers["Content-Encoding"] = "gzip";
+            } else if (typeof config.data === 'string' && config.data.length > 0) {
+              config.data = await gzip(Buffer.from(config.data, 'utf8'));
+              config.headers["Content-Encoding"] = "gzip";
+            }
+            // For empty data, we send it as-is without compression
           }
 
           return config;
@@ -85,45 +92,63 @@ export class OkHttp3Util {
     );
     const result = this.objectMapper.parse(responseString, {
       mainCreator: () => [responseClass],
-    }) as T; 
-  
+    }) as T;
+
     return result;
   }
- 
+
   public static async postAndGetBlock(
     url: string,
     data: string
-  ): Promise<Buffer> {
+  ): Promise<string> {
     const response = await this.postStringSingle(url, data); // Now returns string
     const json = JSON.parse(response); // Parse the string directly
-
- 
     const dataHex = json.dataHex;
-    return dataHex ? Buffer.of(Utils.HEX.decode(dataHex )) : Buffer.alloc(0);
+    return dataHex;
   }
 
   public static async postStringSingle(
     url: string,
-    data: string
+    data: Buffer
   ): Promise<string> {
     // Change return type to string
     this.logger.debug(`POST to ${url}`);
-    const response = await this.getAxiosInstance().post(url, data);
-    this.checkResponse(response, url);
-
-    let responseBuffer = response.data;
-     
-      responseBuffer = await gunzip(responseBuffer);
-     
+    
+    // Handle empty data case
+    let requestData = data;
+    if (data && data.length === 0) {
+      // For empty data, we need to ensure it's properly handled
+      requestData = Buffer.alloc(0);
+    }
+    
+    const response = await this.getAxiosInstance().post(url, requestData); 
+    let responseBuffer = response.data; 
+    responseBuffer = await gunzip(responseBuffer);
+    this.checkResponse(responseBuffer, url, response.status);
     return responseBuffer.toString("utf8"); // Convert to string here
   }
 
   private static checkResponse(
-    response: AxiosResponse<Buffer>,
-    url: string
+    responseData: Buffer,
+    url: string,
+    status: number
   ): void {
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Server: ${url} HTTP Error: ${response.status}`);
-    }
+    if (status < 200 || status >= 300) {
+      throw new Error(`Server: ${url} HTTP Error: ${status}`);
+    } 
+      const responseString = responseData.toString("utf8");
+      const result = JSON.parse(responseString);
+
+      if (result.errorcode != null) {
+        const error = Number(result.errorcode);
+        if (error > 0) {
+          if (result.message == null) {
+            throw new Error(`Server: ${url} Server Error: ${error}`);
+          } else {
+            throw new Error(`Server: ${url} Server Error: ${result.message}`);
+          }
+        }
+      }
+  
   }
 }

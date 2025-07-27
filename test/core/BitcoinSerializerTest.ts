@@ -52,15 +52,20 @@ test.skip('testCachedParsing', () => {
             // Should throw because header buffer is too short
             const shortBuffer = Buffer.alloc(10);
             // We need to pass the required parameters
-            new BitcoinPacketHeader('test', 0, shortBuffer);
-        }).toThrow("Checksum must be 4 bytes, got 10");
+            new BitcoinPacketHeader(shortBuffer, MainNetParams.get());
+        }).toThrow("Buffer too short to contain header: 10 < 20");
     });
 
     test('testBitcoinPacketHeaderTooLong', () => {
         expect(() => {
-            // Should throw because payload size is too large
-            new BitcoinPacketHeader('test', 11 * 1024 * 1024, Buffer.alloc(4));
-        }).toThrow("Message size too large: 11534336");
+            // Create a buffer with a large size value
+            const largeBuffer = Buffer.alloc(BitcoinPacketHeader.HEADER_LENGTH);
+            // Set the size field to a large value (offset 12-16 in the header)
+            // Use a value larger than MAX_MESSAGE_SIZE (32MB)
+            largeBuffer.writeUInt32LE(33 * 1024 * 1024, 12);
+            // We need to pass the required parameters
+            new BitcoinPacketHeader(largeBuffer, MainNetParams.get());
+        }).toThrow("Message size too large: 34603008");
     });
 
     test('testSeekPastMagicBytes', () => {

@@ -110,19 +110,24 @@ export class Block extends Message {
     }
 
     public adjustLength(...args: any[]): void {
-        if (args.length === 1) {
-            this.length += args[0];
-            this.optimalEncodingMessageSize += args[0];
-        } else if (args.length === 2) {
-            this.length += args[1];
-            this.optimalEncodingMessageSize += args[1];
-        }
-        if (this.parent !== null) {
+        try {
             if (args.length === 1) {
-                (this.parent as any).adjustLength(0, args[0]);
+                this.length += args[0];
+                this.optimalEncodingMessageSize += args[0];
             } else if (args.length === 2) {
-                (this.parent as any).adjustLength(args[0], args[1]);
+                this.length += args[1];
+                this.optimalEncodingMessageSize += args[1];
             }
+            if (this.parent !== null) {
+                if (args.length === 1) {
+                    (this.parent as any).adjustLength(0, args[0]);
+                } else if (args.length === 2) {
+                    (this.parent as any).adjustLength(args[0], args[1]);
+                }
+            }
+        } catch (error) {
+            console.error("Error in adjustLength:", error);
+            throw error;
         }
     }
 
@@ -197,133 +202,214 @@ export class Block extends Message {
     }
 
     getOptimalEncodingMessageSize(): number {
-        if (this.optimalEncodingMessageSize !== 0) return this.optimalEncodingMessageSize;
-        this.optimalEncodingMessageSize = this.bitcoinSerialize().length;
-        return this.optimalEncodingMessageSize;
+        try {
+            if (this.optimalEncodingMessageSize !== 0) return this.optimalEncodingMessageSize;
+            this.optimalEncodingMessageSize = this.bitcoinSerialize().length;
+            return this.optimalEncodingMessageSize;
+        } catch (error) {
+            console.error("Error in getOptimalEncodingMessageSize:", error);
+            throw error;
+        }
     }
 
     private writeHeader(stream: UnsafeByteArrayOutputStream): void {
-        if (this.headerBytesValid && this.payload && this.payload.length >= this.offset + NetworkParameters.HEADER_SIZE) {
-            stream.write(this.payload.slice(this.offset, this.offset + NetworkParameters.HEADER_SIZE));
-            return;
-        }
+        try {
+            // Only use cached payload if it's valid and has enough data
+            if (this.headerBytesValid && this.payload && this.payload.length >= this.offset + NetworkParameters.HEADER_SIZE) {
+                const headerBytes = this.payload.slice(this.offset, this.offset + NetworkParameters.HEADER_SIZE);
+                // Verify that the header bytes are not empty
+                if (headerBytes.length === NetworkParameters.HEADER_SIZE && !headerBytes.every(byte => byte === 0)) {
+                    stream.write(headerBytes);
+                    return;
+                }
+            }
 
-        // Ensure version is within 32-bit range
-        if (this.version < 0 || this.version > 0xFFFFFFFF) {
-            throw new Error(`Version out of range: ${this.version}`);
+            // Ensure version is within 32-bit range
+            if (this.version < 0 || this.version > 0xFFFFFFFF) {
+                throw new Error(`Version out of range: ${this.version}`);
+            }
+            Utils.uint32ToByteStreamLE(this.version, stream);
+            
+            stream.write(this.prevBlockHash?.getReversedBytes() || Buffer.alloc(32));
+            stream.write(this.prevBranchBlockHash?.getReversedBytes() || Buffer.alloc(32));
+            // Calculate merkle root if not already calculated
+            const merkleRoot = this.getMerkleRoot();
+            stream.write(merkleRoot.getReversedBytes());
+            
+            Utils.int64ToByteStreamLE(BigInt(this.time), stream);
+            Utils.int64ToByteStreamLE(BigInt(this.difficultyTarget), stream);
+            Utils.int64ToByteStreamLE(BigInt(this.lastMiningRewardBlock), stream);
+            
+            // Ensure nonce is within 32-bit range
+            if (this.nonce < 0 || this.nonce > 0xFFFFFFFF) {
+                throw new Error(`Nonce out of range: ${this.nonce}`);
+            }
+            Utils.uint32ToByteStreamLE(this.nonce, stream);
+            
+            stream.write(this.minerAddress || Buffer.alloc(20));
+            
+            // Ensure blockType is within 32-bit range
+            const blockTypeValue = this.blockType?.valueOf() || 0;
+            if (blockTypeValue < 0 || blockTypeValue > 0xFFFFFFFF) {
+                throw new Error(`BlockType out of range: ${blockTypeValue}`);
+            }
+            Utils.uint32ToByteStreamLE(blockTypeValue, stream);
+            
+            Utils.int64ToByteStreamLE(BigInt(this.height), stream);
+        } catch (error) {
+            console.error("Error in writeHeader:", error);
+            throw error;
         }
-        Utils.uint32ToByteStreamLE(this.version, stream);
-        
-        stream.write(this.prevBlockHash?.getReversedBytes() || Buffer.alloc(32));
-        stream.write(this.prevBranchBlockHash?.getReversedBytes() || Buffer.alloc(32));
-        // Calculate merkle root if not already calculated
-        const merkleRoot = this.getMerkleRoot();
-        stream.write(merkleRoot.getReversedBytes());
-        
-        Utils.int64ToByteStreamLE(BigInt(this.time), stream);
-        Utils.int64ToByteStreamLE(BigInt(this.difficultyTarget), stream);
-        Utils.int64ToByteStreamLE(BigInt(this.lastMiningRewardBlock), stream);
-        
-        // Ensure nonce is within 32-bit range
-        if (this.nonce < 0 || this.nonce > 0xFFFFFFFF) {
-            throw new Error(`Nonce out of range: ${this.nonce}`);
-        }
-        Utils.uint32ToByteStreamLE(this.nonce, stream);
-        
-        stream.write(this.minerAddress || Buffer.alloc(20));
-        
-        // Ensure blockType is within 32-bit range
-        const blockTypeValue = this.blockType?.valueOf() || 0;
-        if (blockTypeValue < 0 || blockTypeValue > 0xFFFFFFFF) {
-            throw new Error(`BlockType out of range: ${blockTypeValue}`);
-        }
-        Utils.uint32ToByteStreamLE(blockTypeValue, stream);
-        
-        Utils.int64ToByteStreamLE(BigInt(this.height), stream);
     }
 
     private writePoW(stream: UnsafeByteArrayOutputStream): void {
-        // No PoW implementation needed for now
+        try {
+            // No PoW implementation needed for now
+        } catch (error) {
+            console.error("Error in writePoW:", error);
+            throw error;
+        }
     }
 
     public getLength(): number {
-        return this.length;
+        try {
+            return this.length;
+        } catch (error) {
+            console.error("Error in getLength:", error);
+            throw error;
+        }
     }
 
     private writeTransactions(stream: UnsafeByteArrayOutputStream): void {
-        if (!this.transactions) return;
-
-        // Always serialize transactions from scratch to ensure consistency
-        const varInt = new VarInt(this.transactions.length);
-        stream.write(varInt.encode());
-        
-        for (const tx of this.transactions) {
-            tx.bitcoinSerializeToStream(stream);
+        try {
+            // Initialize transactions array if it's null
+            const transactions = this.transactions || [];
+            
+            // Always serialize transactions from scratch to ensure consistency
+            const varInt = new VarInt(transactions.length);
+            stream.write(varInt.encode());
+            
+            for (const tx of transactions) {
+                tx.bitcoinSerializeToStream(stream);
+            }
+        } catch (error) {
+            console.error("Error in writeTransactions:", error);
+            throw error;
         }
     }
 
     bitcoinSerialize(): Uint8Array {
-        // Always serialize the block from scratch to ensure consistency
-        const stream = new UnsafeByteArrayOutputStream();
-        this.writeHeader(stream);
-        this.writePoW(stream);
-        this.writeTransactions(stream);
-        
-        return stream.toByteArray();
+        try {
+            // Always serialize the block from scratch to ensure consistency
+            const stream = new UnsafeByteArrayOutputStream();
+            this.writeHeader(stream);
+            this.writePoW(stream);
+            this.writeTransactions(stream);
+            
+            const result = stream.toByteArray();
+            // If result is empty, log for debugging
+            if (result.length === 0) {
+                console.warn("Block serialization resulted in empty byte array");
+            }
+            return result;
+        } catch (error) {
+            console.error("Error serializing block:", error);
+            throw error;
+        }
     }
 
     public bitcoinSerializeToStream(stream: UnsafeByteArrayOutputStream): void {
-        this.writeHeader(stream);
-        this.writePoW(stream);
-        this.writeTransactions(stream);
+        try {
+            this.writeHeader(stream);
+            this.writePoW(stream);
+            this.writeTransactions(stream);
+        } catch (error) {
+            console.error("Error in Block.bitcoinSerializeToStream:", error);
+            throw error;
+        }
     }
 
     private guessTransactionsLength(): number {
-        if (this.transactionBytesValid && this.payload) {
-            return this.payload.length - NetworkParameters.HEADER_SIZE;
+        try {
+            if (this.transactionBytesValid && this.payload) {
+                return this.payload.length - NetworkParameters.HEADER_SIZE;
+            }
+            if (!this.transactions) return 0;
+            
+            let len = VarInt.sizeOf(this.transactions.length);
+            for (const tx of this.transactions) {
+                len += tx.getMessageSize() === Message.UNKNOWN_LENGTH ? 255 : tx.getMessageSize();
+            }
+            return len;
+        } catch (error) {
+            console.error("Error in guessTransactionsLength:", error);
+            throw error;
         }
-        if (!this.transactions) return 0;
-        
-        let len = VarInt.sizeOf(this.transactions.length);
-        for (const tx of this.transactions) {
-            len += tx.getMessageSize() === Message.UNKNOWN_LENGTH ? 255 : tx.getMessageSize();
-        }
-        return len;
     }
 
 
     public getParent(): Message | null {
-        return this.parent;
+        try {
+            return this.parent;
+        } catch (error) {
+            console.error("Error in getParent:", error);
+            throw error;
+        }
     }
 
     public setParent(parent: Message | null): void {
-        this.parent = parent;
+        try {
+            this.parent = parent;
+        } catch (error) {
+            console.error("Error in setParent:", error);
+            throw error;
+        }
     }
 
     private unCacheHeader(): void {
-        this.headerBytesValid = false;
-        if (!this.transactionBytesValid) this.payload = Buffer.alloc(0);
-        if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
-        this.hash = null;
+        try {
+            this.headerBytesValid = false;
+            if (!this.transactionBytesValid) this.payload = Buffer.alloc(0);
+            if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
+            this.hash = null;
+        } catch (error) {
+            console.error("Error in unCacheHeader:", error);
+            throw error;
+        }
     }
 
     private unCacheTransactions(): void {
-        this.transactionBytesValid = false;
-        if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
-        this.unCacheHeader();
-        this.merkleRoot = null;
+        try {
+            this.transactionBytesValid = false;
+            if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
+            this.unCacheHeader();
+            this.merkleRoot = null;
+        } catch (error) {
+            console.error("Error in unCacheTransactions:", error);
+            throw error;
+        }
     }
 
     private calculateHash(): Sha256Hash {
-        const stream = new UnsafeByteArrayOutputStream();
-        this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()));
+        try {
+            const stream = new UnsafeByteArrayOutputStream();
+            this.writeHeader(stream);
+            return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()));
+        } catch (error) {
+            console.error("Error in calculateHash:", error);
+            throw error;
+        }
     }
 
     private calculatePoWHash(): Sha256Hash {
-        const stream = new UnsafeByteArrayOutputStream();
-        this.writeHeader(stream);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()));
+        try {
+            const stream = new UnsafeByteArrayOutputStream();
+            this.writeHeader(stream);
+            return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()));
+        } catch (error) {
+            console.error("Error in calculatePoWHash:", error);
+            throw error;
+        }
     }
 
     getHashAsString(): string {
@@ -331,8 +417,13 @@ export class Block extends Message {
     }
 
     getHash(): Sha256Hash {
-        if (!this.hash) this.hash = this.calculateHash();
-        return this.hash;
+        try {
+            if (!this.hash) this.hash = this.calculateHash();
+            return this.hash;
+        } catch (error) {
+            console.error("Error in getHash:", error);
+            throw error;
+        }
     }
 
     getWork(): bigint {
@@ -342,25 +433,35 @@ export class Block extends Message {
     }
 
     cloneAsHeader(): Block {
-        const block = new Block(this.params);
-        this.copyBitcoinHeaderTo(block);
-        return block;
+        try {
+            const block = new Block(this.params);
+            this.copyBitcoinHeaderTo(block);
+            return block;
+        } catch (error) {
+            console.error("Error in cloneAsHeader:", error);
+            throw error;
+        }
     }
 
     protected copyBitcoinHeaderTo(block: Block): void {
-        block.nonce = this.nonce;
-        block.prevBlockHash = this.prevBlockHash;
-        block.prevBranchBlockHash = this.prevBranchBlockHash;
-        // Use the stored merkle root if available, otherwise calculate it
-        block.merkleRoot = this.merkleRoot || this.calculateMerkleRoot();
-        block.version = this.version;
-        block.time = this.time;
-        block.difficultyTarget = this.difficultyTarget;
-        block.lastMiningRewardBlock = this.lastMiningRewardBlock;
-        block.minerAddress = this.minerAddress;
-        block.blockType = this.blockType;
-        block.transactions = null;
-        block.hash = this.getHash();
+        try {
+            block.nonce = this.nonce;
+            block.prevBlockHash = this.prevBlockHash;
+            block.prevBranchBlockHash = this.prevBranchBlockHash;
+            // Use the stored merkle root if available, otherwise calculate it
+            block.merkleRoot = this.merkleRoot || this.calculateMerkleRoot();
+            block.version = this.version;
+            block.time = this.time;
+            block.difficultyTarget = this.difficultyTarget;
+            block.lastMiningRewardBlock = this.lastMiningRewardBlock;
+            block.minerAddress = this.minerAddress;
+            block.blockType = this.blockType;
+            block.transactions = null;
+            block.hash = this.getHash();
+        } catch (error) {
+            console.error("Error in copyBitcoinHeaderTo:", error);
+            throw error;
+        }
     }
 
     toString(): string {
@@ -507,6 +608,11 @@ export class Block extends Message {
 
         const h = this.calculatePoWHash();
         const hBigInt = bigInt(h.toString(), 16);
+        
+        // Debug output
+        console.log("Hash:", h.toString());
+        console.log("Target:", target.toString());
+        console.log("Hash > Target:", hBigInt.greater(target));
 
         if (hBigInt.greater(target)) {
             if (throwException) {
@@ -547,37 +653,42 @@ export class Block extends Message {
     }
 
     private calculateMerkleRoot(): Sha256Hash {
-        // If there are no transactions, return zero hash
-        if (!this.transactions || this.transactions.length === 0) {
-            return Sha256Hash.ZERO_HASH;
-        }
-        
-        // Start with the hashes of all transactions
-        let hashes: Buffer[] = this.transactions.map(tx => tx.getHash().getBytes());
-        
-        // Build the merkle tree by repeatedly hashing pairs
-        while (hashes.length > 1) {
-            const newHashes: Buffer[] = [];
-            
-            // Process pairs of hashes
-            for (let i = 0; i < hashes.length; i += 2) {
-                const left = hashes[i];
-                const right = i + 1 < hashes.length ? hashes[i + 1] : left; // Duplicate last if odd number
-                
-                // Concatenate the two hashes
-                const concat = Buffer.concat([left, right]);
-                
-                // Hash the concatenation twice
-                const hash = Sha256Hash.hashTwice(concat);
-                
-                newHashes.push(hash);
+        try {
+            // If there are no transactions, return zero hash
+            if (!this.transactions || this.transactions.length === 0) {
+                return Sha256Hash.ZERO_HASH;
             }
             
-            hashes = newHashes;
+            // Start with the hashes of all transactions
+            let hashes: Buffer[] = this.transactions.map(tx => tx.getHash().getBytes());
+            
+            // Build the merkle tree by repeatedly hashing pairs
+            while (hashes.length > 1) {
+                const newHashes: Buffer[] = [];
+                
+                // Process pairs of hashes
+                for (let i = 0; i < hashes.length; i += 2) {
+                    const left = hashes[i];
+                    const right = i + 1 < hashes.length ? hashes[i + 1] : left; // Duplicate last if odd number
+                    
+                    // Concatenate the two hashes
+                    const concat = Buffer.concat([left, right]);
+                    
+                    // Hash the concatenation twice
+                    const hash = Sha256Hash.hashTwice(concat);
+                    
+                    newHashes.push(hash);
+                }
+                
+                hashes = newHashes;
+            }
+            
+            // The final hash is the merkle root
+            return Sha256Hash.wrap(hashes[0]);
+        } catch (error) {
+            console.error("Error in calculateMerkleRoot:", error);
+            throw error;
         }
-        
-        // The final hash is the merkle root
-        return Sha256Hash.wrap(hashes[0]);
     }
 
 
@@ -636,12 +747,17 @@ export class Block extends Message {
     }
 
     getMerkleRoot(): Sha256Hash {
-        // If we have a stored merkle root, return it
-        if (this.merkleRoot) {
-            return this.merkleRoot;
+        try {
+            // If we have a stored merkle root, return it
+            if (this.merkleRoot) {
+                return this.merkleRoot;
+            }
+            // Otherwise calculate it
+            return this.calculateMerkleRoot();
+        } catch (error) {
+            console.error("Error in getMerkleRoot:", error);
+            throw error;
         }
-        // Otherwise calculate it
-        return this.calculateMerkleRoot();
     }
 
     setMerkleRoot(value: Sha256Hash): void {
@@ -651,15 +767,20 @@ export class Block extends Message {
     }
 
     addTransaction(t: Transaction): void {
-        this.unCacheTransactions();
-        if (!this.transactions) {
-            this.transactions = [];
+        try {
+            this.unCacheTransactions();
+            if (!this.transactions) {
+                this.transactions = [];
+            }
+            t.setParent(this);
+            this.transactions.push(t);
+            this.adjustLength(this.transactions.length, t.getMessageSize());
+            this.merkleRoot = null;
+            this.hash = null;
+        } catch (error) {
+            console.error("Error in addTransaction:", error);
+            throw error;
         }
-        t.setParent(this);
-        this.transactions.push(t);
-        this.adjustLength(this.transactions.length, t.getMessageSize());
-        this.merkleRoot = null;
-        this.hash = null;
     }
 
     getVersion(): number {
@@ -715,67 +836,77 @@ export class Block extends Message {
     }
 
     getTransactions(): Transaction[] {
-        return this.transactions || [];
+        try {
+            return this.transactions || [];
+        } catch (error) {
+            console.error("Error in getTransactions:", error);
+            throw error;
+        }
     }
 
     addCoinbaseTransaction(pubKeyTo: Buffer, value: Coin, tokenInfo: TokenInfo | null, memoInfo: MemoInfo | null): void {
-        this.unCacheTransactions();
-        this.transactions = [];
+        try {
+            this.unCacheTransactions();
+            this.transactions = [];
 
-        const coinbase = new Transaction(this.params);
-        if (tokenInfo !== null) {
-            coinbase.setDataClassName(DataClassName.TOKEN);
-            const buf = tokenInfo.toByteArray();
-            coinbase.setData(Buffer.from(buf));
-        }
-        coinbase.setMemo(memoInfo);
+            const coinbase = new Transaction(this.params);
+            if (tokenInfo !== null) {
+                coinbase.setDataClassName(DataClassName.TOKEN);
+                const buf = tokenInfo.toByteArray();
+                coinbase.setData(Buffer.from(buf));
+            }
+            coinbase.setMemo(memoInfo);
 
-        const inputBuilder = new ScriptBuilder();
-        inputBuilder.data(Buffer.from([txCounter & 0xff, (txCounter >> 8) & 0xff]));
-        txCounter++;
+            const inputBuilder = new ScriptBuilder();
+            inputBuilder.data(Buffer.from([txCounter & 0xff, (txCounter >> 8) & 0xff]));
+            txCounter++;
 
-        coinbase.addInput(new TransactionInput(this.params, coinbase, Buffer.from( inputBuilder.build().getProgram()), new TransactionOutPoint(this.params, 0, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH)));
-        
-        if (tokenInfo === null) {
-            coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
-                Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
-        } else {
-            if (tokenInfo.getToken() === null || tokenInfo.getToken()?.getSignnumber() === 0) {
+            coinbase.addInput(new TransactionInput(this.params, coinbase, Buffer.from( inputBuilder.build().getProgram()), new TransactionOutPoint(this.params, 0, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH)));
+            
+            if (tokenInfo === null) {
                 coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
                     Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
             } else {
-                const keys: ECKey[] = [];
-                for (const multiSignAddress of tokenInfo.getMultiSignAddresses()) {
-                    if (multiSignAddress.getTokenHolder() === 1) {
-                        const pubKeyHex = multiSignAddress.getPubKeyHex();
-                        if (pubKeyHex !== null) {
-                            const ecKey = ECKey.fromPublic(BaseEncoding.base16().lowerCase().decode(pubKeyHex));
-                            keys.push(ecKey);
-                        }
-                    }
-                }
-                
-                if (keys.length <= 1) {
+                if (tokenInfo.getToken() === null || tokenInfo.getToken()?.getSignnumber() === 0) {
                     coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
                         Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
                 } else {
-                    const n = keys.length;
-                    const scriptPubKey = ScriptBuilder.createMultiSigOutputScript(n, keys);
-                    coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, Buffer.from(scriptPubKey.getProgram())));
+                    const keys: ECKey[] = [];
+                    for (const multiSignAddress of tokenInfo.getMultiSignAddresses()) {
+                        if (multiSignAddress.getTokenHolder() === 1) {
+                            const pubKeyHex = multiSignAddress.getPubKeyHex();
+                            if (pubKeyHex !== null) {
+                                const ecKey = ECKey.fromPublic(BaseEncoding.base16().lowerCase().decode(pubKeyHex));
+                                keys.push(ecKey);
+                            }
+                        }
+                    }
+                    
+                    if (keys.length <= 1) {
+                        coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
+                            Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
+                    } else {
+                        const n = keys.length;
+                        const scriptPubKey = ScriptBuilder.createMultiSigOutputScript(n, keys);
+                        coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, Buffer.from(scriptPubKey.getProgram())));
+                    }
                 }
             }
+            
+            this.transactions.push(coinbase);
+            coinbase.setParent(this);
+            // Use the proper method to update the transaction's length
+            coinbase.unCache();
+            const serializedLength = coinbase.unsafeBitcoinSerialize().length;
+            // Update the transaction's length through the parent's adjustLength method
+            coinbase.adjustLength(0, serializedLength - coinbase.getMessageSize());
+            this.adjustLength(this.transactions.length, serializedLength);
+            // Update the merkle root
+            this.merkleRoot = null;
+        } catch (error) {
+            console.error("Error in addCoinbaseTransaction:", error);
+            throw error;
         }
-        
-        this.transactions.push(coinbase);
-        coinbase.setParent(this);
-        // Use the proper method to update the transaction's length
-        coinbase.unCache();
-        const serializedLength = coinbase.unsafeBitcoinSerialize().length;
-        // Update the transaction's length through the parent's adjustLength method
-        coinbase.adjustLength(0, serializedLength - coinbase.getMessageSize());
-        this.adjustLength(this.transactions.length, serializedLength);
-        // Update the merkle root
-        this.merkleRoot = null;
     }
 
     allowCoinbaseTransaction(): boolean {
@@ -783,7 +914,12 @@ export class Block extends Message {
     }
 
     hasTransactions(): boolean {
-        return this.transactions !== null && this.transactions.length > 0;
+        try {
+            return this.transactions !== null && this.transactions.length > 0;
+        } catch (error) {
+            console.error("Error in hasTransactions:", error);
+            throw error;
+        }
     }
 
     getMinerAddress(): Buffer | null {

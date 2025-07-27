@@ -57,7 +57,7 @@ export class FilteredBlock extends Message {
             throw new Error("Payload is not set for parsing.");
         }
         const headerBytes = this.payload.subarray(0, NetworkParameters.HEADER_SIZE);
-        this.header = this.params.getDefaultSerializer().makeBlock(headerBytes, 0, NetworkParameters.HEADER_SIZE);
+        this.header = this.params.getDefaultSerializer().makeBlock(headerBytes);
 
         this.merkleTree = new PartialMerkleTree(this.params, this.payload, NetworkParameters.HEADER_SIZE);
 

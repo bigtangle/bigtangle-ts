@@ -105,17 +105,27 @@ export abstract class Message {
      * @param stream
      */
     public bitcoinSerialize(stream: UnsafeByteArrayOutputStream): void {
-        // 1st check for cached bytes.
-        if (this.payload != null && this.length !== Message.UNKNOWN_LENGTH) {
-            if (this.offset === 0 && this.payload.length === this.length) {
-                stream.write(this.payload);
-            } else {
-                stream.write(this.payload.subarray(this.offset, this.offset + this.length));
+        try {
+            // 1st check for cached bytes.
+            if (this.payload != null && this.length !== Message.UNKNOWN_LENGTH) {
+                if (this.offset === 0 && this.payload.length === this.length) {
+                    stream.write(this.payload);
+                    return;
+                } else {
+                    const subarray = this.payload.subarray(this.offset, this.offset + this.length);
+                    // Check if subarray is not empty
+                    if (subarray.length > 0) {
+                        stream.write(subarray);
+                        return;
+                    }
+                }
             }
-            return;
-        }
 
-        this.bitcoinSerializeToStream(stream);
+            this.bitcoinSerializeToStream(stream);
+        } catch (error) {
+            console.error("Error in bitcoinSerialize:", error);
+            throw error;
+        }
     }
 
     /**
@@ -147,43 +157,52 @@ export abstract class Message {
      * @return a byte array owned by this object, do NOT mutate it.
      */
     public unsafeBitcoinSerialize(): Buffer {
-        // 1st attempt to use a cached array.
-        if (this.payload) {
-            if (this.offset === 0 && this.length === this.payload.length) {
-                // Cached byte array is the entire message with no extras so we can return as is and avoid an array
-                // copy.
-                return this.payload;
+        try {
+            // 1st attempt to use a cached array.
+            if (this.payload && this.payload.length > 0) {
+                if (this.offset === 0 && this.length === this.payload.length) {
+                    // Cached byte array is the entire message with no extras so we can return as is and avoid an array
+                    // copy.
+                    return this.payload;
+                }
+
+                const subarray = this.payload.subarray(this.offset, this.offset + this.length);
+                // Check if subarray is not empty
+                if (subarray.length > 0) {
+                    return subarray;
+                }
             }
 
-            return this.payload.subarray(this.offset, this.offset + this.length);
-        }
+            // No cached array available so serialize parts by stream.
+            const stream = new UnsafeByteArrayOutputStream(
+                this.length < 32 ? 32 : this.length + 32
+            );
+            this.bitcoinSerializeToStream(stream);
 
-        // No cached array available so serialize parts by stream.
-        const stream = new UnsafeByteArrayOutputStream(
-            this.length < 32 ? 32 : this.length + 32
-        );
-        this.bitcoinSerializeToStream(stream);
-
-        if (this.serializer.isParseRetainMode()) {
-            // A free set of steak knives!
-            // If there happens to be a call to this method we gain an opportunity to recache
-            // the byte array and in this case it contains no bytes from parent messages.
-            // This give a dual benefit.  Releasing references to the larger byte array so that it
-            // it is more likely to be GC'd.  And preventing double serializations.  E.g. calculating
-            // merkle root calls this method.  It is will frequently happen prior to serializing the block
-            // which means another call to bitcoinSerialize is coming.  If we didn't recache then internal
-            // serialization would occur a 2nd time and every subsequent time the message is serialized.
-            this.payload = stream.toByteArray();
-            this.cursor = this.cursor - this.offset;
-            this.offset = 0;
-            this.recached = true;
-            this.length = stream.size();
-            return this.payload;
+            if (this.serializer.isParseRetainMode()) {
+                // A free set of steak knives!
+                // If there happens to be a call to this method we gain an opportunity to recache
+                // the byte array and in this case it contains no bytes from parent messages.
+                // This give a dual benefit.  Releasing references to the larger byte array so that it
+                // it is more likely to be GC'd.  And preventing double serializations.  E.g. calculating
+                // merkle root calls this method.  It is will frequently happen prior to serializing the block
+                // which means another call to bitcoinSerialize is coming.  If we didn't recache then internal
+                // serialization would occur a 2nd time and every subsequent time the message is serialized.
+                this.payload = stream.toByteArray();
+                this.cursor = this.cursor - this.offset;
+                this.offset = 0;
+                this.recached = true;
+                this.length = stream.size();
+                return this.payload;
+            }
+            // Record length. If this Message wasn't parsed from a byte stream it won't have length field
+            // set (except for static length message types).  Setting it makes future streaming more efficient
+            // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
+            return stream.toByteArray();
+        } catch (error) {
+            console.error("Error in unsafeBitcoinSerialize:", error);
+            throw error;
         }
-        // Record length. If this Message wasn't parsed from a byte stream it won't have length field
-        // set (except for static length message types).  Setting it makes future streaming more efficient
-        // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
-        return stream.toByteArray();
     }
     public adjustLength(newArraySize: number, adjustment: number): void {
         // Default implementation - can be overridden by subclasses
@@ -197,8 +216,13 @@ export abstract class Message {
      * @param stream
      */
     public bitcoinSerializeToStream(stream: UnsafeByteArrayOutputStream): void {
-        // Default implementation does nothing
-        // This method should be overridden by subclasses
+        try {
+            // Default implementation does nothing
+            // This method should be overridden by subclasses
+        } catch (error) {
+            console.error("Error in bitcoinSerializeToStream:", error);
+            throw error;
+        }
     }
 
     /**
@@ -222,6 +246,10 @@ export abstract class Message {
     protected readUint32(): number {
         try {
             if (!this.payload) throw new Error("Payload is null");
+            if (this.cursor < 0) throw new Error("Cursor is negative");
+            if (this.cursor + 4 > (this.payload ? this.payload.length : 0)) {
+                throw new Error(`Not enough bytes to read uint32: cursor=${this.cursor}, payload length=${this.payload ? this.payload.length : 0}`);
+            }
             const u = Utils.readUint32(this.payload, this.cursor);
             this.cursor += 4;
             return u;
@@ -266,8 +294,10 @@ export abstract class Message {
             if (this.cursor + length > this.payload.length) {
                 throw new ProtocolException(`Not enough bytes to read: requested ${length}, available ${this.payload.length - this.cursor}`);
             }
-            const b = this.payload.subarray(this.cursor, this.cursor + length);
-            this.cursor += length;
+            // Ensure we don't try to read beyond the buffer bounds
+            const actualLength = Math.min(length, this.payload.length - this.cursor);
+            const b = this.payload.subarray(this.cursor, this.cursor + actualLength);
+            this.cursor += actualLength;
             return b;
         } catch (e) {
             throw new ProtocolException(e instanceof Error ? e.message : String(e));
@@ -307,9 +337,18 @@ export abstract class Message {
      * @return a freshly allocated serialized byte array
      */
     public bitcoinSerializeCopy(): Buffer {
-        const bytes = this.unsafeBitcoinSerialize();
-        const copy = Buffer.alloc(bytes.length);
-        bytes.copy(copy, 0, 0, bytes.length);
-        return copy;
+        try {
+            const bytes = this.unsafeBitcoinSerialize();
+            // If bytes is empty, log for debugging
+            if (bytes.length === 0) {
+                console.warn(`${this.constructor.name} serialization resulted in empty byte array`);
+            }
+            const copy = Buffer.alloc(bytes.length);
+            bytes.copy(copy, 0, 0, bytes.length);
+            return copy;
+        } catch (error) {
+            console.error("Error in bitcoinSerializeCopy:", error);
+            throw error;
+        }
     }
 }

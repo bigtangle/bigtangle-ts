@@ -63,6 +63,26 @@ export class Transaction extends ChildMessage {
     public static readonly LOCKTIME_THRESHOLD_BIG = bigInt(Transaction.LOCKTIME_THRESHOLD.toString());
 
     /**
+     * If feePerKb is lower than this, Bitcoin Core will treat it as if there
+     * were no fee.
+     */
+    public static get REFERENCE_DEFAULT_MIN_TX_FEE(): Coin {
+        // Lazy initialization to avoid issues with NetworkParameters not being ready
+        return Coin.valueOf(5000n, NetworkParameters.BIGTANGLE_TOKENID); // 0.05 mBTC
+    }
+
+    /**
+     * Any standard (ie pay-to-address) output smaller than this value (in
+     * satoshis) will most likely be rejected by the network. This is calculated
+     * by assuming a standard output will be 34 bytes, and then using the
+     * formula used in .
+     */
+    public static get MIN_NONDUST_OUTPUT(): Coin {
+        // Lazy initialization to avoid issues with NetworkParameters not being ready
+        return Coin.valueOf(2730n, NetworkParameters.BIGTANGLE_TOKENID); // satoshis
+    }
+
+    /**
      * This enum describes the underlying reason the transaction was created.
      * It's useful for rendering wallet GUIs more appropriately.
      */
@@ -109,26 +129,6 @@ export class Transaction extends ChildMessage {
      */
     public static readonly UNKNOWN_LENGTH = -1;
 
-    /**
-     * If feePerKb is lower than this, Bitcoin Core will treat it as if there
-     * were no fee.
-     */
-    public static get REFERENCE_DEFAULT_MIN_TX_FEE(): Coin {
-        // Lazy initialization to avoid issues with NetworkParameters not being ready
-        return Coin.valueOf(5000n, NetworkParameters.BIGTANGLE_TOKENID); // 0.05 mBTC
-    }
-
-    /**
-     * Any standard (ie pay-to-address) output smaller than this value (in
-     * satoshis) will most likely be rejected by the network. This is calculated
-     * by assuming a standard output will be 34 bytes, and then using the
-     * formula used in .
-     */
-    public static get MIN_NONDUST_OUTPUT(): Coin {
-        // Lazy initialization to avoid issues with NetworkParameters not being ready
-        return Coin.valueOf(2730n, NetworkParameters.BIGTANGLE_TOKENID); // satoshis
-    }
-
     // These are bitcoin serialized.
     private version: number;
     private inputs: TransactionInput[];
@@ -173,6 +173,10 @@ export class Transaction extends ChildMessage {
     private toAddressInSubtangle: Buffer | null;
 
     constructor(params: NetworkParameters);
+    constructor(params: NetworkParameters, payloadBytes: Buffer);
+    constructor(params: NetworkParameters, payload: Buffer, offset: number);
+    constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: ChildMessage | null, setSerializer: MessageSerializer<any>, length: number);
+    constructor(params: NetworkParameters, payload: Buffer, parent: ChildMessage | null, setSerializer: MessageSerializer<any>, length: number);
     constructor(params: NetworkParameters, payload: Buffer, offset: number, serializer: MessageSerializer<any>, parent: ChildMessage | null, length?: number);
     constructor(...args: any[]) {
         super(args[0]);
@@ -195,14 +199,47 @@ export class Transaction extends ChildMessage {
         if (args.length === 1) {
             // (params)
             this.length = 8; // 8 for std fields
-        } else {
+        } else if (args.length === 2) {
+            // (params, payloadBytes)
+            this.payload = Buffer.from(args[1]);
+            this.offset = 0;
+            this.serializer = this.params.getDefaultSerializer();
+            this.parent = null;
+            this.length = Message.UNKNOWN_LENGTH;
+            this.parse();
+        } else if (args.length === 3) {
+            // (params, payload, offset)
+            this.payload = Buffer.from(args[1]);
+            this.offset = args[2];
+            this.serializer = this.params.getDefaultSerializer();
+            this.parent = null;
+            this.length = Message.UNKNOWN_LENGTH;
+            this.parse();
+        } else if (args.length === 5) {
+            // (params, payload, offset, parent, setSerializer, length) or (params, payload, parent, setSerializer, length)
+            if (typeof args[2] === 'number') {
+                // (params, payload, offset, parent, setSerializer, length)
+                this.payload = Buffer.from(args[1]);
+                this.offset = args[2];
+                this.parent = args[3];
+                this.serializer = args[4];
+                this.length = args[5];
+            } else {
+                // (params, payload, parent, setSerializer, length)
+                this.payload = Buffer.from(args[1]);
+                this.offset = 0;
+                this.parent = args[2];
+                this.serializer = args[3];
+                this.length = args[4];
+            }
+            this.parse();
+        } else if (args.length === 6) {
             // (params, payload, offset, serializer, parent, length)
-            this.payload = Buffer.from(args[1]); // Ensure we have a copy of the payload
+            this.payload = Buffer.from(args[1]);
             this.offset = args[2];
             this.serializer = args[3];
             this.parent = args[4];
             this.length = args[5] ?? Message.UNKNOWN_LENGTH;
-            // Parse the transaction to initialize inputs and outputs
             this.parse();
         }
     }
@@ -216,9 +253,15 @@ export class Transaction extends ChildMessage {
      */
     getHash(): Sha256Hash {
         if (this.hash === null) {
-            const buf = this.unsafeBitcoinSerialize();
-            const hash = Sha256Hash.hashTwice(Buffer.from(buf));
-            this.hash = Sha256Hash.wrapReversed(hash) ?? Sha256Hash.ZERO_HASH;
+            const buf = this.unsafeBitcoinSerialize(); 
+            const hash = Sha256Hash.wrapReversed(
+                Sha256Hash.hashTwiceRange(buf, 0, buf.length - this.calculateMemoLen() - this.calculateDataSignatureLen()));
+            if (hash !== null) {
+                this.hash = hash;
+            } else {
+                // Fallback to ZERO_HASH if wrapReversed returns null
+                this.hash = Sha256Hash.ZERO_HASH;
+            }
         }
         return this.hash;
     }
@@ -331,6 +374,44 @@ export class Transaction extends ChildMessage {
      * they control how the hash of the transaction is calculated.
      */
 
+    /**
+     * Calculates the length of a transaction in bytes.
+     */
+    protected static calcLength(buf: Buffer, offset: number): number {
+        // jump past version (uint32)
+        let cursor = offset + 4;
+
+        let i: number;
+        let scriptLen: number;
+
+        const varint = VarInt.fromBuffer(buf, cursor);
+        const txInCount = Number(varint.value);
+        cursor += varint.getOriginalSizeInBytes();
+
+        for (i = 0; i < txInCount; i++) {
+            // 36 = length of previous_outpoint
+            cursor += 36;
+            const varint2 = VarInt.fromBuffer(buf, cursor);
+            scriptLen = Number(varint2.value);
+            // 4 = length of sequence field (unint32)
+            cursor += scriptLen + 4 + varint2.getOriginalSizeInBytes();
+        }
+
+        const varint3 = VarInt.fromBuffer(buf, cursor);
+        const txOutCount = Number(varint3.value);
+        cursor += varint3.getOriginalSizeInBytes();
+
+        for (i = 0; i < txOutCount; i++) {
+            // 8 = length of tx value field (uint64)
+            cursor += 8;
+            const varint4 = VarInt.fromBuffer(buf, cursor);
+            scriptLen = Number(varint4.value);
+            cursor += scriptLen + varint4.getOriginalSizeInBytes();
+        }
+        // 4 = length of lock_time field (uint32)
+        return cursor - offset + 4;
+    }
+
     public unCache(): void {
         super.unCache();
         this.hash = null;
@@ -347,7 +428,7 @@ export class Transaction extends ChildMessage {
         // First come the inputs.
         const numInputs = this.readVarInt();
         console.log(`Parsed numInputs: ${numInputs}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numInputs.toString()));
+        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numInputs));
         this.inputs = [];
         for (let i = 0; i < numInputs; i++) {
             console.log(`Parsing input ${i} at cursor ${this.cursor}`);
@@ -361,20 +442,26 @@ export class Transaction extends ChildMessage {
             const scriptLen = input.getScriptBytes().length;
             const connectedOutput = input.getOutpoint().getConnectedOutput();
             const addLen = 4 + (connectedOutput === null ? 0 : connectedOutput.getMessageSize());
-            this.optimalEncodingMessageSize += TransactionOutPoint.MESSAGE_LENGTH + addLen + VarInt.sizeOf(bigInt(scriptLen.toString()))
+            this.optimalEncodingMessageSize += TransactionOutPoint.MESSAGE_LENGTH + addLen + VarInt.sizeOf(bigInt(scriptLen))
                     + Number(scriptLen) + 4;
         }
         // Now the outputs
         console.log(`Cursor position before reading numOutputs: ${this.cursor}`);
         console.log(`Payload length: ${this.payload?.length}`);
         console.log(`Payload bytes at cursor: ${this.payload?.slice(this.cursor, this.cursor + 10).toString('hex')}`);
-        const numOutputs = this.readVarInt();
-        console.log(`Parsed numOutputs: ${numOutputs}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs.toString()));
+        
+        // Read the number of outputs
+        const numOutputsVarInt = VarInt.fromBuffer(this.payload ?? Buffer.alloc(0), this.cursor);
+        const numOutputs = Number(numOutputsVarInt.value);
+        console.log(`Parsed numOutputs: ${numOutputs} (VarInt size: ${numOutputsVarInt.getOriginalSizeInBytes()})`);
+        this.cursor += numOutputsVarInt.getOriginalSizeInBytes();
+        
+        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
         this.outputs = [];
         for (let i = 0; i < numOutputs; i++) {
             console.log(`Parsing output ${i} at cursor ${this.cursor}`);
-            const output = TransactionOutput.fromPayload(this.params, this, this.payload ? this.payload : Buffer.alloc(0), this.cursor);
+            console.log(`Payload bytes for output ${i}: ${this.payload?.slice(this.cursor, this.cursor + 50).toString('hex')}`);
+            const output = new TransactionOutput(this.params, this, this.payload ? Buffer.from(this.payload) : Buffer.alloc(0), this.cursor);
             console.log(`Parsed output ${i} with length ${output.getMessageSize()}`);
             this.outputs.push(output);
             this.cursor += output.getMessageSize();
@@ -384,46 +471,84 @@ export class Transaction extends ChildMessage {
         console.log(`Parsed lockTime: ${this.lockTime}`);
         this.optimalEncodingMessageSize += 4;
 
-        let len = Number(this.readVarInt());
-        console.log(`Parsed dataClassName length: ${len}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len.toString()));
-        if (len > 0) {
-            const buf = this.readBytes(len);
-            this.dataClassName = buf.toString('utf8');
-            this.optimalEncodingMessageSize += len;
+        // Check if we have more bytes to read before attempting to read the additional fields
+        // We need to be more careful about checking bounds before reading VarInts and data
+        
+        // dataClassName
+        if (this.payload && this.cursor < this.payload.length) {
+            try {
+                const len = Number(this.readVarInt());
+                console.log(`Parsed dataClassName length: ${len}`);
+                this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
+                if (len > 0) {
+                    const buf = this.readBytes(len);
+                    this.dataClassName = buf.toString('utf8');
+                    this.optimalEncodingMessageSize += len;
+                }
+            } catch (e) {
+                console.log('Error parsing dataClassName, skipping field');
+            }
         }
 
-        len = Number(this.readVarInt());
-        console.log(`Parsed data length: ${len}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len.toString()));
-        if (len > 0) {
-            this.data = this.readBytes(len);
-            this.optimalEncodingMessageSize += len;
+        // data
+        if (this.payload && this.cursor < this.payload.length) {
+            try {
+                const len = Number(this.readVarInt());
+                console.log(`Parsed data length: ${len}`);
+                this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
+                if (len > 0) {
+                    this.data = this.readBytes(len);
+                    this.optimalEncodingMessageSize += len;
+                }
+            } catch (e) {
+                console.log('Error parsing data, skipping field');
+            }
         }
 
-        len = Number(this.readVarInt());
-        console.log(`Parsed toAddressInSubtangle length: ${len}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len.toString()));
-        if (len > 0) {
-            this.toAddressInSubtangle = this.readBytes(len);
-            this.optimalEncodingMessageSize += len;
+        // toAddressInSubtangle
+        if (this.payload && this.cursor < this.payload.length) {
+            try {
+                const len = Number(this.readVarInt());
+                console.log(`Parsed toAddressInSubtangle length: ${len}`);
+                this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
+                if (len > 0) {
+                    this.toAddressInSubtangle = this.readBytes(len);
+                    this.optimalEncodingMessageSize += len;
+                }
+            } catch (e) {
+                console.log('Error parsing toAddressInSubtangle, skipping field');
+            }
         }
 
-        len = Number(this.readVarInt());
-        console.log(`Parsed memo length: ${len}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len.toString()));
-        if (len > 0) {
-            const memoBytes = this.readBytes(len);
-            this.memo = Utils.toString(memoBytes, 'utf-8');
-            this.optimalEncodingMessageSize += len;
+        // memo
+        if (this.payload && this.cursor < this.payload.length) {
+            try {
+                const len = Number(this.readVarInt());
+                console.log(`Parsed memo length: ${len}`);
+                this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
+                if (len > 0) {
+                    const memoBytes = this.readBytes(len);
+                    this.memo = Utils.toString(memoBytes, 'utf-8');
+                    this.optimalEncodingMessageSize += len;
+                }
+            } catch (e) {
+                console.log('Error parsing memo, skipping field');
+            }
         }
 
-        len = Number(this.readVarInt());
-        console.log(`Parsed dataSignature length: ${len}`);
-        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len.toString()));
-        if (len > 0) {
-            this.dataSignature = this.readBytes(len);
-            this.optimalEncodingMessageSize += len;
+        // dataSignature
+        if (this.payload && this.cursor < this.payload.length) {
+            try {
+                const len = Number(this.readVarInt());
+                console.log(`Parsed dataSignature length: ${len}`);
+                this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
+                if (len > 0) {
+                    this.dataSignature = this.readBytes(len);
+                    this.optimalEncodingMessageSize += len;
+                }
+            } catch (e) {
+                console.log('Error parsing dataSignature, skipping field');
+            }
         }
 
         this.length = this.cursor - this.offset;

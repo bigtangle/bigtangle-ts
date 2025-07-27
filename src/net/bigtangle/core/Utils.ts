@@ -1,9 +1,12 @@
 import { Buffer } from 'buffer';
 import crypto from 'crypto';
 import base58 from 'bs58';
+import { BaseEncoding } from '../utils/BaseEncoding';
 
 export class Utils {
  
+      public static readonly HEX = BaseEncoding.base16().lowerCase();
+
     public static base58ToBytes(base58String: string): Buffer {
         return Buffer.from(base58.decode(base58String));
     }
@@ -51,6 +54,12 @@ export class Utils {
     }
 
     public static readUint32(buffer: Buffer, offset: number): number {
+        if (!buffer || buffer.length === 0) {
+            throw new Error("Buffer is empty");
+        }
+        if (offset < 0 || offset + 4 > buffer.length) {
+            throw new Error(`Not enough bytes to read uint32: offset=${offset}, buffer length=${buffer.length}`);
+        }
         return buffer.readUInt32LE(offset);
     }
 

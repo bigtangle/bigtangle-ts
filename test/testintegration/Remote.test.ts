@@ -1,7 +1,5 @@
 import { expect, test } from "vitest";
-import {
-  ObjectMapper,
-} from "jackson-js";
+import { ObjectMapper } from "jackson-js";
 import bigInt from "big-integer";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
@@ -80,7 +78,11 @@ export abstract class RemoteTest {
     params: any, // Changed type to any to accommodate Map and Array
     responseClass: any
   ): Promise<T> {
-    return OkHttp3Util.postClass(this.contextRoot + reqCmd, params, responseClass);
+    return OkHttp3Util.postClass(
+      this.contextRoot + reqCmd,
+      params,
+      responseClass
+    );
   }
 
   public setUp() {
@@ -125,10 +127,7 @@ export abstract class RemoteTest {
     giveMoneyResult: Map<string, bigint>,
     tokenid: Buffer
   ): Promise<Block> {
-    const coinList = await this.wallet.calculateAllSpendCandidates(
-      null,
-      false
-    );
+    const coinList = await this.wallet.calculateAllSpendCandidates(null, false);
     this.logUTXOs(coinList);
     const b = await this.wallet.payMoneyToECKeyList(
       null,
@@ -415,7 +414,7 @@ export abstract class RemoteTest {
       multiSignBies = multiSignByRequest.getMultiSignBies()!;
     }
     const sighash = transaction.getHash();
-     const party1Signature = await outKey.sign(sighash!.getBytes());
+    const party1Signature = await outKey.sign(sighash!.getBytes());
     const buf1 = party1Signature.encodeDER();
 
     const multiSignBy0 = new MultiSignBy();
@@ -457,7 +456,8 @@ export abstract class RemoteTest {
 
     const tokenIndexResponse = await this.getServerCalTokenIndex(tokenid);
     const tokenindex = tokenIndexResponse.getTokenindex() ?? 0;
-    const prevblockhash = tokenIndexResponse.getBlockhash() ?? Sha256Hash.ZERO_HASH;
+    const prevblockhash =
+      tokenIndexResponse.getBlockhash() ?? Sha256Hash.ZERO_HASH;
 
     const tokens = Token.buildSimpleTokenInfo2(
       true,
@@ -495,7 +495,7 @@ export abstract class RemoteTest {
       block.bitcoinSerializeCopy()
     );
 
-    const result = this.objectMapper.parse(resp )  ;
+    const result = this.objectMapper.parse(resp);
     const dataHex = result.dataHex as string;
 
     const adjust = this.networkParameters
@@ -521,7 +521,7 @@ export abstract class RemoteTest {
 
     const amount = Coin.valueOf(
       BigInt(2),
-    NetworkParameters.BIGTANGLE_TOKENID_STRING
+      NetworkParameters.BIGTANGLE_TOKENID_STRING
     );
     const tx = new Transaction(this.networkParameters);
 
@@ -549,7 +549,7 @@ export abstract class RemoteTest {
     const input = new TransactionInput(
       this.networkParameters,
       tx,
-     outPoint.bitcoinSerializeCopy()
+      outPoint.bitcoinSerializeCopy()
     );
     tx.addInput(input);
 
@@ -674,15 +674,19 @@ export abstract class RemoteTest {
     return re;
   }
 
-    public logCoins(list: Coin[]) {
+  public logCoins(list: Coin[]) {
     for (const coin of list) {
-      console.debug(coin instanceof Coin ? coin.toString() : `Non-Coin object: ${JSON.stringify(coin)}`);
+      console.debug(
+        coin instanceof Coin
+          ? coin.toString()
+          : `Non-Coin object: ${JSON.stringify(coin)}`
+      );
     }
   }
 
-    public logUTXOs(list: FreeStandingTransactionOutput[]) {
+  public logUTXOs(list: FreeStandingTransactionOutput[]) {
     for (const coin of list) {
-      console.debug( `  ${coin.toString()}`);
+      console.debug(`  ${coin.toString()}`);
     }
   }
   // get balance for the walletKeys
@@ -954,7 +958,10 @@ export abstract class RemoteTest {
       this.contextRoot + ReqCmd.getTip,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
-    let block = this.networkParameters.getDefaultSerializer().makeBlock(data);
+
+    let block = this.networkParameters
+      .getDefaultSerializer()
+      .makeBlock(Buffer.from(Utils.HEX.decode(data)));
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
     block.addCoinbaseTransaction(
       Buffer.from(keys[2].getPubKey()),
@@ -1028,12 +1035,11 @@ export abstract class RemoteTest {
       transaction.setDataSignature(
         Buffer.from(this.objectMapper.stringify(newMultiSignByRequest))
       );
-   
-        await OkHttp3Util.post(
-          this.contextRoot + ReqCmd.signToken,
-          block0.bitcoinSerializeCopy()
-        )
-      ;
+
+      await OkHttp3Util.post(
+        this.contextRoot + ReqCmd.signToken,
+        block0.bitcoinSerializeCopy()
+      );
     }
   }
 
@@ -1240,7 +1246,8 @@ export abstract class RemoteTest {
       this.contextRoot + ReqCmd.getTip,
       this.objectMapper.stringify(Object.fromEntries(requestParam))
     );
-    const block = this.networkParameters.getDefaultSerializer().makeBlock(data);
+    const block = this.networkParameters.getDefaultSerializer().makeBlock(
+      Buffer.from(Utils.HEX.decode(data)));
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
 
     if (overrideHash1 !== null && overrideHash2 !== null) {
@@ -1254,7 +1261,7 @@ export abstract class RemoteTest {
     }
 
     block.addCoinbaseTransaction(
-       Buffer.from(outKey.getPubKey()),
+      Buffer.from(outKey.getPubKey()),
       basecoin,
       tokenInfo,
       new MemoInfo("coinbase")
@@ -1266,7 +1273,7 @@ export abstract class RemoteTest {
 
     const multiSignBies = new Array<MultiSignBy>();
 
-      const party1Signature = await outKey.sign(sighash!.getBytes());
+    const party1Signature = await outKey.sign(sighash!.getBytes());
     const buf1 = party1Signature.encodeDER();
     let multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
@@ -1279,7 +1286,7 @@ export abstract class RemoteTest {
     multiSignBies.push(multiSignBy0);
 
     const genesiskey = ECKey.fromPrivateString(RemoteTest.testPriv);
-     const party2Signature = await genesiskey.sign(sighash!.getBytes());
+    const party2Signature = await genesiskey.sign(sighash!.getBytes());
     const buf2 = party2Signature.encodeDER();
     multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
@@ -1303,14 +1310,14 @@ export abstract class RemoteTest {
       this.contextRoot
     );
     const feeBlock = await w.feeTransaction(
-        new Coin(
-          BigInt(w.getFee() || 0),
-          NetworkParameters.BIGTANGLE_TOKENID_STRING
-        ),
-        outKey,
-        aesKey
-      );
-      block.addTransaction(feeBlock.getTransactions()[0]);
+      new Coin(
+        BigInt(w.getFee() || 0),
+        NetworkParameters.BIGTANGLE_TOKENID_STRING
+      ),
+      outKey,
+      aesKey
+    );
+    block.addTransaction(feeBlock.getTransactions()[0]);
 
     // save block
     const adjustedBlock = await this.adjustSolve(block);
@@ -1328,25 +1335,7 @@ export abstract class RemoteTest {
       TokenIndexResponse
     )) as TokenIndexResponse;
   }
-
-  public async send() {
-    const requestParam = new Map<string, string>();
-    const data = await OkHttp3Util.postAndGetBlock(
-      this.contextRoot + ReqCmd.getTip,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
-    );
-
-    const rollingBlock = this.networkParameters
-      .getDefaultSerializer()
-      .makeBlock(data);
-    rollingBlock.solve(BigInt(0));
-
-    await OkHttp3Util.post(
-      this.contextRoot + ReqCmd.saveBlock,
-      rollingBlock.bitcoinSerializeCopy()
-    );
-  }
-
+ 
   public balance(a: Tokensums) {
     const totalMapValue = new Map<string, bigint>();
 
@@ -1423,10 +1412,7 @@ export abstract class RemoteTest {
     }
 
     // Add all required parameters for payMoneyToECKeyList
-    const coinList = await this.wallet.calculateAllSpendCandidates(
-      null,
-      false
-    );
+    const coinList = await this.wallet.calculateAllSpendCandidates(null, false);
     const b = await this.wallet.payMoneyToECKeyList(
       null, // aesKey
       giveMoneyResult,

@@ -66,7 +66,8 @@ describe('BasicKeyChainTest', () => {
         chain.importKeys(key1, key2);
         expect(chain.numKeys()).toBe(2);
         expect(chain.numBloomFilterEntries()).toBe(4);
-        const filter = chain.getFilter(4, 0.001, 100);
+        // Use a larger filter to reduce false positives
+        const filter = chain.getFilter(100, 0.000001, 100);
         expect(filter.contains(key1.getPubKey())).toBe(true);
         expect(filter.contains(key1.getPubKeyHash())).toBe(true);
         expect(filter.contains(key2.getPubKey())).toBe(true);

@@ -11,7 +11,7 @@ import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput'
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { Block } from '../../src/net/bigtangle/core/Block';
-import { UtilsTest } from './UtilsTest';
+import { UtilsTest } from './UtilBase';
 import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
 import { Constants } from '../../src/net/bigtangle/core/Constants';
 import bigInt from 'big-integer';

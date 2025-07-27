@@ -1,6 +1,8 @@
 import { NetworkParameters } from './NetworkParameters.js';
 
 export class MainNetParams extends NetworkParameters {
+    private packetMagic: number = 0xf9beb4d9;
+
     getP2SHHeader(): number {
         return 5;
     }
@@ -17,7 +19,9 @@ export class MainNetParams extends NetworkParameters {
         return NetworkParameters.ID_MAINNET;
     }
 
-     
+    getPacketMagic(): number {
+        return this.packetMagic;
+    }
 
     getMaxTarget(): bigint {
         return BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");

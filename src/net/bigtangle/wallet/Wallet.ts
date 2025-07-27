@@ -109,31 +109,16 @@ export class Wallet extends WalletBase {
     }
   }
 
-  
-    async getTip(): Promise<Block> {
-        const tipData = await this.getTipData();
-        
-        return this.params.getDefaultSerializer().makeBlock(Buffer.from(tipData));
-    }
-
-  getTipData(): Promise<Uint8Array> {
+  async getTip(): Promise<Block> {
     const requestParam = {};
-    // Use OkHttp3Util to POST and get block data
-    return OkHttp3Util.postAndGetBlock(
+    const tip = await OkHttp3Util.postAndGetBlock(
       this.getServerURL() + ReqCmd.getTip,
       Json.jsonmapper().stringify(requestParam)
-    ).then((data) => {
-      console.log('tipData', data);
-      // Check if data has enough bytes to be a valid block
-      if (!data || data.length < NetworkParameters.HEADER_SIZE) {
-        throw new Error(`Insufficient data for tip block: ${data?.length || 0} bytes`);
-      }
-      return data;
-    }).catch((error) => {
-      // Handle network errors or invalid responses
-      console.error('Failed to get tip from server:', error);
-      throw new Error('Unable to retrieve tip block from server');
-    });
+    );
+
+    return this.params
+      .getDefaultSerializer()
+      .makeBlock(Buffer.from(Utils.HEX.decode(tip)));
   }
 
   saveToFileStream(f: any): void {
@@ -253,11 +238,11 @@ export class Wallet extends WalletBase {
       Utils.isBlank(token.getDomainNameBlockHash?.()) &&
       !Utils.isBlank(domainName)
     ) {
-    const domainResp = await this.getDomainNameBlockHash(domainName!); // Non-null assertion
-    const domain = domainResp.getdomainNameToken?.();
-    if (domain) {
-      token.setDomainNameBlockHash?.(domain.getBlockHashHex?.() ?? null);
-    }
+      const domainResp = await this.getDomainNameBlockHash(domainName!); // Non-null assertion
+      const domain = domainResp.getdomainNameToken?.();
+      if (domain) {
+        token.setDomainNameBlockHash?.(domain.getBlockHashHex?.() ?? null);
+      }
     }
     const multiSignAddresses = tokenInfo.getMultiSignAddresses?.() ?? [];
     const permissionedAddressesResponse =
@@ -759,13 +744,24 @@ export class Wallet extends WalletBase {
     const block = await (this as any).payTransaction([tx]);
     // Post the block to the subtangle server
     const url = subtangleUrl + (ReqCmd.saveBlock || "/saveBlock");
-    const blockBytes = block.bitcoinSerialize
-      ? block.bitcoinSerialize()
+    const blockBytes = block.bitcoinSerializeCopy 
+      ? block.bitcoinSerializeCopy()
       : Buffer.from([]);
+      
+    // Check if blockBytes is empty and add debugging
+    if (blockBytes.length === 0) {
+      console.warn("Block serialization resulted in empty byte array in paySubtangle");
+      // Try to serialize again to see if it helps
+      const blockBytes2 = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.alloc(0);
+      console.log("Alternative serialization length:", blockBytes2.length);
+    }
+    
     const response = await OkHttp3Util.post(url, blockBytes);
     // Optionally, parse the response as a Block if needed
     if (response && this.params?.getDefaultSerializer) {
-      return this.params.getDefaultSerializer().makeBlock(Buffer.from(response));
+      return this.params
+        .getDefaultSerializer()
+        .makeBlock(Buffer.from(response));
     }
     return block;
   }
@@ -950,28 +946,28 @@ export class Wallet extends WalletBase {
    * @param tipBlock The tip Block to add the transaction to.
    * @returns The updated Block with the new transaction.
    */
-    async payFromListNoSplit(
-        aesKey: any,
-        destination: string,
-        amount: Coin,
-        memoInfo: MemoInfo,
-        candidates: any[],
-        tipBlock: Block
-    ): Promise<Block> {
-        const tx = await this.payFromListNoSplitTransaction(
-            aesKey,
-            destination,
-            amount,
-            memoInfo,
-            candidates
-        );
-        if (typeof tipBlock.addTransaction === "function") {
-            tipBlock.addTransaction(tx);
-        } else if (Array.isArray((tipBlock as any).transactions)) {
-            (tipBlock as any).transactions.push(tx);
-        }
-        return tipBlock;
+  async payFromListNoSplit(
+    aesKey: any,
+    destination: string,
+    amount: Coin,
+    memoInfo: MemoInfo,
+    candidates: any[],
+    tipBlock: Block
+  ): Promise<Block> {
+    const tx = await this.payFromListNoSplitTransaction(
+      aesKey,
+      destination,
+      amount,
+      memoInfo,
+      candidates
+    );
+    if (typeof tipBlock.addTransaction === "function") {
+      tipBlock.addTransaction(tx);
+    } else if (Array.isArray((tipBlock as any).transactions)) {
+      (tipBlock as any).transactions.push(tx);
     }
+    return tipBlock;
+  }
 
   /**
    * Pay from a list of UTXOs, splitting into multiple blocks if needed.
@@ -993,7 +989,7 @@ export class Wallet extends WalletBase {
   ): Promise<Block[]> {
     // Filter coinList by token id
     const tokenid = amount.getTokenid();
-    const coinTokenList =this.filterTokenid(tokenid, coinList) ;
+    const coinTokenList = this.filterTokenid(tokenid, coinList);
 
     // Sum the filtered coins
     const sum = (this as any).sum
@@ -1052,9 +1048,15 @@ export class Wallet extends WalletBase {
       ) {
         // Add fee transaction (should be a Transaction, not a Block)
         if (typeof this.feeTransaction === "function") {
-          const ownerKey = await this.getECKey(aesKey, coinList[0]?.getUTXO().getAddress());
+          const ownerKey = await this.getECKey(
+            aesKey,
+            coinList[0]?.getUTXO().getAddress()
+          );
           const feeTxBlock = await this.feeTransaction(
-            new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING),
+            new Coin(
+              BigInt(this.getFee() || 0),
+              NetworkParameters.BIGTANGLE_TOKENID_STRING
+            ),
             ownerKey,
             aesKey
           );
@@ -1201,9 +1203,19 @@ export class Wallet extends WalletBase {
           await Promise.resolve(result);
         }
       }
+      
+      // Serialize the block and check if it's empty
+      const blockBytes = block.bitcoinSerializeCopy();
+      if (blockBytes.length === 0) {
+        console.warn("Block serialization resulted in empty byte array in adjustSolveAndSign");
+        // Try to serialize again to see if it helps
+        const blockBytes2 = block.bitcoinSerialize();
+        console.log("Alternative serialization length:", blockBytes2.length);
+      }
+      
       await OkHttp3Util.post(
         this.getServerURL() + (ReqCmd.signToken || "/signToken"),
-        block.bitcoinSerializeCopy() 
+        blockBytes
       );
       return block;
     } catch (e: any) {
@@ -1240,53 +1252,55 @@ export class Wallet extends WalletBase {
    * @returns A Promise resolving to the created and posted Block, or null if giveMoneyResult is empty.
    * @throws InsufficientMoneyException if funds are insufficient.
    */
-async payToList(
-  aesKey: any,
-  giveMoneyResult: Map<string, bigint>,
-  tokenid: Uint8Array,
-  memo: string,
-  coinList: any[]
-): Promise<Block | null> {
-  if (!giveMoneyResult || giveMoneyResult.size === 0) {
-    return null;
-  }
-
-  const multispent: Transaction = await (this as any).payToListTransaction(
-    aesKey,
-    giveMoneyResult,
-    tokenid,
-    memo,
-    coinList
-  );
-
-  // Get the tip block with validation
-  const block: Block | null = await this.getTip();
-  if (!block) {
-    throw new Error('Tip block not found - cannot proceed with transaction');
-  }
-  
-  // Validate block structure before modifying
-  if (typeof block.addTransaction === "function") {
-    try {
-      block.addTransaction(multispent);
-    } catch (error) {
-      // Handle any errors with addTransaction method
-      const err = error as Error;
-      console.error('Error adding transaction:', err);
-      throw new Error(`Failed to add transaction to block: ${err.message}`);
+  async payToList(
+    aesKey: any,
+    giveMoneyResult: Map<string, bigint>,
+    tokenid: Uint8Array,
+    memo: string,
+    coinList: any[]
+  ): Promise<Block | null> {
+    if (!giveMoneyResult || giveMoneyResult.size === 0) {
+      return null;
     }
-  } else if (Array.isArray((block as any).transactions)) {
-    try {
-      (block as any).transactions.push(multispent);
-    } catch (error) {
-      // Handle any errors with array push
-      const err = error as Error;
-      console.error('Error pushing transaction:', err);
-      throw new Error(`Failed to add transaction to block: ${err.message}`);
+
+    const multispent: Transaction = await (this as any).payToListTransaction(
+      aesKey,
+      giveMoneyResult,
+      tokenid,
+      memo,
+      coinList
+    );
+
+    // Get the tip block with validation
+    const block: Block | null = await this.getTip();
+    if (!block) {
+      throw new Error("Tip block not found - cannot proceed with transaction");
     }
-  } else {
-    throw new Error('Invalid block transaction structure - neither addTransaction method nor transactions array found');
-  }
+
+    // Validate block structure before modifying
+    if (typeof block.addTransaction === "function") {
+      try {
+        block.addTransaction(multispent);
+      } catch (error) {
+        // Handle any errors with addTransaction method
+        const err = error as Error;
+        console.error("Error adding transaction:", err);
+        throw new Error(`Failed to add transaction to block: ${err.message}`);
+      }
+    } else if (Array.isArray((block as any).transactions)) {
+      try {
+        (block as any).transactions.push(multispent);
+      } catch (error) {
+        // Handle any errors with array push
+        const err = error as Error;
+        console.error("Error pushing transaction:", err);
+        throw new Error(`Failed to add transaction to block: ${err.message}`);
+      }
+    } else {
+      throw new Error(
+        "Invalid block transaction structure - neither addTransaction method nor transactions array found"
+      );
+    }
 
     // Check if a fee transaction is needed
     const mainTokenId = Buffer.from(
@@ -1299,9 +1313,15 @@ async payToList(
       !mainTokenId.equals(Buffer.from(tokenid))
     ) {
       if (typeof this.feeTransaction === "function") {
-        const ownerKey = await this.getECKey(aesKey, coinList[0]?.getUTXO().getAddress());
+        const ownerKey = await this.getECKey(
+          aesKey,
+          coinList[0]?.getUTXO().getAddress()
+        );
         const feeTxBlock = await this.feeTransaction(
-          new Coin(BigInt(this.getFee() || 0), NetworkParameters.BIGTANGLE_TOKENID_STRING),
+          new Coin(
+            BigInt(this.getFee() || 0),
+            NetworkParameters.BIGTANGLE_TOKENID_STRING
+          ),
           ownerKey,
           aesKey
         );
@@ -1359,12 +1379,27 @@ async payToList(
     }
     // Serialize the block
     const blockBytes = block.bitcoinSerializeCopy();
-   
+    
+    // Check if blockBytes is empty and add debugging
+    if (blockBytes.length === 0) {
+      console.warn("Block serialization resulted in empty byte array in solveAndPost");
+      // Try to serialize again to see if it helps
+      const blockBytes2 = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.alloc(0);
+      console.log("Alternative serialization length:", blockBytes2.length);
+      
+      // Also check if the block has transactions
+      console.log("Block has transactions:", block.hasTransactions ? block.hasTransactions() : false);
+      const transactions = block.getTransactions ? block.getTransactions() : [];
+      console.log("Number of transactions:", transactions.length);
+    }
+
     // Post to the server
     const url = this.getServerURL() + (ReqCmd.saveBlock || "/saveBlock");
     const response = await OkHttp3Util.post(url, blockBytes);
     if (response && this.params?.getDefaultSerializer) {
-      return this.params.getDefaultSerializer().makeBlock(Buffer.from(response));
+      return this.params
+        .getDefaultSerializer()
+        .makeBlock(Buffer.from(response));
     }
     return block;
   }
@@ -1393,9 +1428,15 @@ async payToList(
     let txBytes: Buffer = Buffer.from([]);
     if (signedTx.bitcoinSerializeCopy) {
       const serialized = signedTx.bitcoinSerializeCopy();
-      txBytes = Buffer.isBuffer(serialized)
-        ? serialized
-        : Buffer.from(serialized);
+      // Check if serialized data is empty
+      if (serialized.length === 0) {
+        console.warn("Transaction serialization resulted in empty byte array in submitSignedTransaction");
+    
+      } else {
+        txBytes = Buffer.isBuffer(serialized)
+          ? serialized
+          : Buffer.from(serialized);
+      }
     }
     const response = await OkHttp3Util.post(url, txBytes);
     return Json.jsonmapper().parse(response.toString());
@@ -1466,8 +1507,7 @@ async payToList(
     let txSize = 0;
     if (tx.bitcoinSerializeCopy) {
       const serialized = tx.bitcoinSerializeCopy();
-      txSize =   serialized.length
-       
+      txSize = serialized.length;
     }
     return BigInt(txSize) * feeRatePerByte;
   }
@@ -1783,41 +1823,41 @@ async payToList(
     return this.solveAndPost(block);
   }
 
-    async multiSignKey(
-        tokenid: string,
-        outKey: ECKey,
-        aesKey: any
-    ): Promise<Block | null> {
-        const requestParam = new Map<string, string>();
-    
-        const address = outKey.toAddress(this.params).toBase58();
-        requestParam.set("address", address);
-        requestParam.set("tokenid", tokenid);
-    
-        // Use post instead of postString
-        const response = await OkHttp3Util.post(
-            this.getServerURL() + ReqCmd.getTokenSignByAddress,
-            Buffer.from(JSON.stringify(requestParam))
-        );
-        const resp = response.toString();
-    
-        const multiSignResponse: MultiSignResponse = Json.jsonmapper().readValue(
-            resp,
-            MultiSignResponse
-        );
-        // Check if getMultiSigns exists and has items
-        if (
-            !multiSignResponse.getMultiSigns ||
-            typeof multiSignResponse.getMultiSigns !== "function"
-        ) {
-            return null;
-        }
-        const multiSigns = multiSignResponse.getMultiSigns();
-        if (!multiSigns || multiSigns.length === 0) {
-            return null;
-        }
-        const multiSign: MultiSign = multiSigns[0];
-    
+  async multiSignKey(
+    tokenid: string,
+    outKey: ECKey,
+    aesKey: any
+  ): Promise<Block | null> {
+    const requestParam = new Map<string, string>();
+
+    const address = outKey.toAddress(this.params).toBase58();
+    requestParam.set("address", address);
+    requestParam.set("tokenid", tokenid);
+
+    // Use post instead of postString
+    const response = await OkHttp3Util.post(
+      this.getServerURL() + ReqCmd.getTokenSignByAddress,
+      Buffer.from(JSON.stringify(requestParam))
+    );
+    const resp = response.toString();
+
+    const multiSignResponse: MultiSignResponse = Json.jsonmapper().readValue(
+      resp,
+      MultiSignResponse
+    );
+    // Check if getMultiSigns exists and has items
+    if (
+      !multiSignResponse.getMultiSigns ||
+      typeof multiSignResponse.getMultiSigns !== "function"
+    ) {
+      return null;
+    }
+    const multiSigns = multiSignResponse.getMultiSigns();
+    if (!multiSigns || multiSigns.length === 0) {
+      return null;
+    }
+    const multiSign: MultiSign = multiSigns[0];
+
     const blockhashHex = multiSign.getBlockhashHex();
     if (!blockhashHex) {
       throw new Error("BlockhashHex is missing in multiSign");
@@ -1825,58 +1865,58 @@ async payToList(
     // Convert hex string to Buffer directly
     const blockData = Buffer.from(blockhashHex, "hex");
     const block = this.params.getDefaultSerializer().makeBlock(blockData);
-        if (!block) {
-            throw new Error("Failed to create block from payload");
-        }
-    
-        const transactions = block.getTransactions();
-        if (!transactions || transactions.length === 0) {
-            throw new Error("Block has no transactions");
-        }
-        const transaction = transactions[0];
-        if (!transaction) {
-            throw new Error("Transaction is missing in block");
-        }
-    
-        let multiSignBies: MultiSignBy[] = [];
-        if (transaction.getDataSignature() === null) {
-            multiSignBies = [];
-        } else {
-            const multiSignByRequest: MultiSignByRequest =
-                Json.jsonmapper().readValue(
-                    transaction.getDataSignature(),
-                    MultiSignByRequest
-                );
-            if (multiSignByRequest && multiSignByRequest.getMultiSignBies) {
-                // Call the method if it exists
-                multiSignBies = multiSignByRequest.getMultiSignBies() || [];
-            }
-        }
-    
-        const sighash = transaction.getHash();
-        if (!sighash) {
-            throw new Error("Transaction hash is missing");
-        }
-    
-        // Await the signature promise
-        const party1Signature = await outKey.sign(sighash.getBytes(), aesKey);
-        const buf1 = party1Signature.encodeDER(); // Fixed method name
-    
-        const multiSignBy0 = new MultiSignBy();
-        multiSignBy0.setTokenid(multiSign.getTokenid());
-        multiSignBy0.setTokenindex(multiSign.getTokenindex());
-        multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
-        multiSignBy0.setPublickey(Utils.HEX.encode(outKey.getPubKey()));
-        multiSignBy0.setSignature(Utils.HEX.encode(buf1));
-        multiSignBies.push(multiSignBy0);
-    
-        const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-        transaction.setDataSignature(
-            Json.jsonmapper().writeValueAsBytes(multiSignByRequest)
-        );
-    
-        return this.adjustSolveAndSign(block);
+    if (!block) {
+      throw new Error("Failed to create block from payload");
     }
+
+    const transactions = block.getTransactions();
+    if (!transactions || transactions.length === 0) {
+      throw new Error("Block has no transactions");
+    }
+    const transaction = transactions[0];
+    if (!transaction) {
+      throw new Error("Transaction is missing in block");
+    }
+
+    let multiSignBies: MultiSignBy[] = [];
+    if (transaction.getDataSignature() === null) {
+      multiSignBies = [];
+    } else {
+      const multiSignByRequest: MultiSignByRequest =
+        Json.jsonmapper().readValue(
+          transaction.getDataSignature(),
+          MultiSignByRequest
+        );
+      if (multiSignByRequest && multiSignByRequest.getMultiSignBies) {
+        // Call the method if it exists
+        multiSignBies = multiSignByRequest.getMultiSignBies() || [];
+      }
+    }
+
+    const sighash = transaction.getHash();
+    if (!sighash) {
+      throw new Error("Transaction hash is missing");
+    }
+
+    // Await the signature promise
+    const party1Signature = await outKey.sign(sighash.getBytes(), aesKey);
+    const buf1 = party1Signature.encodeDER(); // Fixed method name
+
+    const multiSignBy0 = new MultiSignBy();
+    multiSignBy0.setTokenid(multiSign.getTokenid());
+    multiSignBy0.setTokenindex(multiSign.getTokenindex());
+    multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
+    multiSignBy0.setPublickey(Utils.HEX.encode(outKey.getPubKey()));
+    multiSignBy0.setSignature(Utils.HEX.encode(buf1));
+    multiSignBies.push(multiSignBy0);
+
+    const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
+    transaction.setDataSignature(
+      Json.jsonmapper().writeValueAsBytes(multiSignByRequest)
+    );
+
+    return this.adjustSolveAndSign(block);
+  }
 
   /**
    * Creates a transaction that pays to a list of addresses with specified amounts, using the given UTXOs.
@@ -1945,7 +1985,11 @@ async payToList(
         new TransactionInput(
           this.params,
           tx,
-          Buffer.from(scriptBytes.buffer, scriptBytes.byteOffset, scriptBytes.byteLength),
+          Buffer.from(
+            scriptBytes.buffer,
+            scriptBytes.byteOffset,
+            scriptBytes.byteLength
+          ),
           outpoint,
           value
         )
