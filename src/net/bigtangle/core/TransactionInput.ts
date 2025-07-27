@@ -1,18 +1,21 @@
 import { ChildMessage } from './ChildMessage';
 import { TransactionOutPoint } from './TransactionOutPoint';
+import { TransactionOutput } from './TransactionOutput';
 import { Script } from '../script/Script';
-import { VarInt } from './VarInt';
 import { Coin } from './Coin';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Transaction } from './Transaction';
- 
-import { VerificationException } from '../exception/VerificationException';
+import { VarInt } from './VarInt';
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
-import { TransactionOutput } from './TransactionOutput';
+import { MessageSerializer } from './MessageSerializer';
 import { Address } from './Address';
 import { KeyBag } from '../wallet/KeyBag';
 import { RedeemData } from '../wallet/RedeemData';
+import { ProtocolException } from '../exception/ProtocolException';
+import { ScriptException } from '../exception/ScriptException';
+import { VerificationException } from '../exception/VerificationException';
+import { Sha256Hash } from './Sha256Hash';
 
 /**
  * <p>A transfer of coins from one address to another creates a transaction in which the outputs
@@ -24,111 +27,140 @@ import { RedeemData } from '../wallet/RedeemData';
  */
 export class TransactionInput extends ChildMessage {
     /** Magic sequence number that indicates there is no sequence number. */
-    public static readonly NO_SEQUENCE = 0xFFFFFFFF;
-    private static readonly EMPTY_ARRAY = Buffer.alloc(0);
+    static readonly NO_SEQUENCE: number = 0xFFFFFFFF;
+    private static readonly EMPTY_ARRAY: Buffer = Buffer.alloc(0);
     // Magic outpoint index that indicates the input is in fact unconnected.
-    private static readonly UNCONNECTED = 0xFFFFFFFF;
+    private static readonly UNCONNECTED: number = 0xFFFFFFFF;
 
-    private sequence!: number;
+    // Allows for altering transactions after they were broadcast. Values below NO_SEQUENCE-1 mean it can be altered.
+    private sequence: number = 0;
+    // Data needed to connect to the output of the transaction we're gathering coins from.
     private outpoint!: TransactionOutPoint;
-    private scriptBytes!: Buffer;
+    // The "script bytes" might not actually be a script. In coinbase transactions where new coins are minted there
+    // is no input transaction, so instead the scriptBytes contains some extra stuff (like a rollover nonce) that we
+    // don't care about much. The bytes are turned into a Script object (cached below) on demand via a getter.
+    private scriptBytes: Buffer = Buffer.alloc(0);
+    // The Script object obtained from parsing scriptBytes. Only filled in on demand and if the transaction is not
+    // coinbase.
     private scriptSig: Script | null = null;
-    private readonly value: Coin | null = null;
+    /** Value of the output connected to the input, if known. This field does not participate in equals()/hashCode(). */
+    private value: Coin | null = null;
 
+    /**
+     * Creates an input that connects to nothing - used only in creation of coinbase transactions.
+     */
     constructor(params: NetworkParameters, parentTransaction: Transaction | null, scriptBytes: Buffer);
-    constructor(params: NetworkParameters, parentTransaction: Transaction | null, scriptBytes: Buffer, outpoint: TransactionOutPoint);
-    constructor(params: NetworkParameters, parentTransaction: Transaction | null, scriptBytes: Buffer, outpoint: TransactionOutPoint, value: Coin | null);
+    constructor(params: NetworkParameters, parentTransaction: Transaction | null, scriptBytes: Buffer,
+                            outpoint: TransactionOutPoint);
+    constructor(params: NetworkParameters, parentTransaction: Transaction | null, scriptBytes: Buffer,
+            outpoint: TransactionOutPoint, value: Coin | null);
+    /**
+     * Deserializes an input message. This is usually part of a transaction message.
+     */
     constructor(params: NetworkParameters, parentTransaction: Transaction | null, payload: Buffer, offset: number);
-    constructor(params: NetworkParameters, parentTransaction: Transaction | null, payload: Buffer, offset: number, serializer: any);
+    /**
+     * Deserializes an input message. This is usually part of a transaction message.
+     * @param params NetworkParameters object.
+     * @param payload Bitcoin protocol formatted byte array containing message content.
+     * @param offset The location of the first payload byte within the array.
+     * @param serializer the serializer to use for this message.
+     * @throws ProtocolException
+     */
+    constructor(params: NetworkParameters, parentTransaction: Transaction | null, payload: Buffer, offset: number, serializer: MessageSerializer<any>);
+    constructor(...args: any[]);
     constructor(...args: any[]) {
-        // Overload 1: (params, parentTransaction, scriptBytes)
-        // Overload 2: (params, parentTransaction, scriptBytes, outpoint)
-        // Overload 3: (params, parentTransaction, scriptBytes, outpoint, value)
-        // Overload 4: (params, parentTransaction, payload, offset)
-        // Overload 5: (params, parentTransaction, payload, offset, serializer)
         const params = args[0];
-        const parentTransaction = args[1];
         super(params);
-        this.setParent(parentTransaction);
-
-        if (Buffer.isBuffer(args[2]) && typeof args[3] === 'undefined') {
-            // (params, parentTransaction, scriptBytes)
-            this.scriptBytes = args[2];
-            this.outpoint = new TransactionOutPoint(params, Buffer.alloc(36), 0); // dummy outpoint
-            this.sequence = TransactionInput.NO_SEQUENCE;
-            (this as any).value = null;
-            this.length = 40 + (this.scriptBytes === null ? 1 : VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length);
-        } else if (Buffer.isBuffer(args[2]) && args[3] instanceof TransactionOutPoint && typeof args[4] === 'undefined') {
-            // (params, parentTransaction, scriptBytes, outpoint)
-            this.scriptBytes = args[2];
-            this.outpoint = args[3];
-            this.sequence = TransactionInput.NO_SEQUENCE;
-            (this as any).value = null;
-            this.length = 40 + (this.scriptBytes === null ? 1 : VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length);
-        } else if (Buffer.isBuffer(args[2]) && args[3] instanceof TransactionOutPoint && (args[4] === null || args[4] instanceof Coin)) {
-            // (params, parentTransaction, scriptBytes, outpoint, value)
-            this.scriptBytes = args[2];
-            this.outpoint = args[3];
-            this.sequence = TransactionInput.NO_SEQUENCE;
-            (this as any).value = args[4];
-            this.length = 40 + (this.scriptBytes === null ? 1 : VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length);
-        } else if (Buffer.isBuffer(args[2]) && typeof args[3] === 'number' && typeof args[4] === 'undefined') {
-            // (params, parentTransaction, payload, offset)
-            this.payload = args[2];
-            this.offset = args[3];
-            this.cursor = this.offset;
+        
+        if (args.length >= 4 && args[2] instanceof Buffer && typeof args[3] === 'number') {
+            // Deserialization constructors
+            const parentTransaction = args[1];
+            const payload = args[2];
+            const offset = args[3];
+            const serializer = args[4];
+            
+            this.payload = payload;
+            this.offset = offset;
+             this.cursor = offset;
+            if (serializer) {
+                this.serializer = serializer;
+            }
+            this.setParent(parentTransaction);
+            this.value = null;
             this.parse();
-        } else if (Buffer.isBuffer(args[2]) && typeof args[3] === 'number' && typeof args[4] !== 'undefined') {
-            // (params, parentTransaction, payload, offset, serializer)
-            this.payload = args[2];
-            this.offset = args[3];
-            this.cursor = this.offset;
-            this.serializer = args[4];
-            this.parse();
+        } else if (args.length >= 3 && args[2] instanceof Buffer) {
+            // Creation constructors
+            const parentTransaction = args[1];
+            const scriptBytes = args[2];
+            const outpoint = args[3];
+            const value = args[4];
+            
+            this.scriptBytes = scriptBytes;
+            if (outpoint) {
+                this.outpoint = outpoint;
+            } else {
+                this.outpoint = new TransactionOutPoint(params, TransactionInput.UNCONNECTED, null, null);
+            }
+            this.sequence = TransactionInput.NO_SEQUENCE;
+            if (value) {
+                this.value = value;
+            }
+            this.setParent(parentTransaction);
+            this.length = 40 + (scriptBytes.length === 0 ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
         } else {
-            throw new Error('Invalid constructor arguments for TransactionInput');
+            throw new Error("Invalid constructor arguments");
         }
     }
 
-    protected parse(): void {
-        if (this.payload === null) {
-            throw new Error("Payload is null");
+    /**
+     * Creates an UNSIGNED input that links to the given output
+     */
+    public static fromOutput(params: NetworkParameters, parentTransaction: Transaction, output: TransactionOutput, blockHash: Sha256Hash): TransactionInput {
+        const outputIndex = output.getIndex();
+        let outpoint: TransactionOutPoint;
+        if (output.getParentTransaction() !== null) {
+            outpoint = new TransactionOutPoint(params, outputIndex, blockHash, output.getParentTransaction());
+        } else {
+            outpoint = new TransactionOutPoint(params, blockHash, output);
         }
-        this.outpoint = new TransactionOutPoint(this.params, this.payload, this.cursor, this, this.serializer);
+        const scriptBytes = TransactionInput.EMPTY_ARRAY;
+        const sequence = TransactionInput.NO_SEQUENCE;
+        const value = output.getValue();
+        const input = new TransactionInput(params, parentTransaction, scriptBytes, outpoint, value);
+        input.sequence = sequence;
+        input.length = 41;
+        return input;
+    }
+
+    protected parse(): void {
+        this.outpoint = new TransactionOutPoint(this.params!, this.payload!, this.cursor, this, this.serializer);
         this.cursor += this.outpoint.getMessageSize();
         const scriptLen = Number(this.readVarInt());
         this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
         this.sequence = this.readUint32();
-        // Check for connected output (optional field in Java, not directly in Bitcoin protocol)
-        // This part needs careful consideration as it's not standard Bitcoin serialization
-        // For now, assuming it's not present or handled differently
-        // if (this.readUint32() === 1) {
-        //     this.outpoint.connectedOutput = new TransactionOutput(this.params, this.parent as Transaction, this.payload, this.cursor);
-        //     this.cursor += this.outpoint.connectedOutput.getMessageSize();
-        // }
+        if (this.readUint32() === 1) {
+             this.outpoint .connectedOutput = new TransactionOutput(this.params!, this.parent as Transaction, this.payload!, this.cursor);
+            this.cursor +=  this.outpoint .connectedOutput.getMessageSize();
+        }
     }
 
     public bitcoinSerializeToStream(stream: any): void {
-        const outpointBuffer = this.outpoint.unsafeBitcoinSerialize();
-        stream.write(outpointBuffer);
-        const scriptBytesVarInt = new VarInt(this.scriptBytes.length);
-        const scriptBytesVarIntBuffer = scriptBytesVarInt.encode();
-        stream.write(scriptBytesVarIntBuffer);
+        this.outpoint.bitcoinSerialize(stream);
+        stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
         Utils.uint32ToByteStreamLE(this.sequence, stream);
-        // This part is not standard Bitcoin serialization, so commenting out for now
-        // Utils.uint32ToByteStreamLE(this.outpoint.connectedOutput !== null ? 1 : 0, stream);
-        // if (this.outpoint.connectedOutput !== null) {
-        //     this.outpoint.connectedOutput.bitcoinSerializeToStream(stream);
-        // }
+        Utils.uint32ToByteStreamLE((this.outpoint as any).connectedOutput !== null ? 1 : 0, stream);
+        if ((this.outpoint as any).connectedOutput !== null) {
+            (this.outpoint as any).connectedOutput.bitcoinSerializeToStream(stream);
+        }
     }
 
     /**
      * Coinbase transactions have special inputs with hashes of zero. If this is such an input, returns true.
      */
     public isCoinBase(): boolean {
-        return this.outpoint.isCoinBase();
+        return this.outpoint.isCoinBase();  // -1 but all is serialized to the wire as unsigned int.
     }
 
     /**
@@ -138,7 +170,9 @@ export class TransactionInput extends ChildMessage {
     public getScriptSig(): Script {
         // Transactions that generate new coins don't actually have a script. Instead this
         // parameter is overloaded to be something totally different.
-        this.scriptSig ??= new Script(this.scriptBytes);
+        if (this.scriptSig === null) {
+            this.scriptSig = new Script(this.scriptBytes);
+        }
         return this.scriptSig;
     }
 
@@ -156,9 +190,10 @@ export class TransactionInput extends ChildMessage {
      */
     public getFromAddress(): Address {
         if (this.isCoinBase()) {
-            throw new Error("This is a coinbase transaction which generates new coins. It does not have a from address.");
+            throw new ScriptException(
+                    "This is a coinbase transaction which generates new coins. It does not have a from address.");
         }
-        return this.getScriptSig().getFromAddress(this.params);
+        return this.getScriptSig().getFromAddress(this.params!);
     }
 
     /**
@@ -214,18 +249,15 @@ export class TransactionInput extends ChildMessage {
         const oldLength = this.length;
         this.scriptBytes = scriptBytes;
         // 40 = previous_outpoint (36) + sequence (4)
-        const newLength = 40 + (scriptBytes === null ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
+        const newLength = 40 + (scriptBytes.length === 0 ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
         this.adjustLength(newLength - oldLength);
     }
 
     /**
      * @return The Transaction that owns this input.
      */
-    public getParentTransaction(): Transaction {
-        if (this.parent instanceof Transaction) {
-            return this.parent;
-        }
-        throw new Error("Parent is not a Transaction or is null.");
+    public getParentTransaction(): Transaction | null {
+        return this.parent as Transaction;
     }
 
     /**
@@ -235,6 +267,18 @@ export class TransactionInput extends ChildMessage {
         return this.value;
     }
 
+    /**
+     * Alias for getOutpoint().getConnectedRedeemData(keyBag)
+     * @see TransactionOutPoint#getConnectedRedeemData(net.bigtangle.wallet.KeyBag)
+     */
+    public getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
+        return this.getOutpoint().getConnectedRedeemData(keyBag);
+    }
+
+
+    /**
+     * @return true if this transaction's sequence number is set (ie it may be a part of a time-locked transaction)
+     */
     public hasSequence(): boolean {
         return this.sequence !== TransactionInput.NO_SEQUENCE;
     }
@@ -255,9 +299,9 @@ export class TransactionInput extends ChildMessage {
     public verify(): void {
         const fromTx = this.getOutpoint().fromTx;
         const spendingIndex = this.getOutpoint().getIndex();
-        if (!fromTx) throw new Error("Not connected");
+        if (fromTx === null) throw new Error("Not connected");
         const output = fromTx.getOutput(spendingIndex);
-        this.verifyWithOutput(output);
+        this.verifyOutput(output);
     }
 
     /**
@@ -268,15 +312,18 @@ export class TransactionInput extends ChildMessage {
      * @throws ScriptException If the script doesn't verify.
      * @throws VerificationException If the outpoint doesn't match the given output.
      */
-    public verifyWithOutput(output: TransactionOutput): void {
+    public verifyOutput(output: TransactionOutput): void {
         if (output.parent !== null) {
+            if (!this.getOutpoint().getHash().equals(Sha256Hash.of(Buffer.from(Utils.addAll(
+                    output.getParentTransaction()!.getParentBlock()!.getHash().getBytes(), output.getParentTransaction()!.getHash().getBytes())))))
+                throw new VerificationException("This input does not refer to the tx containing the output.");
             if (this.getOutpoint().getIndex() !== output.getIndex())
                 throw new VerificationException("This input refers to a different output on the given tx.");
         }
         const pubKey = output.getScriptPubKey();
-        const myIndex = this.getParentTransaction().getInputs().indexOf(this);
+        const myIndex = this.getParentTransaction()!.getInputs().indexOf(this);
         const r = this.getScriptSig();
-        r.correctlySpends(this.getParentTransaction(), myIndex, pubKey, Script.ALL_VERIFY_FLAGS);
+        r.correctlySpends(this.getParentTransaction()!, myIndex, pubKey, Script.ALL_VERIFY_FLAGS);
     }
 
     /**
@@ -299,34 +346,24 @@ export class TransactionInput extends ChildMessage {
 
     /** Returns a copy of the input detached from its containing transaction, if need be. */
     public duplicateDetached(): TransactionInput {
-        const buffer = this.unsafeBitcoinSerialize();
-        return new TransactionInput(this.params, null, buffer, 0);
-    }
-
-    /**
-     * Returns the redeem data required to spend this input.
-     * @param keyBag The key bag containing redeem data
-     */
-    public getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
-        return this.getOutpoint().getConnectedRedeemData(keyBag);
+        const payload = this.unsafeBitcoinSerialize();
+        return new TransactionInput(this.params!, null, payload, 0);
     }
 
     public equals(o: any): boolean {
         if (this === o) return true;
         if (o === null || !(o instanceof TransactionInput)) return false;
-        const other = o;
-        return this.sequence === other.sequence &&
-               (this.parent === other.parent || (this.parent !== null && other.parent !== null && typeof (this.parent as any).equals === "function" && (this.parent as any).equals(other.parent))) &&
-               this.outpoint.equals(other.outpoint) &&
-               this.scriptBytes.equals(other.scriptBytes);
+        const other = o as TransactionInput;
+        return this.sequence === other.sequence && this.parent === other.parent
+            && this.outpoint.equals(other.outpoint) && this.scriptBytes.equals(other.scriptBytes);
     }
 
     public hashCode(): number {
         let result = 17;
         result = 31 * result + this.sequence;
         result = 31 * result + this.outpoint.hashCode();
-        for (const byte of this.scriptBytes) {
-            result = 31 * result + byte;
+        for (let i = 0; i < this.scriptBytes.length; i++) {
+            result = 31 * result + this.scriptBytes[i];
         }
         return result;
     }
@@ -340,28 +377,16 @@ export class TransactionInput extends ChildMessage {
             if (this.isCoinBase()) {
                 s += ": COINBASE";
             } else {
-                s += ` for [${this.outpoint}]: ${this.getScriptSig()}`;
-                const flags: string[] = [];
-                if (this.hasSequence()) {
-                    flags.push(`sequence: ${this.sequence.toString(16)}`);
-                }
-                if (this.isOptInFullRBF()) {
-                    flags.push("opts into full RBF");
-                }
-                if (flags.length > 0) {
-                    s += ` (${flags.join(", ")})`;
-                }
+                s += " for [" + this.outpoint + "]: " + this.getScriptSig();
+                const flags = [];
+                if (this.hasSequence()) flags.push("sequence: " + this.sequence.toString(16));
+                if (this.isOptInFullRBF()) flags.push("opts into full RBF");
+                if (flags.length > 0)
+                    s += " (" + flags.join(", ") + ")";
             }
             return s;
-        } catch (e: any) {
-            throw new Error(e);
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : String(e));
         }
-    }
-
-
-    static parseFromBuffer(params: NetworkParameters, buffer: Buffer, offset: number): [TransactionInput, number] {
-        const input = new TransactionInput(params, null, buffer, offset);
-        const size = input.getMessageSize();
-        return [input, size];
     }
 }

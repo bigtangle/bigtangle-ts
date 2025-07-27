@@ -162,7 +162,10 @@ export class Block extends Message {
         this.transactions = [];
         
         for (let i = 0; i < numTransactions; i++) {
-            const tx = new Transaction(this.params, this.payload, this.cursor, this.serializer, this, Message.UNKNOWN_LENGTH);
+            if (!this.getParams()) {
+                throw new Error("Network parameters are required to parse transactions");
+            }
+            const tx = new Transaction(this.getParams(), this.payload, this.cursor, this.serializer, null, Message.UNKNOWN_LENGTH);
             // Parse the transaction to set its length
             tx.parse();
             this.transactions.push(tx);
@@ -434,7 +437,7 @@ export class Block extends Message {
 
     cloneAsHeader(): Block {
         try {
-            const block = new Block(this.params);
+            const block = new Block(this.getParams());
             this.copyBitcoinHeaderTo(block);
             return block;
         } catch (error) {
@@ -478,7 +481,7 @@ export class Block extends Message {
         s.push(`   nonce: ${this.nonce}\n`);
         
         if (this.minerAddress) {
-            const address = new Address(this.params, 0, this.minerAddress);
+            const address = new Address(this.getParams(), 0, this.minerAddress);
             s.push(`   mineraddress: ${address}\n`);
         }
 
@@ -591,7 +594,7 @@ export class Block extends Message {
 
     getDifficultyTargetAsInteger(): bigint {
         const target = Utils.decodeCompactBits(this.difficultyTarget);
-        if (!target || target < 0 || target >  this.params.getMaxTarget()  ) {
+        if (!target || target < 0 || target >  this.getParams().getMaxTarget()  ) {
             throw new VerificationException.DifficultyTargetException();
         }
         return target;
@@ -659,8 +662,16 @@ export class Block extends Message {
                 return Sha256Hash.ZERO_HASH;
             }
             
-            // Start with the hashes of all transactions
-            let hashes: Buffer[] = this.transactions.map(tx => tx.getHash().getBytes());
+            // Filter out any null or undefined transactions before mapping
+            const validTransactions = this.transactions.filter(tx => tx !== null && tx !== undefined);
+            
+            // If there are no valid transactions, return zero hash
+            if (validTransactions.length === 0) {
+                return Sha256Hash.ZERO_HASH;
+            }
+            
+            // Start with the hashes of all valid transactions
+            let hashes: Buffer[] = validTransactions.map(tx => tx.getHash().getBytes());
             
             // Build the merkle tree by repeatedly hashing pairs
             while (hashes.length > 1) {
@@ -849,7 +860,7 @@ export class Block extends Message {
             this.unCacheTransactions();
             this.transactions = [];
 
-            const coinbase = new Transaction(this.params);
+            const coinbase = new Transaction(this.getParams());
             if (tokenInfo !== null) {
                 coinbase.setDataClassName(DataClassName.TOKEN);
                 const buf = tokenInfo.toByteArray();
@@ -861,14 +872,14 @@ export class Block extends Message {
             inputBuilder.data(Buffer.from([txCounter & 0xff, (txCounter >> 8) & 0xff]));
             txCounter++;
 
-            coinbase.addInput(new TransactionInput(this.params, coinbase, Buffer.from( inputBuilder.build().getProgram()), new TransactionOutPoint(this.params, 0, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH)));
+            coinbase.addInput(new TransactionInput(this.getParams(), coinbase, Buffer.from( inputBuilder.build().getProgram()), new TransactionOutPoint(this.getParams(), 0, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH)));
             
             if (tokenInfo === null) {
-                coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
+                coinbase.addOutput(new TransactionOutput(this.getParams(), coinbase, value,
                     Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
             } else {
                 if (tokenInfo.getToken() === null || tokenInfo.getToken()?.getSignnumber() === 0) {
-                    coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
+                    coinbase.addOutput(new TransactionOutput(this.getParams(), coinbase, value,
                         Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
                 } else {
                     const keys: ECKey[] = [];
@@ -883,12 +894,12 @@ export class Block extends Message {
                     }
                     
                     if (keys.length <= 1) {
-                        coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
+                        coinbase.addOutput(new TransactionOutput(this.getParams(), coinbase, value,
                             Buffer.from(ScriptBuilder.createOutputScript(ECKey.fromPublic(pubKeyTo)).getProgram())));
                     } else {
                         const n = keys.length;
                         const scriptPubKey = ScriptBuilder.createMultiSigOutputScript(n, keys);
-                        coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, Buffer.from(scriptPubKey.getProgram())));
+                        coinbase.addOutput(new TransactionOutput(this.getParams(), coinbase, value, Buffer.from(scriptPubKey.getProgram())));
                     }
                 }
             }

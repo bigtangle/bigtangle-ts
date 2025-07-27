@@ -12,16 +12,18 @@ import { ProtocolVersion } from './ProtocolVersion';
  */
 export abstract class ChildMessage extends Message {
 
-    public parent: Message | null = null;
+    public parent: Message | null;
 
     constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer<any>, parent?: Message) {
-        super(params);
-        this.parent = parent || null;
-        
-        // If we have payload data, we need to parse it
+        // Call the parent constructor with all the parameters
         if (payload) {
-            this.parseWithParams(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer || params.getDefaultSerializer(), payload.length - offset);
+            super(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer || params.getDefaultSerializer(), payload.length - offset);
+        } else {
+            super(params);
         }
+        
+        // Initialize our own properties
+        this.parent = parent || null;
     }
 
     public setParent(parent: Message | null): void {
@@ -29,7 +31,12 @@ export abstract class ChildMessage extends Message {
             // After old parent is unlinked it won't be able to receive notice if this ChildMessage
             // changes internally.  To be safe we invalidate the parent cache to ensure it rebuilds
             // manually on serialization.
-            this.parent.unCache();
+            if (this.parent instanceof ChildMessage) {
+                this.parent.unCache();
+            } else {
+                // For regular Message objects, call the protected unCache method
+                (this.parent as any).unCache();
+            }
         }
         this.parent = parent;
     }
@@ -37,7 +44,12 @@ export abstract class ChildMessage extends Message {
     public unCache(): void {
         super.unCache();
         if (this.parent !== null) {
-            this.parent.unCache();
+            if (this.parent instanceof ChildMessage) {
+                this.parent.unCache();
+            } else {
+                // For regular Message objects, call the protected unCache method
+                (this.parent as any).unCache();
+            }
         }
     }
     

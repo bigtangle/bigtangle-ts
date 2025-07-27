@@ -44,8 +44,9 @@ export class AlertMessage extends Message {
     private reserved!: string;
 
     constructor(params: NetworkParameters, payloadBytes: Buffer) {
-        super(params);
-        this.parseWithParams(params, payloadBytes, 0, params.getProtocolVersionNum(ProtocolVersion.CURRENT), params.getDefaultSerializer(), payloadBytes.length);
+        super(params, payloadBytes, 0, params.getProtocolVersionNum(ProtocolVersion.CURRENT), params.getDefaultSerializer(), payloadBytes.length);
+        // Parse the message after construction
+        this.parse();
     }
 
     public toString(): string {

@@ -120,9 +120,11 @@ export class TransactionOutput extends ChildMessage {
             if (serializer) {
                 this.serializer = serializer;
             }
-            this.setParent(parent);
-            this.availableForSpending = true;
-            this.parse();
+        this.setParent(parent);
+        this.availableForSpending = true;
+        this.parse();
+        // Set the length in the parent Message class
+        (this as any).length = this.length;
         } else if (args.length >= 4 && args[2] instanceof Coin && (args[3] instanceof Address || args[3] instanceof ECKey)) {
             // Creation constructors
             const value = args[2];
@@ -425,9 +427,13 @@ export class TransactionOutput extends ChildMessage {
         try {
             const script = this.getScriptPubKey();
             let buf = "TxOut of " + this.value.toString();
-            if (script.isSentToAddress() || script.isPayToScriptHash())
-                buf += " to " + script.getToAddress(this.params);
-            else if (script.isSentToRawPubKey())
+            if (script.isSentToAddress() || script.isPayToScriptHash()) {
+                if (this.params !== null) {
+                    buf += " to " + script.getToAddress(this.params);
+                } else {
+                    buf += " to unknown address (null params)";
+                }
+            } else if (script.isSentToRawPubKey())
                 buf += " to pubkey " + Utils.HEX.encode(script.getPubKey());
             else if (script.isSentToMultiSig())
                 buf += " to multisig";
@@ -467,6 +473,9 @@ export class TransactionOutput extends ChildMessage {
      * detached.
      */
     public getOutPointFor(containingBlockHash: Sha256Hash): TransactionOutPoint {
+        if (this.params === null) {
+            throw new Error("Cannot create TransactionOutPoint with null params");
+        }
         return new TransactionOutPoint(this.params, this.getIndex(), containingBlockHash, this.getParentTransaction());
     }
 
@@ -475,6 +484,9 @@ export class TransactionOutput extends ChildMessage {
      * need be.
      */
     public duplicateDetached(): TransactionOutput {
+        if (this.params === null) {
+            throw new Error("Cannot duplicate TransactionOutput with null params");
+        }
         return new TransactionOutput(this.params, null, this.value, Buffer.from(this.scriptBytes));
     }
 
@@ -517,6 +529,19 @@ export class TransactionOutput extends ChildMessage {
      * @return A new TransactionOutput object
      */
     public static fromAddress(params: NetworkParameters, parent: Transaction | null, value: Coin, to: Address): TransactionOutput {
+        return new TransactionOutput(params, parent, value, to);
+    }
+
+    /**
+     * Creates a new TransactionOutput object with the given parameters.
+     * 
+     * @param params NetworkParameters object
+     * @param parent Parent transaction
+     * @param value Value to send
+     * @param to ECKey to send to
+     * @return A new TransactionOutput object
+     */
+    public static fromECKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
         return new TransactionOutput(params, parent, value, to);
     }
 }

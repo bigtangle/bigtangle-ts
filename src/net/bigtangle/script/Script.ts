@@ -1585,12 +1585,13 @@ export class Script {
                                 verifyFlags: Set<Script.VerifyFlag>): void {
         // Clone the transaction because executing the script involves editing it, and if we die, we'll leave
         // the tx half broken (also it's not so thread safe to work on it directly.
+        let clonedTx: Transaction;
         try {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
             const payloadBytes = txContainingThis.bitcoinSerializeCopy();
-            txContainingThis = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
+            clonedTx = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.
         }
@@ -1602,11 +1603,11 @@ export class Script {
         const stack: Uint8Array[] = [];
         let p2shStack: Uint8Array[] | null = null;
 
-        Script.executeScript(txContainingThis, scriptSigIndex, this, stack, verifyFlags);
+        Script.executeScript(clonedTx, scriptSigIndex, this, stack, verifyFlags);
         if (verifyFlags.has(Script.VerifyFlag.P2SH)) {
             p2shStack = [...stack]; // Copy stack
         }
-        Script.executeScript(txContainingThis, scriptSigIndex, scriptPubKey, stack, verifyFlags);
+        Script.executeScript(clonedTx, scriptSigIndex, scriptPubKey, stack, verifyFlags);
 
         if (stack.length === 0) {
             throw new ScriptException("Stack empty at end of script execution.");
@@ -1639,7 +1640,7 @@ export class Script {
             const scriptPubKeyBytes = p2shStack!.pop()!;
             const scriptPubKeyP2SH = new Script(scriptPubKeyBytes);
 
-            Script.executeScript(txContainingThis, scriptSigIndex, scriptPubKeyP2SH, p2shStack!, verifyFlags);
+            Script.executeScript(clonedTx, scriptSigIndex, scriptPubKeyP2SH, p2shStack!, verifyFlags);
 
             if (p2shStack!.length === 0) {
                 throw new ScriptException("P2SH stack empty at end of script execution.");

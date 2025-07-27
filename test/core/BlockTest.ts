@@ -107,12 +107,12 @@ describe("BlockTest", () => {
     
     // First output: DUP HASH160 PUSHDATA(20)[51d65cb4f2e64551c447cd41635dd9214bbaf19d] EQUALVERIFY CHECKSIG [1000000:bc]
     const output1 = tx.getOutputs()[0];
-    expect(output1.getValue().toString()).toBe("1000000");
+    expect(output1.getValue().getValue() ).toBe( 1000000n );
     // Check the script - this would require parsing the script to verify it matches the expected pattern
     
     // Second output: PUSHDATA(33)[02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975] CHECKSIG [99999999998999000:bc]
     const output2 = tx.getOutputs()[1];
-    expect(output2.getValue().toString()).toBe("99999999998999000");
+    expect(output2.getValue().getValue()).toBe(99999999998999000n);
     
        const originalHash = tb.getHash();
         tb = PARAMS.getDefaultSerializer().makeBlock(  tb.bitcoinSerializeCopy());

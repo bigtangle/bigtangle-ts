@@ -55,7 +55,7 @@ export class HeadersMessage extends Message {
         }
 
         this.blockHeaders = [];
-        const serializer = this.params.getDefaultSerializer();
+        const serializer = this.params!.getDefaultSerializer();
 
         for (let i = 0; i < numHeaders; ++i) {
             // Extract the block header data from the payload starting at cursor position
