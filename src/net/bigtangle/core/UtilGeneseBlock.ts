@@ -17,8 +17,6 @@ export class UtilGeneseBlock {
 
     public static createGenesis(params: NetworkParameters): Block {
         const block = new Block(params, NetworkParameters.BLOCK_VERSION_GENESIS);
-        // Set fixed time for deterministic genesis block
-        block.setTime(0);
         // Use the public key hash from the genesisKey for the miner address
         block.setMinerAddress(Buffer.from(UtilGeneseBlock.genesisKey.getPubKeyHash()));
         block.setPrevBlockHash(Sha256Hash.ZERO_HASH);
@@ -32,9 +30,9 @@ export class UtilGeneseBlock {
             null as unknown as TokenInfo, // Cast to TokenInfo | null
             null as unknown as MemoInfo // Cast to MemoInfo | null
         );
-        // For genesis block, set difficulty target to 0 for deterministic behavior
-        block.setDifficultyTarget(0);
-        // Don't solve genesis block as it should have fixed values
+        // For genesis block, we don't need to solve it, just set a valid difficulty target
+        block.setDifficultyTarget(Utils.encodeCompactBits(params.getMaxTarget()));
+        block.solveWithoutTarget();
         try {
             block.verifyHeader();
         } catch (e: unknown) {

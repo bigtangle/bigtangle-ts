@@ -1094,7 +1094,7 @@ export class Wallet extends WalletBase {
     coinList: FreeStandingTransactionOutput[],
     repeat: number,
     sleepMs: number
-  ): Promise<Block> {
+  ): Promise<Block | null> {
     try {
       // filterTokenid may be a method or utility
       const filtered = this.filterTokenid(tokenid, coinList);

@@ -203,7 +203,8 @@ export class Block extends Message {
       this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
     }
 
-    this.transactionBytesValid = this.serializer.isParseRetainMode();
+    // Always set transactionBytesValid to true after parsing transactions
+    this.transactionBytesValid = true;
   }
 
   protected parse(): void {
@@ -672,26 +673,24 @@ export class Block extends Message {
   }
 
   getDifficultyTargetAsInteger(): bigint {
-    const target = Utils.decodeCompactBits(this.difficultyTarget);
-    // Allow zero target for genesis block
-    if (!target) {
-      // For genesis block, return 0 target which is valid
-      if (this.getBlockType() === BlockType.BLOCKTYPE_INITIAL) {
-        return 0n;
-      }
-      throw new VerificationException.DifficultyTargetException();
+        const target = Utils.decodeCompactBits(this.difficultyTarget);
+        // Allow zero target for genesis block or when target is valid
+        if (!target) {
+            // For genesis block, return a valid target
+            if (this.getBlockType() === BlockType.BLOCKTYPE_INITIAL) {
+                return 0n;
+            }
+            throw new VerificationException.DifficultyTargetException();
+        }
+        if (target < 0n) {
+            throw new VerificationException.DifficultyTargetException();
+        }
+        // For non-genesis blocks, validate against max target
+        if (this.getBlockType() !== BlockType.BLOCKTYPE_INITIAL && target > this.getParams().getMaxTarget()) {
+            throw new VerificationException.DifficultyTargetException();
+        }
+        return target;
     }
-    if (target < 0n) {
-      throw new VerificationException.DifficultyTargetException();
-    }
-    if (
-      this.getBlockType() !== BlockType.BLOCKTYPE_INITIAL &&
-      target > this.getParams().getMaxTarget()
-    ) {
-      throw new VerificationException.DifficultyTargetException();
-    }
-    return target;
-  }
 
   checkProofOfWork(throwException: boolean): boolean {
     return this.checkProofOfWorkWithTarget(
@@ -990,7 +989,7 @@ export class Block extends Message {
           Buffer.from(inputBuilder.build().getProgram()),
           new TransactionOutPoint(
             this.getParams(),
-            1,
+            0,
             Sha256Hash.ZERO_HASH,
             Sha256Hash.ZERO_HASH
           )

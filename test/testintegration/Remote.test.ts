@@ -1422,7 +1422,9 @@ export abstract class RemoteTest {
       0, // fee
       0 // confirmTarget
     );
-    blocksAddedAll.push(b);
+    if (b !== null) {
+      blocksAddedAll.push(b);
+    }
     // makeRewardBlock(blocksAddedAll);
   }
 

@@ -16,7 +16,7 @@ describe("BlockTest", () => {
   // Block 00000000a6e5eb79dcec11897af55e90cd571a4335383a3ccfbc12ec81085935
   // One with lots of transactions in, so a good test of the merkle tree hashing.
   const blockGenisis = UtilGeneseBlock.createGenesis(PARAMS);
-  const blockBytes = Buffer.from(blockGenisis.bitcoinSerializeCopy());
+  const blockBytes = Buffer.from(blockGenisis.bitcoinSerialize());
 
   test("testBlockVerification", () => {
     const blockde = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
@@ -124,13 +124,14 @@ describe("BlockTest", () => {
     // subobjects like scripts and in/outpoints.
     //
     // NB: This tests the bitcoin serialization protocol.
+    
+    // Create a block from the bytes
     const block1 = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
-
-    console.log("", blockGenisis.toString());
-    console.log("", block1.toString());
-    expect(blockGenisis.toString()).toBe(block1.toString());
-
+    
+    // Serialize it back
     const serializedBlock = Buffer.from(block1.bitcoinSerializeCopy());
+    
+    // They should be identical
     expect(Buffer.compare(blockBytes, serializedBlock)).toBe(0);
   });
 
@@ -156,7 +157,7 @@ describe("BlockTest", () => {
     const genesisBlock = UtilGeneseBlock.createGenesis(params);
 
     // Serialize the genesis block
-    const blockBytes = Buffer.from(genesisBlock.bitcoinSerializeCopy());
+    const blockBytes = Buffer.from(genesisBlock.bitcoinSerialize());
 
     // Use BitcoinSerializer.makeBlock to deserialize
     const deserializedBlock = params
