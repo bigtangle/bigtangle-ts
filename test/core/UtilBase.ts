@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import { Block } from '../../src/net/bigtangle/core/Block';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { UtilGeneseBlock } from '../../src/net/bigtangle/core/UtilGeneseBlock';
+import { Utils } from '../../src/net/bigtangle/core/Utils';
 
 export class UtilsTest {
     public static createBlock(
@@ -43,12 +44,19 @@ export class UtilsTest {
                 branchBlock.getLastMiningRewardBlock(),
             ),
         );
-        b.setDifficultyTarget(
-            prevBlock.getLastMiningRewardBlock() >=
-                branchBlock.getLastMiningRewardBlock()
-                ? prevBlock.getDifficultyTarget()
-                : branchBlock.getDifficultyTarget(),
-        );
+        
+        // For testing purposes, if both previous blocks have difficulty target 0 (genesis blocks),
+        // set a reasonable difficulty target for the new block
+        let difficultyTarget = prevBlock.getLastMiningRewardBlock() >= branchBlock.getLastMiningRewardBlock()
+            ? prevBlock.getDifficultyTarget()
+            : branchBlock.getDifficultyTarget();
+            
+        // If difficulty target is 0 (from genesis block), set a test value
+        if (difficultyTarget === 0) {
+            difficultyTarget = Utils.encodeCompactBits(BigInt("0x1d00ffff")); // Standard test difficulty
+        }
+        
+        b.setDifficultyTarget(difficultyTarget);
 
         b.setHeight(Math.max(prevBlock.getHeight(), branchBlock.getHeight()) + 1);
 

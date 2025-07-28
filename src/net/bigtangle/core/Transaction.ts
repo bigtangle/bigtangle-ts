@@ -1241,7 +1241,7 @@ export class Transaction extends ChildMessage {
       stream.write(this.dataSignature);
     }
     const endPos = stream.size();
-    console.log(`Transaction serialized ${endPos - startPos} bytes`);
+   // console.log(`Transaction serialized ${endPos - startPos} bytes`);
   }
 
   /**

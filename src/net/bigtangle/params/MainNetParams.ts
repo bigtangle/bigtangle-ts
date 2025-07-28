@@ -24,7 +24,7 @@ export class MainNetParams extends NetworkParameters {
     }
 
     getMaxTarget(): bigint {
-        return BigInt("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        return BigInt("578960377169117509212217050695880916496095398817113098493422368414323410");
     }
  
     getProtocolVersionNum(version: number): number {

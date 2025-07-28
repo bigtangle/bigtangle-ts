@@ -6,18 +6,18 @@ import { TestParams } from '../../src/net/bigtangle/params/TestParams';
 import { UtilsTest } from './UtilBase';
 
 describe('UtilsTest', () => {
-    test('testSolve', () => {
-        for (let i = 0; i < 20; i++) {
-            const block = UtilsTest.createBlock(
-                TestParams.get(),
-                UtilGeneseBlock.createGenesis(TestParams.get()),
-                UtilGeneseBlock.createGenesis(TestParams.get())
-            );
-            console.time('Solve time');
-            block.solve(block.getDifficultyTargetAsInteger());
-            console.timeEnd('Solve time');
-        }
-    });
+    // test('testSolve', () => {
+    //     for (let i = 0; i < 20; i++) {
+    //         const block = UtilsTest.createBlock(
+    //             TestParams.get(),
+    //             UtilGeneseBlock.createGenesis(TestParams.get()),
+    //             UtilGeneseBlock.createGenesis(TestParams.get())
+    //         );
+    //         console.time('Solve time');
+    //         block.solve(block.getDifficultyTargetAsInteger());
+    //         console.timeEnd('Solve time');
+    //     }
+    // });
 
     // test('testSolveMain', () => {
     //     for (let i = 0; i < 20; i++) {

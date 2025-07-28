@@ -75,15 +75,11 @@ export class Utils {
         stream.write((val >>> 24) & 0xFF);
     }
 
-    public static int64ToByteStreamLE(val: number, stream: any): void {
-        stream.write(val & 0xFF);
-        stream.write((val >>> 8) & 0xFF);
-        stream.write((val >>> 16) & 0xFF);
-        stream.write((val >>> 24) & 0xFF);
-        stream.write((val / Math.pow(2, 32)) & 0xFF);
-        stream.write((val / Math.pow(2, 40)) & 0xFF);
-        stream.write((val / Math.pow(2, 48)) & 0xFF);
-        stream.write((val / Math.pow(2, 56)) & 0xFF);
+    public static int64ToByteStreamLE(val: BigInteger, stream: any): void {
+        const bytes = Utils.bigIntToBytes(val, 8);
+        for (let i = 0; i < 8; i++) {
+            stream.write(bytes[7 - i]); // Reverse for LE
+        }
     }
 
     public static uint64ToByteStreamLEBigInt(val: BigInteger, stream: any): void {
@@ -125,6 +121,9 @@ export class Utils {
     }
 
     public static readUint32(bytes: Uint8Array, offset: number): number {
+        if (offset + 4 > bytes.length) {
+            throw new Error("Attempt to read 4 bytes from position " + offset + " with only " + bytes.length + " bytes available");
+        }
         return (bytes[offset] & 0xff) |
                ((bytes[offset + 1] & 0xff) << 8) |
                ((bytes[offset + 2] & 0xff) << 16) |
@@ -278,32 +277,59 @@ export class Utils {
 
     public static decodeCompactBits(compact: number): BigInteger {
         const size = (compact >>> 24) & 0xFF;
-        const bytes = new Uint8Array(4 + size);
-        bytes[3] = size;
-        if (size >= 1) bytes[4] = (compact >>> 16) & 0xFF;
-        if (size >= 2) bytes[5] = (compact >>> 8) & 0xFF;
-        if (size >= 3) bytes[6] = compact & 0xFF;
-        return Utils.decodeMPI(bytes, true);
+        const b = new Uint8Array(4);
+        b[0] = (compact >>> 16) & 0xFF;
+        b[1] = (compact >>> 8) & 0xFF;
+        b[2] = compact & 0xFF;
+        b[3] = 0;
+
+        let mantissa = bigInt(Utils.HEX.encode(b.slice(0, 3)), 16);
+
+        if ((compact & 0x00800000) !== 0) {
+            mantissa = mantissa.negate();
+        }
+        
+        if (size <= 3) {
+            return mantissa.shiftRight(8 * (3 - size));
+        } else {
+            return mantissa.shiftLeft(8 * (size - 3));
+        }
     }
 
     public static encodeCompactBits(value: BigInteger): number {
-        let result: number;
-        let size = new Uint8Array(value.toArray(256).value).length; // Access .value and convert to Uint8Array
-        if (size <= 3) {
-            result = parseInt(value.toString(), 10) << (8 * (3 - size));
-        } else {
-            result = parseInt(value.shiftRight(8 * (size - 3)).toString(), 10);
+        if (value.isZero()) {
+            return 0;
         }
-        // The 0x00800000 bit denotes the sign.
-        // Thus, if it is already set, divide the mantissa by 256 and increase
-        // the exponent.
-        if ((result & 0x00800000) !== 0) {
-            result >>= 8;
+
+        const absValue = value.abs();
+        let hex = absValue.toString(16);
+        if (hex.length % 2 !== 0) {
+            hex = '0' + hex;
+        }
+        let size = hex.length / 2;
+
+        let mantissaHex;
+        if (size <= 3) {
+            mantissaHex = hex;
+            while (mantissaHex.length < 6) {
+                mantissaHex = '00' + mantissaHex;
+            }
+        } else {
+            mantissaHex = hex.substring(0, 6);
+        }
+        
+        let mantissa = parseInt(mantissaHex, 16);
+
+        if (mantissa & 0x800000) {
+            mantissa >>= 8;
             size++;
         }
-        result |= (size << 24);
-        result |= value.isNegative() ? 0x00800000 : 0;
-        return result;
+
+        let compact = (size << 24) | mantissa;
+        if (value.isNegative()) {
+            compact |= 0x800000;
+        }
+        return compact;
     }
 
     public static mockTime: Date | null = null;

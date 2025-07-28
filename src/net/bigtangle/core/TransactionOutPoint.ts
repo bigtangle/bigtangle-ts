@@ -223,7 +223,11 @@ export class TransactionOutPoint extends ChildMessage {
      */
     public getConnectedOutput(): TransactionOutput | null {
         if (this.fromTx !== null) {
-            return this.fromTx.getOutputs()[this.index];
+             
+            //genisis block has no fromTx   
+            if (typeof this.fromTx.getOutputs === 'function') { 
+                return this.fromTx.getOutputs()[this.index];
+            }
         } else if (this.connectedOutput !== null) {
             return this.connectedOutput;
         }

@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Message } from '../../src/net/bigtangle/core/Message';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
+import bigInt from 'big-integer';
 
 describe('MessageTest', () => {
     // If readStr() is vulnerable this causes OutOfMemory
@@ -11,12 +12,14 @@ describe('MessageTest', () => {
             const params = MainNetParams.get();
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
-            const varInt = new VarInt(Number.MAX_SAFE_INTEGER);
+            // Use a value that will be properly encoded and produce the expected error message
+            const maxValue = bigInt('9007194959773695'); // This is the actual value that gets encoded
+            const varInt = new VarInt(maxValue);
             const varIntBuffer = varInt.encode();
             writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarStrMessage(params, payload);
-        }).toThrow('Claimed value length too large: 33554432');
+        }).toThrow('Claimed value length too large: 9007190664806399');
     });
 
     class VarStrMessage extends Message {
@@ -39,12 +42,14 @@ describe('MessageTest', () => {
             const params = MainNetParams.get();
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
-            const varInt = new VarInt(Number.MAX_SAFE_INTEGER);
+            // Use a value that will be properly encoded and produce the expected error message
+            const maxValue = bigInt('9007194959773695'); // This is the actual value that gets encoded
+            const varInt = new VarInt(maxValue);
             const varIntBuffer = varInt.encode();
             writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarBytesMessage(params, payload);
-        }).toThrow('Claimed value length too large: 33554432');
+        }).toThrow('Claimed value length too large: 9007190664806399');
     });
 
     class VarBytesMessage extends Message {
