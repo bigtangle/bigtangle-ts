@@ -64,7 +64,7 @@ export class Block extends Message {
             this.time = Math.floor(Date.now() / 1000);
             this.prevBlockHash = Sha256Hash.ZERO_HASH;
             this.prevBranchBlockHash = Sha256Hash.ZERO_HASH;
-            this.blockType = BlockType.BLOCKTYPE_INITIAL; // Changed from BLOCKTYPE_TRANSFER to BLOCKTYPE_INITIAL
+            this.blockType = BlockType.BLOCKTYPE_TRANSFER; // default
             this.minerAddress = Buffer.alloc(20);
             this.length = NetworkParameters.HEADER_SIZE;
             this.transactions = [];
@@ -612,11 +612,7 @@ export class Block extends Message {
         const h = this.calculatePoWHash();
         const hBigInt = bigInt(h.toString(), 16);
         
-        // Debug output
-        console.log("Hash:", h.toString());
-        console.log("Target:", target.toString());
-        console.log("Hash > Target:", hBigInt.greater(target));
-
+       
         if (hBigInt.greater(target)) {
             if (throwException) {
                 throw new VerificationException.ProofOfWorkException();

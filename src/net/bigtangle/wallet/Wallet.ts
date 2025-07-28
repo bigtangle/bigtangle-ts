@@ -1098,7 +1098,7 @@ export class Wallet extends WalletBase {
     try {
       // filterTokenid may be a method or utility
       const filtered = this.filterTokenid(tokenid, coinList);
-      return await (this as any).payToList(
+      return await this.payToList(
         aesKey,
         giveMoneyResult,
         tokenid,
@@ -1368,31 +1368,11 @@ export class Wallet extends WalletBase {
    * @returns A Promise resolving to the posted Block.
    */
   async solveAndPost(block: Block): Promise<Block> {
-    if (typeof block.solveWithoutTarget === "function") {
-      const result = block.solveWithoutTarget();
-      if (
-        typeof result !== "undefined" &&
-        typeof (result as any).then === "function"
-      ) {
-        await Promise.resolve(result);
-      }
-    }
+   
+     block.solveWithoutTarget(); 
     // Serialize the block
-    const blockBytes = block.bitcoinSerializeCopy();
-    
-    // Check if blockBytes is empty and add debugging
-    if (blockBytes.length === 0) {
-      console.warn("Block serialization resulted in empty byte array in solveAndPost");
-      // Try to serialize again to see if it helps
-      const blockBytes2 = block.bitcoinSerialize ? block.bitcoinSerialize() : Buffer.alloc(0);
-      console.log("Alternative serialization length:", blockBytes2.length);
-      
-      // Also check if the block has transactions
-      console.log("Block has transactions:", block.hasTransactions ? block.hasTransactions() : false);
-      const transactions = block.getTransactions ? block.getTransactions() : [];
-      console.log("Number of transactions:", transactions.length);
-    }
-
+    const blockBytes = block.unsafeBitcoinSerialize(); 
+   console.debug("post block:", block.toString());
     // Post to the server
     const url = this.getServerURL() + (ReqCmd.saveBlock || "/saveBlock");
     const response = await OkHttp3Util.post(url, blockBytes);
