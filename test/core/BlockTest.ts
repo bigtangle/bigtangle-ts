@@ -28,59 +28,8 @@ describe("BlockTest", () => {
   // One with lots of transactions in, so a good test of the merkle tree hashing.
   const block = UtilGeneseBlock.createGenesis(PARAMS);
   const blockBytes = Buffer.from(block.bitcoinSerialize());
-  console.log("Block bytes length:", blockBytes.length);
-  console.log("Block transactions length:", block.getTransactions().length);
-  console.log("Block merkle root:", block.getMerkleRoot().toString());
-  console.log("Block hash:", block.getHash().toString());
-
-  // Debug information
-  console.log("Block header size:", NetworkParameters.HEADER_SIZE);
-  console.log("Block version:", block.getVersion());
-  console.log("Block prev block hash:", block.getPrevBlockHash().toString());
-  console.log(
-    "Block prev branch block hash:",
-    block.getPrevBranchBlockHash().toString()
-  );
-  console.log("Block merkle root:", block.getMerkleRoot().toString());
-  console.log("Block time:", block.getTimeSeconds());
-  console.log("Block difficulty target:", block.getDifficultyTarget());
-  console.log(
-    "Block last mining reward block:",
-    block.getLastMiningRewardBlock()
-  );
-  console.log("Block nonce:", block.getNonce());
-  console.log(
-    "Block miner address length:",
-    block.getMinerAddress()?.length || 0
-  );
-  console.log("Block block type:", block.getBlockType());
-  console.log("Block height:", block.getHeight());
-
-  // Transaction debug information
-  if (block.getTransactions().length > 0) {
-    const tx = block.getTransactions()[0];
-    console.log("Transaction version:", tx.getVersion());
-    console.log("Transaction inputs length:", tx.getInputs().length);
-    console.log("Transaction outputs length:", tx.getOutputs().length);
-    console.log("Transaction lock time:", tx.getLockTime());
-    console.log("Transaction data class name:", tx.getDataClassName());
-    console.log("Transaction data length:", tx.getData()?.length || 0);
-    console.log(
-      "Transaction to address in subtangle length:",
-      tx.getToAddressInSubtangle()?.length || 0
-    );
-    console.log("Transaction memo:", tx.getMemo());
-    console.log(
-      "Transaction data signature length:",
-      tx.getDataSignature()?.length || 0
-    );
-    console.log("Transaction hash:", tx.getHash().toString());
-    console.log("Transaction message size:", tx.getMessageSize());
-    console.log(
-      "Transaction optimal encoding message size:",
-      tx.getOptimalEncodingMessageSize()
-    );
-  }
+ 
+ 
 
   test("testBlockVerification", () => {
     const blockde = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
@@ -114,12 +63,11 @@ describe("BlockTest", () => {
     const output2 = tx.getOutputs()[1];
     expect(output2.getValue().getValue()).toBe(99999999998999000n);
     
-       const originalHash = tb.getHash();
-        tb = PARAMS.getDefaultSerializer().makeBlock(  tb.bitcoinSerializeCopy());
-    console.log("Test Block Reserialized:", tb.toString());
-    expect(tb.getHash().equals(originalHash)).toBe(true);
-
-    /*
+     const originalHash = tb.getHash();
+     const  tbbin = PARAMS.getDefaultSerializer().makeBlock(  tb.bitcoinSerializeCopy());
+    console.log("Test Block recovered :", tbbin.toString());
+    expect(tbbin.getHash().equals(originalHash)).toBe(true);
+      /*
       hash: 00d3c70911d485fffa462ba83df25f59f961aa54909643246590a14b86e5073f
    version: 1   time: 1753560106 (2025-07-26T20:01:46Z)
    height: 1

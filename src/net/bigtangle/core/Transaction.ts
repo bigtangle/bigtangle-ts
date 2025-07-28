@@ -457,12 +457,12 @@ export class Transaction extends ChildMessage {
     this.cursor = this.offset;
 
     this.version = this.readUint32();
-    console.log(`Parsed version: ${this.version}`);
+ 
     this.optimalEncodingMessageSize = 4;
 
     // First come the inputs.
     const numInputs = this.readVarInt();
-    console.log(`Parsed numInputs: ${numInputs}`);
+   
     this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numInputs));
     this.inputs = [];
     for (let i = 0; i < numInputs; i++) {
@@ -490,24 +490,14 @@ export class Transaction extends ChildMessage {
         4;
       this.cursor += scriptLen + 4 + addLen;
     }
-    // Now the outputs
-    console.log(`Cursor position before reading numOutputs: ${this.cursor}`);
-    console.log(`Payload length: ${this.payload?.length}`);
-    console.log(
-      `Payload bytes at cursor: ${this.payload
-        ?.slice(this.cursor, this.cursor + 10)
-        .toString("hex")}`
-    );
-
+   
     // Read the number of outputs
     const numOutputsVarInt = VarInt.fromBuffer(
       this.payload ?? Buffer.alloc(0),
       this.cursor
     );
     const numOutputs = Number(numOutputsVarInt.value);
-    console.log(
-      `Parsed numOutputs: ${numOutputs} (VarInt size: ${numOutputsVarInt.getOriginalSizeInBytes()})`
-    );
+  
     this.cursor += numOutputsVarInt.getOriginalSizeInBytes();
 
     this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
@@ -525,13 +515,13 @@ export class Transaction extends ChildMessage {
         this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
         this.cursor
       );
-      console.log(`Parsed output ${i} with length ${output.getMessageSize()}`);
+      
       this.outputs.push(output);
       this.cursor += output.getMessageSize();
       this.optimalEncodingMessageSize += output.getMessageSize();
     }
     this.lockTime = this.readUint32();
-    console.log(`Parsed lockTime: ${this.lockTime}`);
+   
     this.optimalEncodingMessageSize += 4;
 
     // Check if we have more bytes to read before attempting to read the additional fields
@@ -539,83 +529,73 @@ export class Transaction extends ChildMessage {
 
     // dataClassName
     if (this.payload && this.cursor < this.payload.length) {
-      try {
+     
         const len = Number(this.readVarInt());
-        console.log(`Parsed dataClassName length: ${len}`);
+     
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
         if (len > 0) {
           const buf = this.readBytes(len);
           this.dataClassName = buf.toString("utf8");
           this.optimalEncodingMessageSize += len;
         }
-      } catch (e) {
-        console.log("Error parsing dataClassName, skipping field");
-      }
+       
     }
 
     // data
     if (this.payload && this.cursor < this.payload.length) {
-      try {
+    
         const len = Number(this.readVarInt());
-        console.log(`Parsed data length: ${len}`);
+    
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
         if (len > 0) {
           this.data = this.readBytes(len);
           this.optimalEncodingMessageSize += len;
         }
-      } catch (e) {
-        console.log("Error parsing data, skipping field");
-      }
+      
     }
 
     // toAddressInSubtangle
     if (this.payload && this.cursor < this.payload.length) {
-      try {
+      
         const len = Number(this.readVarInt());
-        console.log(`Parsed toAddressInSubtangle length: ${len}`);
+      
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
         if (len > 0) {
           this.toAddressInSubtangle = this.readBytes(len);
           this.optimalEncodingMessageSize += len;
         }
-      } catch (e) {
-        console.log("Error parsing toAddressInSubtangle, skipping field");
-      }
+   
     }
 
     // memo
     if (this.payload && this.cursor < this.payload.length) {
-      try {
+    
         const len = Number(this.readVarInt());
-        console.log(`Parsed memo length: ${len}`);
+     
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
         if (len > 0) {
           const memoBytes = this.readBytes(len);
           this.memo = Utils.toString(memoBytes, "utf-8");
           this.optimalEncodingMessageSize += len;
         }
-      } catch (e) {
-        console.log("Error parsing memo, skipping field");
-      }
+     
     }
 
     // dataSignature
     if (this.payload && this.cursor < this.payload.length) {
-      try {
+   
         const len = Number(this.readVarInt());
-        console.log(`Parsed dataSignature length: ${len}`);
+ 
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(len));
         if (len > 0) {
           this.dataSignature = this.readBytes(len);
           this.optimalEncodingMessageSize += len;
         }
-      } catch (e) {
-        console.log("Error parsing dataSignature, skipping field");
-      }
+      
     }
 
     this.length = this.cursor - this.offset;
-    console.log(`Parsed transaction length: ${this.length}`);
+ 
   }
 
   getOptimalEncodingMessageSize(): number {
@@ -671,9 +651,7 @@ export class Transaction extends ChildMessage {
       }
       s += "\n";
     }
-    if (this.isOptInFullRBF()) {
-      s += "  opts into full replace-by-fee\n";
-    }
+ 
     if (this.isCoinBase()) {
       let script: string;
       let script2: string;
@@ -720,7 +698,7 @@ export class Transaction extends ChildMessage {
             s += `\n          sequence:${input
               .getSequenceNumber()
               .toString(16)}`;
-            if (input.isOptInFullRBF()) s += ", opts into full RBF";
+            
           }
         } catch (e) {
           if (e instanceof Error) {
