@@ -84,11 +84,11 @@ export class Tokensums extends DataClass {
             const superBytes = Buffer.from(super.toByteArray());
             dos.writeBytes(superBytes, 0, superBytes.length);
             dos.writeNBytesString(this.tokenid ?? "");
-            const initialBytes = Buffer.from(Utils.bigIntToBytes(this.initial, 32));
+            const initialBytes = Buffer.from(Utils.bigIntToBytes(this.initial ));
             dos.writeBytes(initialBytes, 0, initialBytes.length);
-            const unspentBytes = Buffer.from(Utils.bigIntToBytes(this.unspent, 32));
+            const unspentBytes = Buffer.from(Utils.bigIntToBytes(this.unspent ));
             dos.writeBytes(unspentBytes, 0, unspentBytes.length);
-            const orderBytes = Buffer.from(Utils.bigIntToBytes(this.order, 32));
+            const orderBytes = Buffer.from(Utils.bigIntToBytes(this.order));
             dos.writeBytes(orderBytes, 0, orderBytes.length);
             dos.writeInt(this.utxos.length);
             for (const c of this.utxos) {

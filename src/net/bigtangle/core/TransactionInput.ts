@@ -180,7 +180,7 @@ export class TransactionInput extends ChildMessage {
             // Serialize value as a varint followed by the actual value bytes
             const valueBigInt = bigInt(this.value.getValue().toString());
             // Convert BigInt to bytes using Utils method with 8 bytes (matches Java server expectation)
-            const valueBytes = Utils.bigIntToBytes(valueBigInt, 8);
+            const valueBytes = Utils.bigIntToBytes(valueBigInt );
             // Write length as a single byte for small values
             stream.write(new VarInt(valueBytes.length).encode());
             // Write value bytes in the same order (big-endian) as the Java server expects

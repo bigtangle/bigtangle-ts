@@ -150,7 +150,7 @@ export class TransactionOutput extends ChildMessage {
             this.availableForSpending = true;
             this.length = this.value.getTokenid().length + VarInt.sizeOf(this.value.getTokenid().length)
                 + VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length
-                + VarInt.sizeOf(Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()), 32))) + Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()), 32));
+                + VarInt.sizeOf(Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()) ))) + Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()) ));
         } else if (args.length === 4 && args[2] instanceof Coin && args[3] instanceof Buffer) {
             // Direct constructor with script bytes
             const value = args[2];
@@ -170,7 +170,7 @@ export class TransactionOutput extends ChildMessage {
             this.availableForSpending = true;
             this.length = this.value.getTokenid().length + VarInt.sizeOf(this.value.getTokenid().length)
                 + VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length
-                + VarInt.sizeOf(Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()), 32))) + Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()), 32));
+                + VarInt.sizeOf(Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()) ))) + Buffer.byteLength(Utils.bigIntToBytes(bigInt(this.value.getValue().toString()) ));
         } else {
             throw new Error("Invalid constructor arguments");
         }
@@ -282,7 +282,7 @@ export class TransactionOutput extends ChildMessage {
         // Serialize value as a varint followed by the actual value bytes
         const valueBigInt = bigInt(this.value.getValue().toString());
         // Convert BigInt to bytes using Utils method with minimum bytes needed
-        let valueBytes = Utils.bigIntToBytes(valueBigInt, 8);
+        let valueBytes = Utils.bigIntToBytes(valueBigInt );
         // Remove leading zeros to match Java BigInteger serialization
         let firstNonZeroIndex = 0;
         while (firstNonZeroIndex < valueBytes.length && valueBytes[firstNonZeroIndex] === 0) {

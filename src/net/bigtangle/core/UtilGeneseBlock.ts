@@ -3,7 +3,6 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Sha256Hash } from './Sha256Hash';
 import { BlockType } from './BlockType';
 import { Coin } from './Coin';
-import { Constants } from './Constants';
 import { VerificationException } from '../exception/VerificationException';
 import { TokenInfo } from './TokenInfo';
 import { MemoInfo } from './MemoInfo';
@@ -26,7 +25,7 @@ export class UtilGeneseBlock {
         block.addCoinbaseTransaction(
             // Use the public key bytes from the genesisKey for the coinbase transaction
             Buffer.from(UtilGeneseBlock.genesisKey.getPubKey()),
-            Coin.valueOf(BigInt('10000000000000000'), Constants.BIGTANGLE_TOKENID),
+            Coin.valueOf(BigInt('10000000000000000'), NetworkParameters.BIGTANGLE_TOKENID),
             null as unknown as TokenInfo, // Cast to TokenInfo | null
             null as unknown as MemoInfo // Cast to MemoInfo | null
         );

@@ -246,7 +246,7 @@ export abstract class RemoteTest {
     let block: Block | null = null;
     const tokenInfo = new TokenInfo();
 
-    const coinbase = new Coin(amount, testKey.getPubKey());
+    const coinbase = new Coin(amount, Buffer.from(testKey.getPubKey()));
     // Convert amount to number for Token constructor
     const tokenAmount = BigInt(Number(amount));
     // Convert decimal to number explicitly
@@ -521,7 +521,7 @@ export abstract class RemoteTest {
 
     const amount = Coin.valueOf(
       BigInt(2),
-      NetworkParameters.BIGTANGLE_TOKENID_STRING
+      NetworkParameters.BIGTANGLE_TOKENID 
     );
     const tx = new Transaction(this.networkParameters);
 
@@ -764,7 +764,7 @@ export abstract class RemoteTest {
     const pubKey = outKey.getPubKey();
     const tokenInfo = new TokenInfo();
     const tokenid = Utils.toHexString(pubKey);
-    const basecoin = Coin.valueOf(amountgiven, tokenid);
+    const basecoin = Coin.valueOf(amountgiven, Buffer.from(tokenid));
 
     // Convert amount to number for Token constructor
     const tokenAmount = BigInt(Number(amountgiven));
@@ -1312,7 +1312,7 @@ export abstract class RemoteTest {
     const feeBlock = await w.feeTransaction(
       new Coin(
         BigInt(w.getFee() || 0),
-        NetworkParameters.BIGTANGLE_TOKENID_STRING
+        NetworkParameters.BIGTANGLE_TOKENID
       ),
       outKey,
       aesKey

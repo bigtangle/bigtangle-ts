@@ -42,7 +42,7 @@ export class ContractEventInfo extends DataClass {
             baos.writeNBytesString(this.offerTokenid);
             baos.writeNBytesString(this.contractTokenid);
             baos.writeNBytesString(this.offerSystem);
-            const b = Utils.bigIntToBytes(this.offerValue!, 32)
+            const b = Utils.bigIntToBytes(this.offerValue! )
             const buffer = Buffer.from(b);
             baos.writeBytes(buffer, 0, buffer.length); // Assuming 32 bytes for BigInteger
             baos.close();

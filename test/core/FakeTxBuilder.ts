@@ -13,7 +13,6 @@ import { TransactionSignature } from '../../src/net/bigtangle/crypto/Transaction
 import { Block } from '../../src/net/bigtangle/core/Block';
 import { UtilsTest } from './UtilBase';
 import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
-import { Constants } from '../../src/net/bigtangle/core/Constants';
 import bigInt from 'big-integer';
 
 export class FakeTxBuilder {
@@ -91,7 +90,7 @@ export class FakeTxBuilder {
             t,
             Coin.valueOf(
                 BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
-                Constants.BIGTANGLE_TOKENID,
+                NetworkParameters.BIGTANGLE_TOKENID,
             ),
             changeOutput,
         );
@@ -146,7 +145,7 @@ export class FakeTxBuilder {
         const prevOut1 = TransactionOutput.fromAddress(
             params,
             prevTx1,
-            Coin.valueOf(BigInt(split.toString()), Constants.BIGTANGLE_TOKENID),
+            Coin.valueOf(BigInt(split.toString()), NetworkParameters.BIGTANGLE_TOKENID),
             to,
         );
         prevTx1.addOutput(prevOut1);
@@ -163,7 +162,7 @@ export class FakeTxBuilder {
             prevTx2,
             Coin.valueOf(
                 BigInt(bigInt(value.getValue()).subtract(split).toString()),
-                Constants.BIGTANGLE_TOKENID,
+                NetworkParameters.BIGTANGLE_TOKENID,
             ),
             to,
         );
@@ -213,7 +212,7 @@ export class FakeTxBuilder {
             t,
             Coin.valueOf(
                 BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
-                Constants.BIGTANGLE_TOKENID,
+                NetworkParameters.BIGTANGLE_TOKENID,
             ),
             ECKey.fromPrivate(bigInt('2')).toAddress(params),
         );
@@ -253,7 +252,7 @@ export class FakeTxBuilder {
             t,
             Coin.valueOf(
                 BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
-                Constants.BIGTANGLE_TOKENID,
+                NetworkParameters.BIGTANGLE_TOKENID,
             ),
             ECKey.fromPrivate(bigInt('2')).toAddress(params),
         );

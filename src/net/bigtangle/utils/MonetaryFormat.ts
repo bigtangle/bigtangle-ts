@@ -275,10 +275,10 @@ export class MonetaryFormat {
 
     // Parsing methods
     parse(str: string): Coin {
-        return new Coin(this.parseValue(str, NetworkParameters.BIGTANGLE_DECIMAL), NetworkParameters.BIGTANGLE_TOKENID_STRING);
+        return new Coin(this.parseValue(str, NetworkParameters.BIGTANGLE_DECIMAL), NetworkParameters.BIGTANGLE_TOKENID);
     }
 
-    parseWithToken(str: string, tokenid: Buffer | Uint8Array, decimal: number): Coin {
+    parseWithToken(str: string, tokenid: Buffer , decimal: number): Coin {
         return new Coin(this.parseValue(str, decimal), tokenid);
     }
 

@@ -1055,7 +1055,7 @@ export class Wallet extends WalletBase {
           const feeTxBlock = await this.feeTransaction(
             new Coin(
               BigInt(this.getFee() || 0),
-              NetworkParameters.BIGTANGLE_TOKENID_STRING
+              NetworkParameters.BIGTANGLE_TOKENID
             ),
             ownerKey,
             aesKey
@@ -1295,7 +1295,7 @@ export class Wallet extends WalletBase {
         const feeTxBlock = await this.feeTransaction(
           new Coin(
             BigInt(this.getFee() || 0),
-            NetworkParameters.BIGTANGLE_TOKENID_STRING
+             NetworkParameters.BIGTANGLE_TOKENID
           ),
           ownerKey,
           aesKey
@@ -1565,11 +1565,11 @@ export class Wallet extends WalletBase {
         targetToken.getDecimals() + priceshift,
         allowRemainder
       ),
-      Utils.HEX.decode(orderBaseToken!)
+     Buffer.from( Utils.HEX.decode(orderBaseToken!))
     ).negate();
     if (
       this.getFee() &&
-      NetworkParameters.BIGTANGLE_TOKENID_STRING === orderBaseToken
+       NetworkParameters.BIGTANGLE_TOKENID_STRING === orderBaseToken
     ) {
       toBePaid = toBePaid.add(Coin.FEE_DEFAULT.negate());
     }
@@ -1665,7 +1665,7 @@ export class Wallet extends WalletBase {
       const feeBlock = await this.feeTransaction(
         new Coin(
           BigInt(this.getFee() || 0),
-          NetworkParameters.BIGTANGLE_TOKENID_STRING
+           NetworkParameters.BIGTANGLE_TOKENID
         ),
         beneficiary!,
         aesKey
@@ -1694,7 +1694,7 @@ export class Wallet extends WalletBase {
     const candidates = await this.calculateAllSpendCandidates(aesKey, false);
     const priceshift = (this.params as any).getOrderPriceShift(orderBaseToken!);
     // Burn tokens to sell
-    let myCoin = Coin.valueOf(offervalue, t.getTokenid()!).negate();
+    let myCoin = Coin.valueOfString(offervalue, t.getTokenid()!).negate();
 
     if (
       this.getFee() &&
@@ -1796,7 +1796,7 @@ export class Wallet extends WalletBase {
       const feeBlock = await this.feeTransaction(
         new Coin(
           BigInt(this.getFee() || 0),
-          NetworkParameters.BIGTANGLE_TOKENID_STRING
+           NetworkParameters.BIGTANGLE_TOKENID
         ),
         beneficiary!,
         aesKey
@@ -1915,7 +1915,7 @@ export class Wallet extends WalletBase {
   async payToListTransaction(
     aesKey: any,
     giveMoneyResult: Map<string, bigint>,
-    tokenid: Uint8Array,
+    tokenid: Buffer,
     memo: string,
     coinList: FreeStandingTransactionOutput[]
   ): Promise<Transaction> {

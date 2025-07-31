@@ -1,7 +1,8 @@
 import { Buffer } from 'buffer';
-import { Constants } from './Constants';
+
 import { MonetaryFormat } from '../utils/MonetaryFormat';
 import { JsonCreator } from 'jackson-js';
+import { NetworkParameters } from '../params/NetworkParameters';
 
 export class Coin implements IMonetary, IComparable<Coin> {
  
@@ -9,25 +10,18 @@ export class Coin implements IMonetary, IComparable<Coin> {
     static readonly FIAT: MonetaryFormat = new MonetaryFormat().withShift(0).withMinDecimals(0);
 
     // Static constants
-    public static readonly ZERO: Coin = Coin.valueOf(0n, Constants.BIGTANGLE_TOKENID);
-    public static readonly COIN: Coin = Coin.valueOf(1000000n, Constants.BIGTANGLE_TOKENID);
-    public static readonly SATOSHI: Coin = Coin.valueOf(1n, Constants.BIGTANGLE_TOKENID);
-    public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOf(-1n, Constants.BIGTANGLE_TOKENID);
-    public static readonly FEE_DEFAULT: Coin = Coin.valueOf(1000n, Constants.BIGTANGLE_TOKENID);
+    public static readonly ZERO: Coin = Coin.valueOf(0n,  NetworkParameters.BIGTANGLE_TOKENID);
+    public static readonly COIN: Coin = Coin.valueOf(1000000n, NetworkParameters.BIGTANGLE_TOKENID);
+    public static readonly SATOSHI: Coin = Coin.valueOf(1n, NetworkParameters.BIGTANGLE_TOKENID);
+    public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOf(-1n, NetworkParameters.BIGTANGLE_TOKENID);
+    public static readonly FEE_DEFAULT: Coin = Coin.valueOf(1000n, NetworkParameters.BIGTANGLE_TOKENID);
 
     public value: bigint;
     public tokenid: Buffer;
 
-    constructor(satoshis?: bigint, tokenid?: Buffer | Uint8Array | string) {
-        this.value = satoshis || 0n;
-        
-        if (typeof tokenid === 'string') {
-            this.tokenid = Buffer.from(tokenid, 'hex');
-        } else if (tokenid instanceof Uint8Array) {
-            this.tokenid = Buffer.from(tokenid);
-        } else {
-            this.tokenid = tokenid || Buffer.from([]);
-        }
+    constructor(satoshis?: bigint, tokenid?: Buffer) {
+        this.value = satoshis || 0n; 
+        this.tokenid = tokenid || NetworkParameters.BIGTANGLE_TOKENID;
     }
 
 @JsonCreator()
@@ -46,7 +40,7 @@ public static fromJSON(json: any): Coin {
         // Check if this is the BIGTANGLE_TOKENID (32 bytes of zeros)
         // If so, replace with the actual BIGTANGLE_TOKENID constant
         if (coin.tokenid.length === 1 && coin.tokenid[0] === 0xbc) {
-            coin.tokenid = Constants.BIGTANGLE_TOKENID;
+            coin.tokenid = NetworkParameters.BIGTANGLE_TOKENID;
             console.log('Replaced with BIGTANGLE_TOKENID constant');
         }
     }
@@ -54,8 +48,14 @@ public static fromJSON(json: any): Coin {
     return coin;
 }
 
-    public static valueOf(satoshis: bigint, tokenid?: Buffer | string): Coin {
-        return new Coin(satoshis, tokenid || Constants.BIGTANGLE_TOKENID);
+    public static valueOf(satoshis: bigint, tokenid?: Buffer ): Coin {
+        return new Coin(satoshis, tokenid || NetworkParameters.BIGTANGLE_TOKENID);
+    }
+
+
+    public static valueOfString(satoshis: bigint, tokenid?: string): Coin {
+        const tokenIdBuffer = tokenid ? Buffer.from(tokenid, 'hex') : undefined;
+        return new Coin(satoshis, tokenIdBuffer || NetworkParameters.BIGTANGLE_TOKENID);
     }
 
     public static fromBigInteger(value: bigint, tokenid: Uint8Array): Coin {
@@ -139,7 +139,7 @@ public static fromJSON(json: any): Coin {
     }
 
     public isBIG(): boolean {
-        return this.tokenid.equals(Constants.BIGTANGLE_TOKENID);
+        return this.tokenid.equals(NetworkParameters.BIGTANGLE_TOKENID);
     }
 
     public isGreaterThan(other: Coin): boolean {
