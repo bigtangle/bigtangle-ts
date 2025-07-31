@@ -25,7 +25,7 @@ export class UtilGeneseBlock {
         block.addCoinbaseTransaction(
             // Use the public key bytes from the genesisKey for the coinbase transaction
             Buffer.from(UtilGeneseBlock.genesisKey.getPubKey()),
-            Coin.valueOf(BigInt('10000000000000000'), NetworkParameters.BIGTANGLE_TOKENID),
+            Coin.valueOf(BigInt('10000000000000000'), NetworkParameters.getBIGTANGLE_TOKENID() ),
             null as unknown as TokenInfo, // Cast to TokenInfo | null
             null as unknown as MemoInfo // Cast to MemoInfo | null
         );

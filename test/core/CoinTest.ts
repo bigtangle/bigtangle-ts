@@ -22,8 +22,8 @@ describe('CoinTest', () => {
     });
 
     test('testValueOf', () => {
-        Coin.valueOf(BigInt(Number.MAX_SAFE_INTEGER),  NetworkParameters.BIGTANGLE_TOKENID);
-        Coin.valueOf(BigInt(Number.MIN_SAFE_INTEGER),  NetworkParameters.BIGTANGLE_TOKENID);
+        Coin.valueOf(BigInt(Number.MAX_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() );
+        Coin.valueOf(BigInt(Number.MIN_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() );
     });
 
     test('testOperators', () => {
@@ -32,56 +32,56 @@ describe('CoinTest', () => {
         expect(Coin.ZERO.isZero()).toBe(true);
 
         expect(
-            Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isGreaterThan(Coin.valueOf(1n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isGreaterThan(Coin.valueOf(1n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(true);
         expect(
-            Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isGreaterThan(Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isGreaterThan(Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(false);
         expect(
-            Coin.valueOf(1n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isGreaterThan(Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(1n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isGreaterThan(Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(false);
         expect(
-            Coin.valueOf(1n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isLessThan(Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(1n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isLessThan(Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(true);
         expect(
-            Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isLessThan(Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isLessThan(Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(false);
         expect(
-            Coin.valueOf(2n,  NetworkParameters.BIGTANGLE_TOKENID)
-                .isLessThan(Coin.valueOf(1n,  NetworkParameters.BIGTANGLE_TOKENID))
+            Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() )
+                .isLessThan(Coin.valueOf(1n,  NetworkParameters.getBIGTANGLE_TOKENID() ))
         ).toBe(false);
     });
 
     test('testMultiplicationOverflow', () => {
         // bigint doesn't throw on overflow, so we'll test the behavior instead
         const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
-        const result = Coin.valueOf(maxSafe,  NetworkParameters.BIGTANGLE_TOKENID)
+        const result = Coin.valueOf(maxSafe,  NetworkParameters.getBIGTANGLE_TOKENID() )
             .multiply(2);
         expect(result.getValue()).toBe(maxSafe * 2n);
     });
 
     test('testMultiplicationUnderflow', () => {
         const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
-        const result = Coin.valueOf(minSafe, NetworkParameters.BIGTANGLE_TOKENID )
+        const result = Coin.valueOf(minSafe, NetworkParameters.getBIGTANGLE_TOKENID() )
             .multiply(2);
         expect(result.getValue()).toBe(minSafe * 2n);
     });
 
     test('testAdditionOverflow', () => {
         expect(() => {
-            Coin.valueOf(BigInt(Number.MAX_SAFE_INTEGER),  NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(BigInt(Number.MAX_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() )
                 .add(Coin.COIN);
         }).toThrow();
     });
 
     test('testSubstractionUnderflow', () => {
         expect(() => {
-            Coin.valueOf(BigInt(Number.MIN_SAFE_INTEGER),  NetworkParameters.BIGTANGLE_TOKENID)
+            Coin.valueOf(BigInt(Number.MIN_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() )
                 .subtract(Coin.COIN);
         }).toThrow();
     });
@@ -93,7 +93,7 @@ describe('CoinTest', () => {
             .withMinDecimals(2)
             .withShift(0);  // No shift to keep decimal places as-is
             
-        const coin = Coin.valueOf(15000000n,  NetworkParameters.BIGTANGLE_TOKENID);
+        const coin = Coin.valueOf(15000000n,  NetworkParameters.getBIGTANGLE_TOKENID() );
         // With 6 decimals, 15000000 units = 15.00
         expect(format.format(coin)).toBe('15.00');
         

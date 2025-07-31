@@ -50,7 +50,7 @@ describe('JsonMapperTest', () => {
         }
         console.log(Utils.HEX.encode(sha256Hash.getBytes()));
 
-        let coin = Coin.valueOf(BigInt(10000), NetworkParameters.BIGTANGLE_TOKENID);
+        let coin = Coin.valueOf(BigInt(10000), NetworkParameters.getBIGTANGLE_TOKENID() );
         jsonStr = JSON.stringify(coin);
 
         console.log(jsonStr);

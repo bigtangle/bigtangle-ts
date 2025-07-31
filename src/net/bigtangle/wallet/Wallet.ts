@@ -1055,7 +1055,7 @@ export class Wallet extends WalletBase {
           const feeTxBlock = await this.feeTransaction(
             new Coin(
               BigInt(this.getFee() || 0),
-              NetworkParameters.BIGTANGLE_TOKENID
+              NetworkParameters.getBIGTANGLE_TOKENID()
             ),
             ownerKey,
             aesKey
@@ -1295,7 +1295,7 @@ export class Wallet extends WalletBase {
         const feeTxBlock = await this.feeTransaction(
           new Coin(
             BigInt(this.getFee() || 0),
-             NetworkParameters.BIGTANGLE_TOKENID
+             NetworkParameters.getBIGTANGLE_TOKENID()
           ),
           ownerKey,
           aesKey
@@ -1665,7 +1665,7 @@ export class Wallet extends WalletBase {
       const feeBlock = await this.feeTransaction(
         new Coin(
           BigInt(this.getFee() || 0),
-           NetworkParameters.BIGTANGLE_TOKENID
+           NetworkParameters.getBIGTANGLE_TOKENID()
         ),
         beneficiary!,
         aesKey
@@ -1796,7 +1796,7 @@ export class Wallet extends WalletBase {
       const feeBlock = await this.feeTransaction(
         new Coin(
           BigInt(this.getFee() || 0),
-           NetworkParameters.BIGTANGLE_TOKENID
+           NetworkParameters.getBIGTANGLE_TOKENID()
         ),
         beneficiary!,
         aesKey

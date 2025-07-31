@@ -109,7 +109,7 @@ describe('MonetaryFormatTest', () => {
 
     test('parse', () => {
         // Create a coin with the correct token ID
-        const bigtangleTokenId =  NetworkParameters.BIGTANGLE_TOKENID;
+        const bigtangleTokenId =  NetworkParameters.getBIGTANGLE_TOKENID();
         const expectedCoin = new Coin(1000000n, bigtangleTokenId);
         const expectedNegatedCoin = new Coin(-1000000n, bigtangleTokenId);
         const expectedSmallCoin = new Coin(10000n, bigtangleTokenId);

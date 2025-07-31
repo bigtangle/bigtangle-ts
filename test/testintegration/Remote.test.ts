@@ -521,7 +521,7 @@ export abstract class RemoteTest {
 
     const amount = Coin.valueOf(
       BigInt(2),
-      NetworkParameters.BIGTANGLE_TOKENID 
+      NetworkParameters.getBIGTANGLE_TOKENID() 
     );
     const tx = new Transaction(this.networkParameters);
 
@@ -1312,7 +1312,7 @@ export abstract class RemoteTest {
     const feeBlock = await w.feeTransaction(
       new Coin(
         BigInt(w.getFee() || 0),
-        NetworkParameters.BIGTANGLE_TOKENID
+        NetworkParameters.getBIGTANGLE_TOKENID()
       ),
       outKey,
       aesKey

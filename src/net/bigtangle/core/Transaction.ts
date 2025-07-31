@@ -70,7 +70,7 @@ export class Transaction extends ChildMessage {
    */
   public static get REFERENCE_DEFAULT_MIN_TX_FEE(): Coin {
     // Lazy initialization to avoid issues with NetworkParameters not being ready
-    return Coin.valueOf(5000n, NetworkParameters.BIGTANGLE_TOKENID); // 0.05 mBTC
+    return Coin.valueOf(5000n, NetworkParameters.getBIGTANGLE_TOKENID() ); // 0.05 mBTC
   }
 
   /**
@@ -81,7 +81,7 @@ export class Transaction extends ChildMessage {
    */
   public static get MIN_NONDUST_OUTPUT(): Coin {
     // Lazy initialization to avoid issues with NetworkParameters not being ready
-    return Coin.valueOf(2730n, NetworkParameters.BIGTANGLE_TOKENID); // satoshis
+    return Coin.valueOf(2730n, NetworkParameters.getBIGTANGLE_TOKENID() ); // satoshis
   }
 
   /**
