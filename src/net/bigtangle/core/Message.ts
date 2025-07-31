@@ -263,7 +263,7 @@ export abstract class Message {
             if (this.payload === null) {
                 throw new ProtocolException("Payload is null");
             }
-            const u = Utils.readUint32(this.payload, this.cursor);
+            const u = this.payload.readUInt32LE(this.cursor);
             this.cursor += 4;
             return u;
         } catch (e) {

@@ -75,6 +75,14 @@ export class Utils {
         stream.write((val >>> 24) & 0xFF);
     }
 
+    public static writeVarIntLE(value: number, stream: any): void {
+        while (value >= 0x80) {
+            stream.write((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        stream.write(value & 0x7F);
+    }
+
     public static int64ToByteStreamLE(val: BigInteger, stream: any): void {
         const bytes = Utils.bigIntToBytes(val, 8);
         for (let i = 0; i < 8; i++) {

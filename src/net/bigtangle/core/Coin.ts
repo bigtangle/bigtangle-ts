@@ -42,6 +42,13 @@ public static fromJSON(json: any): Coin {
     if (json.tokenid) {
         coin.tokenid = Buffer.from(json.tokenid, 'base64');
         console.log('Converted tokenid to hex:', coin.tokenid.toString('hex'));
+        
+        // Check if this is the BIGTANGLE_TOKENID (32 bytes of zeros)
+        // If so, replace with the actual BIGTANGLE_TOKENID constant
+        if (coin.tokenid.length === 1 && coin.tokenid[0] === 0xbc) {
+            coin.tokenid = Constants.BIGTANGLE_TOKENID;
+            console.log('Replaced with BIGTANGLE_TOKENID constant');
+        }
     }
     
     return coin;

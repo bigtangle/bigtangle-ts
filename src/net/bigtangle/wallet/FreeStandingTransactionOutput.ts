@@ -75,7 +75,7 @@ export class FreeStandingTransactionOutput extends TransactionOutput {
             this.networkParams, // Use locally stored params
             this.getIndex(),
             containingBlockHash,
-            null // parentTransaction is not available
+            this.getParentTransactionHash()
         );
     }
 }

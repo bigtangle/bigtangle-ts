@@ -452,74 +452,63 @@ export class Transaction extends ChildMessage {
     this.hash = null;
   }
 
-  public parse(): void {
-    console.log(`Parsing transaction at offset ${this.offset}`);
-    this.cursor = this.offset;
+    public parse(): void {
+        console.log(`Parsing transaction at offset ${this.offset}`);
+        this.cursor = this.offset;
 
-    this.version = this.readUint32();
+        this.version = this.readUint32();
  
-    this.optimalEncodingMessageSize = 4;
+        this.optimalEncodingMessageSize = 4;
 
-    // First come the inputs.
-    const numInputs = this.readVarInt();
+        // First come the inputs.
+        const numInputs = this.readVarInt();
    
-    this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numInputs));
-    this.inputs = [];
-    for (let i = 0; i < numInputs; i++) {
-      console.log(`Parsing input ${i} at cursor ${this.cursor}`);
-      const input = new TransactionInput(
-        this.params!,
-        this,
-        this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
-        this.cursor,
-        this.serializer
-      );
-      this.inputs.push(input);
-      // Update cursor based on the actual input size
-      const scriptLen = this.readVarInt(TransactionOutPoint.MESSAGE_LENGTH);
-      const addLen =
-        4 +
-        (input.getOutpoint().connectedOutput == null
-          ? 0
-          : input.getOutpoint().connectedOutput!.getMessageSize());
-      this.optimalEncodingMessageSize +=
-        TransactionOutPoint.MESSAGE_LENGTH +
-        addLen +
-        VarInt.sizeOf(bigInt(scriptLen)) +
-        Number(scriptLen) +
-        4;
-      this.cursor += scriptLen + 4 + addLen;
-    }
+        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numInputs));
+        this.inputs = [];
+        for (let i = 0; i < numInputs; i++) {
+            console.log(`Parsing input ${i} at cursor ${this.cursor}`);
+            const input = new TransactionInput(
+                this.params!,
+                this,
+                this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
+                this.cursor,
+                this.serializer
+            );
+            this.inputs.push(input);
+            this.cursor += input.getMessageSize();
+            this.optimalEncodingMessageSize += input.getOptimalEncodingMessageSize();
+        }
    
-    // Read the number of outputs
-    const numOutputsVarInt = VarInt.fromBuffer(
-      this.payload ?? Buffer.alloc(0),
-      this.cursor
-    );
-    const numOutputs = Number(numOutputsVarInt.value);
+        // Read the number of outputs
+        const numOutputsVarInt = VarInt.fromBuffer(
+            this.payload ?? Buffer.alloc(0),
+            this.cursor
+        );
+        const numOutputs = Number(numOutputsVarInt.value);
+        console.log(`Number of outputs: ${numOutputs}`);
   
-    this.cursor += numOutputsVarInt.getOriginalSizeInBytes();
+        this.cursor += numOutputsVarInt.getOriginalSizeInBytes();
 
-    this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
-    this.outputs = [];
-    for (let i = 0; i < numOutputs; i++) {
-      console.log(`Parsing output ${i} at cursor ${this.cursor}`);
-      console.log(
-        `Payload bytes for output ${i}: ${this.payload
-          ?.slice(this.cursor, this.cursor + 50)
-          .toString("hex")}`
-      );
-      const output = new TransactionOutput(
-        this.params!,
-        this,
-        this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
-        this.cursor
-      );
+        this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
+        this.outputs = [];
+        for (let i = 0; i < numOutputs; i++) {
+            console.log(`Parsing output ${i} at cursor ${this.cursor}`);
+            console.log(
+                `Payload bytes for output ${i}: ${this.payload
+                    ?.slice(this.cursor, this.cursor + 50)
+                    .toString("hex")}`
+            );
+            const output = new TransactionOutput(
+                this.params!,
+                this,
+                this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
+                this.cursor
+            );
       
-      this.outputs.push(output);
-      this.cursor += output.getMessageSize();
-      this.optimalEncodingMessageSize += output.getMessageSize();
-    }
+            this.outputs.push(output);
+            this.cursor += output.getMessageSize();
+            this.optimalEncodingMessageSize += output.getMessageSize();
+        }
     this.lockTime = this.readUint32();
    
     this.optimalEncodingMessageSize += 4;
@@ -716,7 +705,7 @@ export class Transaction extends ChildMessage {
     for (const output of this.outputs) {
       s += "     ";
       s += "out  ";
-      try {
+      
         const scriptPubKeyStr = output.getScriptPubKey().toString();
         s += scriptPubKeyStr ? scriptPubKeyStr : "<no scriptPubKey>";
         s += "\n ";
@@ -729,13 +718,7 @@ export class Transaction extends ChildMessage {
           s += " by ";
           s += spentBy.getParentTransaction()?.getHashAsString();
         }
-      } catch (e) {
-        if (e instanceof Error) {
-          s += `[exception: ${e.message}]`;
-        } else {
-          s += `[exception: ${String(e)}]`;
-        }
-      }
+    
       s += "\n";
     }
     if (this.memo !== null) s += `   memo ${this.memo}\n`;

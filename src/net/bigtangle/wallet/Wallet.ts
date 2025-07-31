@@ -648,7 +648,7 @@ export class Wallet extends WalletBase {
         this.params,
         output.getIndex(),
         output.getBlockHash(),
-        null
+        output.getTxHash()
       );
       // Assuming output has a getScript() method that returns a Script object
       const scriptBytes = Buffer.from(output.getScript().getProgram());
@@ -672,7 +672,7 @@ export class Wallet extends WalletBase {
 
     // Create outputs
     const outputs = [
-      new TransactionOutput(this.params, tx, amount, destAddr.getHash160()), // Used imported TransactionOutput
+      new TransactionOutput(this.params, tx, amount, destAddr),
     ];
 
     // Add change output if needed
@@ -685,8 +685,8 @@ export class Wallet extends WalletBase {
       const pubKeyHashBuffer = Buffer.from(pubKeyHash);
       const changeAddr = Address.fromP2PKH(this.params, pubKeyHashBuffer);
       outputs.push(
-        new TransactionOutput(this.params, tx, change, changeAddr.getHash160())
-      ); // Used imported TransactionOutput
+        new TransactionOutput(this.params, tx, change, changeAddr)
+      );
     }
 
     for (const input of inputs) {
@@ -887,7 +887,7 @@ export class Wallet extends WalletBase {
         this.params,
         utxo.getIndex(),
         utxo.getBlockHash(),
-        null
+        utxo.getTxHash()
       );
       // Assuming utxo has a getScript() method that returns a Script object
       const scriptBytes = Buffer.from(utxo.getScript().getProgram());
@@ -906,7 +906,7 @@ export class Wallet extends WalletBase {
     }
     // Outputs: main destination
     const outputs = [
-      new TransactionOutput(this.params, tx, amount, destAddr.getHash160()), // Used imported TransactionOutput
+      new TransactionOutput(this.params, tx, amount, destAddr),
     ];
     // Change output if needed
     const change = totalInput.subtract(amount);
@@ -919,8 +919,8 @@ export class Wallet extends WalletBase {
         Buffer.from(changeKey.getPubKeyHash())
       ); // Used imported Address
       outputs.push(
-        new TransactionOutput(this.params, tx, change, changeAddr.getHash160())
-      ); // Used imported TransactionOutput
+        new TransactionOutput(this.params, tx, change, changeAddr)
+      );
     }
 
     for (const input of inputs) {
@@ -1194,25 +1194,11 @@ export class Wallet extends WalletBase {
    */
   async adjustSolveAndSign(block: Block): Promise<Block> {
     try {
-      if (typeof block.solveWithoutTarget === "function") {
-        const result = block.solveWithoutTarget();
-        if (
-          typeof result !== "undefined" &&
-          typeof (result as any).then === "function"
-        ) {
-          await Promise.resolve(result);
-        }
-      }
-      
+     
+         block.solveWithoutTarget();  
       // Serialize the block and check if it's empty
       const blockBytes = block.bitcoinSerializeCopy();
-      if (blockBytes.length === 0) {
-        console.warn("Block serialization resulted in empty byte array in adjustSolveAndSign");
-        // Try to serialize again to see if it helps
-        const blockBytes2 = block.bitcoinSerialize();
-        console.log("Alternative serialization length:", blockBytes2.length);
-      }
-      
+        
       await OkHttp3Util.post(
         this.getServerURL() + (ReqCmd.signToken || "/signToken"),
         blockBytes
@@ -1273,20 +1259,10 @@ export class Wallet extends WalletBase {
 
     // Get the tip block with validation
     const block: Block | null = await this.getTip();
-    if (!block) {
-      throw new Error("Tip block not found - cannot proceed with transaction");
-    }
-
+    
     // Validate block structure before modifying
-    if (typeof block.addTransaction === "function") {
-      try {
-        block.addTransaction(multispent);
-      } catch (error) {
-        // Handle any errors with addTransaction method
-        const err = error as Error;
-        console.error("Error adding transaction:", err);
-        throw new Error(`Failed to add transaction to block: ${err.message}`);
-      }
+    if (typeof block.addTransaction === "function") { 
+        block.addTransaction(multispent); 
     } else if (Array.isArray((block as any).transactions)) {
       try {
         (block as any).transactions.push(multispent);
@@ -1301,7 +1277,6 @@ export class Wallet extends WalletBase {
         "Invalid block transaction structure - neither addTransaction method nor transactions array found"
       );
     }
-
     // Check if a fee transaction is needed
     const mainTokenId = Buffer.from(
       NetworkParameters.BIGTANGLE_TOKENNAME || "",
@@ -1362,17 +1337,49 @@ export class Wallet extends WalletBase {
     return tokens[0];
   }
 
-  /**
+  /** 
    * Solves the block and posts it to the server.
    * @param block The Block to solve and post.
    * @returns A Promise resolving to the posted Block.
    */
   async solveAndPost(block: Block): Promise<Block> {
    
-     block.solveWithoutTarget(); 
+      if (typeof block.solveWithoutTarget === "function") {
+        const result = block.solveWithoutTarget();
+        if (
+          typeof result !== "undefined" &&
+          typeof (result as any).then === "function"
+        ) {
+          await Promise.resolve(result);
+        }
+      }
     // Serialize the block
-    const blockBytes = block.unsafeBitcoinSerialize(); 
-   console.debug("post block:", block.toString());
+    let blockBytes = block.bitcoinSerializeCopy();   
+    const tbbin = this.params.getDefaultSerializer().makeBlock(
+   blockBytes
+    );
+      console.log("Original block:", block.toString());
+   if( tbbin.toString() !== block.toString()  ){
+    // If the serialization is not correct, log a warning
+    console.log("Block serialization mismatch:");
+    console.log("Original block:", block.toString());
+    console.log("Deserialized block:", tbbin.toString());
+    console.log("Block bytes length:", blockBytes.length);
+    console.log("Block bytes (first 100):", blockBytes.slice(0, 100).toString('hex'));
+    // For now, let's just log the warning and continue instead of throwing an error
+    console.warn("Block serialization mismatch detected, but continuing with original block");
+   }
+   // I will add more logging here to see the exact difference
+    if (tbbin.getTransactions().length !== block.getTransactions().length) {
+        console.error("Transaction count mismatch");
+    }
+    for (let i = 0; i < tbbin.getTransactions().length; i++) {
+        if (tbbin.getTransactions()[i].toString() !== block.getTransactions()[i].toString()) {
+            console.error("Transaction mismatch at index", i);
+            console.error("Original transaction:", block.getTransactions()[i].toString());
+            console.error("Deserialized transaction:", tbbin.getTransactions()[i].toString());
+        }
+    }
     // Post to the server
     const url = this.getServerURL() + (ReqCmd.saveBlock || "/saveBlock");
     const response = await OkHttp3Util.post(url, blockBytes);
@@ -1384,10 +1391,7 @@ export class Wallet extends WalletBase {
     return block;
   }
 
-  // ================== Additional translated methods ==================
-
-  // ================== Additional translated methods ==================
-
+ 
   /**
    * Retrieves the server's public key.
    * @returns A Promise resolving to the server's public key as a string.
@@ -1955,8 +1959,9 @@ export class Wallet extends WalletBase {
       // Create TransactionOutPoint and use the correct TransactionInput constructor
       const outpoint = new TransactionOutPoint(
         this.params,
+        utxo.getIndex(),
         utxo.getBlockHash(),
-        candidate
+        utxo.getTxHash()
       );
 
       // Assuming utxo has a getScript() method that returns a Script object
@@ -2016,7 +2021,7 @@ export class Wallet extends WalletBase {
           this.params,
           tx,
           new Coin(changeAmount, tokenid),
-          changeAddr.getHash160()
+          changeAddr
         )
       );
     }

@@ -36,7 +36,7 @@ export class TransactionOutPoint extends ChildMessage {
     public connectedOutput: TransactionOutput | null = null;
 
     constructor(params: NetworkParameters, index: number, blockHash: Sha256Hash | null, fromTx: Transaction | null);
-    constructor(params: NetworkParameters, index: number, blockHash: Sha256Hash, transactionHash: Sha256Hash);
+    constructor(params: NetworkParameters, index: number, blockHash: Sha256Hash | null, transactionHash: Sha256Hash | null);
     constructor(params: NetworkParameters, blockHash: Sha256Hash | null, connectedOutput: TransactionOutput);
     constructor(params: NetworkParameters, payload: Buffer, offset: number);
     constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer<any>);
@@ -53,7 +53,7 @@ export class TransactionOutPoint extends ChildMessage {
             this.parseFromPayload(args[1], args[2]);
         } else if (args.length === 4) {
             if (typeof args[1] === 'number') {
-                // (params, index, blockHash, fromTx)
+                // (params, index, blockHash, fromTxOrTransactionHash)
                 this.index = args[1];
                 // Ensure blockHash is a Sha256Hash object
                 if (args[2] instanceof Sha256Hash) {
@@ -79,12 +79,40 @@ export class TransactionOutPoint extends ChildMessage {
                         this.blockHash = Sha256Hash.ZERO_HASH;
                     }
                 }
-                this.fromTx = args[3];
-                // Only call getHash() if fromTx is not null and has the method
-                if (this.fromTx && typeof this.fromTx.getHash === 'function') {
-                    this.txHash = this.fromTx.getHash();
-                } else {
+                // Check if the fourth argument is a Transaction or a Sha256Hash
+                if (args[3] instanceof Transaction) {
+                    this.fromTx = args[3];
+                    // Only call getHash() if fromTx is not null and has the method
+                    if (this.fromTx && typeof this.fromTx.getHash === 'function') {
+                        this.txHash = this.fromTx.getHash();
+                    } else {
+                        this.txHash = Sha256Hash.ZERO_HASH;
+                    }
+                } else if (args[3] instanceof Sha256Hash) {
+                    this.txHash = args[3];
+                    this.fromTx = null;
+                } else if (args[3] === null) {
                     this.txHash = Sha256Hash.ZERO_HASH;
+                    this.fromTx = null;
+                } else {
+                    // Try to convert to Sha256Hash
+                    try {
+                        let buffer: Buffer;
+                        if (Buffer.isBuffer(args[3])) {
+                            buffer = args[3];
+                        } else if (typeof args[3] === 'object' && args[3] !== null && 'getBytes' in args[3]) {
+                            // If it's already a Sha256Hash-like object with getBytes method
+                            buffer = (args[3] as any).getBytes();
+                        } else {
+                            // Try to convert to Buffer
+                            buffer = Buffer.from(args[3]);
+                        }
+                        this.txHash = Sha256Hash.wrap(buffer);
+                        this.fromTx = null;
+                    } catch (e) {
+                        this.txHash = Sha256Hash.ZERO_HASH;
+                        this.fromTx = null;
+                    }
                 }
             } else {
                 // (params, blockHash, connectedOutput)
@@ -183,6 +211,7 @@ export class TransactionOutPoint extends ChildMessage {
         // Set payload and offset for parsing
         this.payload = payload;
         this.offset = offset;
+        this.cursor = offset;
         
         // Set serializer and parent if provided
         if (serializer) {

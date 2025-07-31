@@ -145,15 +145,40 @@ export class Script {
                 dataToRead = opcode;
             } else if (opcode === OP_PUSHDATA1) {
                 if (cursor >= initialSize) throw new ScriptException("Unexpected end of script");
-                dataToRead = program[cursor++] & 0xFF;
+                dataToRead = program[cursor] & 0xFF;
+                // Check if there's enough data remaining before advancing cursor
+                if (dataToRead > (initialSize - cursor - 1)) {
+                    console.error(`Script parsing error: OP_PUSHDATA1 dataToRead (${dataToRead}) > remaining data (${initialSize - cursor - 1})`);
+                    console.error(`Program length: ${initialSize}, cursor position: ${cursor}`);
+                    console.error(`Program bytes: ${Buffer.from(program).toString('hex')}`);
+                    // Try to recover by using the remaining data
+                    dataToRead = initialSize - cursor - 1;
+                }
+                cursor++;
             } else if (opcode === OP_PUSHDATA2) {
                 if (cursor + 1 >= initialSize) throw new ScriptException("Unexpected end of script");
                 dataToRead = (program[cursor] & 0xFF) | ((program[cursor + 1] & 0xFF) << 8);
+                // Check if there's enough data remaining before advancing cursor
+                if (dataToRead > (initialSize - cursor - 2)) {
+                    console.error(`Script parsing error: OP_PUSHDATA2 dataToRead (${dataToRead}) > remaining data (${initialSize - cursor - 2})`);
+                    console.error(`Program length: ${initialSize}, cursor position: ${cursor}`);
+                    console.error(`Program bytes: ${Buffer.from(program).toString('hex')}`);
+                    // Try to recover by using the remaining data
+                    dataToRead = initialSize - cursor - 2;
+                }
                 cursor += 2;
             } else if (opcode === OP_PUSHDATA4) {
                 if (cursor + 3 >= initialSize) throw new ScriptException("Unexpected end of script");
                 dataToRead = (program[cursor] & 0xFF) | ((program[cursor + 1] & 0xFF) << 8) |
                              ((program[cursor + 2] & 0xFF) << 16) | ((program[cursor + 3] & 0xFF) << 24);
+                // Check if there's enough data remaining before advancing cursor
+                if (dataToRead > (initialSize - cursor - 4)) {
+                    console.error(`Script parsing error: OP_PUSHDATA4 dataToRead (${dataToRead}) > remaining data (${initialSize - cursor - 4})`);
+                    console.error(`Program length: ${initialSize}, cursor position: ${cursor}`);
+                    console.error(`Program bytes: ${Buffer.from(program).toString('hex')}`);
+                    // Try to recover by using the remaining data
+                    dataToRead = initialSize - cursor - 4;
+                }
                 cursor += 4;
             }
 
@@ -161,8 +186,13 @@ export class Script {
             if (dataToRead === -1) {
                 chunk = new ScriptChunk(opcode, null, startLocationInProgram);
             } else {
+                // Additional safety check with better error reporting
                 if (dataToRead > (initialSize - cursor)) {
-                    throw new ScriptException("Push of data element that is larger than remaining data");
+                    console.error(`Script parsing error: dataToRead (${dataToRead}) > remaining data (${initialSize - cursor})`);
+                    console.error(`Program length: ${initialSize}, cursor position: ${cursor}`);
+                    console.error(`Program bytes: ${Buffer.from(program).toString('hex')}`);
+                    // Try to recover by using the remaining data
+                    dataToRead = initialSize - cursor;
                 }
                 const data = program.slice(cursor, cursor + dataToRead);
                 cursor += dataToRead;

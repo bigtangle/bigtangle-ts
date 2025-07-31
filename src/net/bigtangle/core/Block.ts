@@ -426,8 +426,7 @@ export class Block extends Message {
   private unCacheHeader(): void {
     try {
       this.headerBytesValid = false;
-      if (!this.transactionBytesValid) this.payload = Buffer.alloc(0);
-      if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
+      this.payload = null;
       this.hash = null;
     } catch (error) {
       console.error("Error in unCacheHeader:", error);
@@ -438,7 +437,6 @@ export class Block extends Message {
   private unCacheTransactions(): void {
     try {
       this.transactionBytesValid = false;
-      if (!this.headerBytesValid) this.payload = Buffer.alloc(0);
       this.unCacheHeader();
       this.merkleRoot = null;
     } catch (error) {

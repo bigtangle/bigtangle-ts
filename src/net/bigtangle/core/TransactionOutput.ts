@@ -247,22 +247,31 @@ export class TransactionOutput extends ChildMessage {
         
         // Parse value length
         const vlen = Number(this.readVarInt());
-        // Parse value bytes
-        const v = this.readBytes(vlen);
-        const valueBigInt = Utils.bytesToBigInt(v);
+        let valueBigInt = 0n;
+        if (vlen > 0) {
+            // Parse value bytes
+            const v = this.readBytes(vlen);
+            const bigintValue = Utils.bytesToBigInt(v);
+            valueBigInt = BigInt(bigintValue.toString());
+        }
         
         // Parse token length
         this.tokenLen = Number(this.readVarInt());
-        // Parse token bytes
-        const tokenBytes = this.readBytes(this.tokenLen);
+        let tokenBytes = Buffer.alloc(0);
+        if (this.tokenLen > 0) {
+            // Parse token bytes
+            tokenBytes = this.readBytes(this.tokenLen);
+        }
         
         // Create the Coin with the parsed value and token
-        this.value = new Coin(BigInt(valueBigInt.toString()), tokenBytes);
+        this.value = new Coin(valueBigInt, tokenBytes);
         
         // Parse script length
         this.scriptLen = Number(this.readVarInt());
+        console.log(`Parsing TransactionOutput: scriptLen=${this.scriptLen}, cursor=${this.cursor}, payload.length=${this.payload?.length}`);
         // Parse script bytes
         this.scriptBytes = this.readBytes(this.scriptLen);
+        console.log(`Parsed scriptBytes: ${this.scriptBytes.toString('hex')}`);
         
         // Set the length of this TransactionOutput
         this.length = this.cursor - this.offset;
@@ -270,14 +279,33 @@ export class TransactionOutput extends ChildMessage {
 
     public bitcoinSerializeToStream(stream: any): void {
         if (!this.scriptBytes) throw new Error("scriptBytes is null");
-        
-        const valuebytes = Utils.bigIntToBytes(bigInt(this.value.getValue().toString()), 32);
-        stream.write(new VarInt(valuebytes.length).encode());
-        stream.write(Buffer.from(valuebytes));
+        // Serialize value as a varint followed by the actual value bytes
+        const valueBigInt = bigInt(this.value.getValue().toString());
+        // Convert BigInt to bytes using Utils method with minimum bytes needed
+        let valueBytes = Utils.bigIntToBytes(valueBigInt, 8);
+        // Remove leading zeros to match Java BigInteger serialization
+        let firstNonZeroIndex = 0;
+        while (firstNonZeroIndex < valueBytes.length && valueBytes[firstNonZeroIndex] === 0) {
+            firstNonZeroIndex++;
+        }
+        // If all bytes are zero, keep one zero byte
+        if (firstNonZeroIndex === valueBytes.length) {
+            valueBytes = new Uint8Array([0]);
+        } else {
+            valueBytes = valueBytes.slice(firstNonZeroIndex);
+        }
+        // Write length as a varint
+        stream.write(new VarInt(valueBytes.length).encode());
+        // Write value bytes
+        stream.write(Buffer.from(valueBytes));
 
+        // Serialize token ID
         stream.write(new VarInt(this.value.getTokenid().length).encode());
         stream.write(Buffer.from(this.value.getTokenid()));
-        stream.write(new VarInt(this.scriptBytes.length).encode());
+        
+        // Serialize script
+        const scriptLen = new VarInt(this.scriptBytes.length).encode();
+        stream.write(scriptLen);
         stream.write(this.scriptBytes);
     }
 

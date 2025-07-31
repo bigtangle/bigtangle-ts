@@ -52,7 +52,7 @@ describe("BlockTest", () => {
 
     const originalHash = tb.getHash();
     const tbbin = PARAMS.getDefaultSerializer().makeBlock(
-      tb.bitcoinSerializeCopy()
+       tb.bitcoinSerializeCopy() 
     );
     console.log("Test Block recovered :", tbbin.toString());
     expect(tbbin.getHash().equals(originalHash)).toBe(true);
@@ -88,12 +88,20 @@ describe("BlockTest", () => {
 
   test("testSerial2", () => {
     const tip =
-      "01000000ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f05548ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f05548000000000000000000000000000000000000000000000000000000000000000001e6846800000000ae470120000000000000000000000000000000002bdf6a05a961cf27a47355486891ebb9ee6892f801000000010000000000000000";
+      "010000007a6c943e7417fe3c1efb2785341743e0abca5def86faedad8f881eefa41a24017a6c943e7417fe3c1efb2785341743e0abca5def86faedad8f881eefa41a240135309ef47df86bf23613939e14169e8df8605cde1b92c8916849837e696516ada026896800000000ae470120000000000100000000000000be1617c22bdf6a05a961cf27a47355486891ebb9ee6892f80100000003000000000000000101000000014d9e102deebbd6ccecaa261d766409273abd51e27364d0dcde198582e957bc00170dafec26b25ed20a2c87d485de589c57fc1b32e65a37ea970feb15142b5f1a0100000049483045022100e3ad2bdfbf5f848830632274bbef1eaea3f1731d4af64dc2a70b00eefa888bab0220798fd6d24e26a93994ef988bb3019585385c52eed775b80dab6634df029abdf801ffffffff0100000008016345785d7ab9d801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d6b73b001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205d0a7d00000000";
 
     const blockde = PARAMS.getDefaultSerializer().makeBlock(
       Buffer.from(Utils.HEX.decode(tip))
     );
     console.log("Tip Block:", blockde.toString());
+   const  blockbyte= blockde.bitcoinSerializeCopy() ;
+   console.log("blockbyte :", blockbyte);
+    const tbbin = PARAMS.getDefaultSerializer().makeBlock(
+   blockbyte
+    );
+    console.log("Test Block recovered :", tbbin.toString());
+    expect(tbbin.toString()==blockde.toString()).toBe(true);
+
   });
 
   test("testBadTransactions", () => {

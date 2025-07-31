@@ -16,6 +16,7 @@ import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
 import { VerificationException } from '../exception/VerificationException';
 import { Sha256Hash } from './Sha256Hash';
+import bigInt from 'big-integer';
 
 /**
  * <p>A transfer of coins from one address to another creates a transaction in which the outputs
@@ -87,6 +88,7 @@ export class TransactionInput extends ChildMessage {
             }
             this.setParent(parentTransaction);
             this.value = null;
+            this.sequence = TransactionInput.NO_SEQUENCE;
             this.parse();
         } else if (args.length >= 3 && args[2] instanceof Buffer) {
             // Creation constructors
@@ -133,27 +135,70 @@ export class TransactionInput extends ChildMessage {
     }
 
     protected parse(): void {
+        const startOffset = this.cursor;
         this.outpoint = new TransactionOutPoint(this.params!, this.payload!, this.cursor, this, this.serializer);
         this.cursor += this.outpoint.getMessageSize();
         const scriptLen = Number(this.readVarInt());
-        this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
-        this.sequence = this.readUint32();
-        if (this.readUint32() === 1) {
-             this.outpoint .connectedOutput = new TransactionOutput(this.params!, this.parent as Transaction, this.payload!, this.cursor);
-            this.cursor +=  this.outpoint .connectedOutput.getMessageSize();
+        if (!this.isCoinBase()) {
+            this.sequence = this.readUint32();
         }
+    
+        // Parse value
+        const vlen = Number(this.readVarInt());
+        if (vlen > 0) {
+            // Parse value bytes
+            const v = this.readBytes(vlen);
+            const valueBigInt = Utils.bytesToBigInt(v);
+            
+            // Parse token length
+            const tokenLen = Number(this.readVarInt());
+            // Parse token bytes
+            const tokenBytes = this.readBytes(tokenLen);
+            
+            // Create the Coin with the parsed value and token
+            this.value = new Coin(BigInt(valueBigInt.toString()), tokenBytes);
+        } else {
+            // Read token length and discard
+            const tokenLen = Number(this.readVarInt());
+            if (tokenLen > 0) {
+                this.readBytes(tokenLen);
+            }
+            this.value = null;
+        }
+        this.length = this.cursor - startOffset;
     }
 
     public bitcoinSerializeToStream(stream: any): void {
         this.outpoint.bitcoinSerialize(stream);
         stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
-        Utils.uint32ToByteStreamLE(this.sequence, stream);
-        Utils.uint32ToByteStreamLE((this.outpoint as any).connectedOutput !== null ? 1 : 0, stream);
-        if ((this.outpoint as any).connectedOutput !== null) {
-            (this.outpoint as any).connectedOutput.bitcoinSerializeToStream(stream);
+        if (!this.isCoinBase())
+            Utils.uint32ToByteStreamLE(this.sequence, stream);
+        // Serialize value
+        if (this.value !== null) {
+            // Serialize value as a varint followed by the actual value bytes
+            const valueBigInt = bigInt(this.value.getValue().toString());
+            // Convert BigInt to bytes using Utils method with 8 bytes (matches Java server expectation)
+            const valueBytes = Utils.bigIntToBytes(valueBigInt, 8);
+            // Write length as a single byte for small values
+            stream.write(new VarInt(valueBytes.length).encode());
+            // Write value bytes in the same order (big-endian) as the Java server expects
+            stream.write(Buffer.from(valueBytes));
+
+            // Serialize token ID
+            stream.write(new VarInt(this.value.getTokenid().length).encode());
+            stream.write(Buffer.from(this.value.getTokenid()));
+        } else {
+            // Write zero length for value
+            stream.write(new VarInt(0).encode());
+            // Write zero length for token ID
+            stream.write(new VarInt(0).encode());
         }
+    }
+
+    getOptimalEncodingMessageSize(): number {
+        return this.getMessageSize();
     }
 
     /**

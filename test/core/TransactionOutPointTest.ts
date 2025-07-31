@@ -1,0 +1,51 @@
+import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOutPoint';
+import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
+import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
+import { Buffer } from 'buffer';
+import { UnsafeByteArrayOutputStream } from '../../src/net/bigtangle/core/UnsafeByteArrayOutputStream';
+
+describe('TransactionOutPointTest', () => {
+    const PARAMS = MainNetParams.get();
+
+    test('testSerialization', () => {
+        // Create a TransactionOutPoint with specific values
+        const blockHashBytes = Buffer.alloc(32);
+        blockHashBytes.fill('b');
+        const txHashBytes = Buffer.alloc(32);
+        txHashBytes.fill('t');
+        const blockHash = Sha256Hash.wrap(blockHashBytes);
+        const txHash = Sha256Hash.wrap(txHashBytes);
+        const outpoint = new TransactionOutPoint(PARAMS, 123, blockHash, txHash);
+
+        // Serialize it
+        const stream = new UnsafeByteArrayOutputStream();
+        outpoint.bitcoinSerializeToStream(stream);
+        const serialized = stream.toByteArray();
+
+        // Deserialize it
+        const deserialized = new TransactionOutPoint(PARAMS, serialized, 0);
+
+        // Check that the deserialized object matches the original
+        expect(deserialized.getBlockHash()).toEqual(blockHash);
+        expect(deserialized.getTxHash()).toEqual(txHash);
+        expect(deserialized.getIndex()).toBe(123);
+    });
+
+    test('testSerializationWithZeroHashes', () => {
+        // Create a TransactionOutPoint with zero hashes
+        const outpoint = new TransactionOutPoint(PARAMS, 456, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH);
+
+        // Serialize it
+        const stream = new UnsafeByteArrayOutputStream();
+        outpoint.bitcoinSerializeToStream(stream);
+        const serialized = stream.toByteArray();
+
+        // Deserialize it
+        const deserialized = new TransactionOutPoint(PARAMS, serialized, 0);
+
+        // Check that the deserialized object matches the original
+        expect(deserialized.getBlockHash()).toEqual(Sha256Hash.ZERO_HASH);
+        expect(deserialized.getTxHash()).toEqual(Sha256Hash.ZERO_HASH);
+        expect(deserialized.getIndex()).toBe(456);
+    });
+});
