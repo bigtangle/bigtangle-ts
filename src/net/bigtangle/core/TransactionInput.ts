@@ -143,29 +143,6 @@ export class TransactionInput extends ChildMessage {
         if (!this.isCoinBase()) {
             this.sequence = this.readUint32();
         }
-    
-        // Parse value
-        const vlen = Number(this.readVarInt());
-        if (vlen > 0) {
-            // Parse value bytes
-            const v = this.readBytes(vlen);
-            const valueBigInt = Utils.bytesToBigInt(v);
-            
-            // Parse token length
-            const tokenLen = Number(this.readVarInt());
-            // Parse token bytes
-            const tokenBytes = this.readBytes(tokenLen);
-            
-            // Create the Coin with the parsed value and token
-            this.value = new Coin(BigInt(valueBigInt.toString()), tokenBytes);
-        } else {
-            // Read token length and discard
-            const tokenLen = Number(this.readVarInt());
-            if (tokenLen > 0) {
-                this.readBytes(tokenLen);
-            }
-            this.value = null;
-        }
         this.length = this.cursor - startOffset;
     }
 

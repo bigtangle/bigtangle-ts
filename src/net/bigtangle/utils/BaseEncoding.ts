@@ -580,8 +580,9 @@ class Base16Encoding extends StandardBaseEncoding {
 
   decodeTo(target: Uint8Array, chars: string): number {
     checkNotNull(target);
+    // Pad with leading zero if length is odd
     if (chars.length % 2 === 1) {
-      throw new DecodingException("Invalid input length " + chars.length);
+      chars = '0' + chars;
     }
     let bytesWritten = 0;
     for (let i = 0; i < chars.length; i += 2) {

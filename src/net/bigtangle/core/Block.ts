@@ -738,10 +738,12 @@ export class Block extends Message {
 
   private checkMerkleRoot(): void {
     const calculatedRoot = this.calculateMerkleRoot();
+    // Compare the stored Merkle root (which is in natural order) with the calculated one (also in natural order)
     if (this.merkleRoot && !calculatedRoot.equals(this.merkleRoot)) {
       throw new VerificationException.MerkleRootMismatchException();
     }
   }
+
 
   private calculateMerkleRoot(): Sha256Hash {
     try {
@@ -760,34 +762,46 @@ export class Block extends Message {
         return Sha256Hash.ZERO_HASH;
       }
 
-      // Start with the hashes of all valid transactions
-      let hashes: Buffer[] = validTransactions.map((tx) =>
-        tx.getHash().getBytes()
-      );
+      // Start with the NATURAL hashes of all valid transactions
+      let hashes: Buffer[] = validTransactions.map((tx) => {
+        return tx.getHash().getBytes();
+      });
+
+      // Log the initial transaction hashes
+      console.log(`Merkle calculation: ${validTransactions.length} transactions`);
+      for (let i = 0; i < validTransactions.length; i++) {
+        console.log(`  TX${i}: ${validTransactions[i].getHash().toString()}`);
+      }
 
       // Build the merkle tree by repeatedly hashing pairs
+      let level = 0;
       while (hashes.length > 1) {
+        level++;
         const newHashes: Buffer[] = [];
+        console.log(`Building level ${level} with ${hashes.length} hashes`);
 
         // Process pairs of hashes
         for (let i = 0; i < hashes.length; i += 2) {
           const left = hashes[i];
-          const right = i + 1 < hashes.length ? hashes[i + 1] : left; // Duplicate last if odd number
+          const right = i + 1 < hashes.length ? hashes[i + 1] : left; // Duplicate last if odd
+          console.log(`  Pair ${i/2}: ${left.toString('hex')} + ${right.toString('hex')}`);
 
           // Concatenate the two hashes
           const concat = Buffer.concat([left, right]);
 
           // Hash the concatenation twice
           const hash = Sha256Hash.hashTwice(concat);
-
+          console.log(`    Hash: ${hash.toString('hex')}`);
           newHashes.push(hash);
         }
 
         hashes = newHashes;
       }
 
-      // The final hash is the merkle root
-      return Sha256Hash.wrap(hashes[0]);
+      // The final hash is the merkle root in NATURAL order
+      const merkleRoot = Sha256Hash.wrap(hashes[0]);
+      console.log(`Calculated Merkle root: ${merkleRoot.toString()}`);
+      return merkleRoot;
     } catch (error) {
       console.error("Error in calculateMerkleRoot:", error);
       throw error;

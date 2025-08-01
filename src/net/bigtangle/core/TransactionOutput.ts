@@ -246,7 +246,10 @@ export class TransactionOutput extends ChildMessage {
         this.cursor = this.offset;
         
         // Parse value length
-        const vlen = Number(this.readVarInt());
+        const vlenVarInt = VarInt.fromBuffer(this.payload ?? Buffer.alloc(0), this.cursor);
+        const vlen = Number(vlenVarInt.value);
+        this.cursor += vlenVarInt.getOriginalSizeInBytes();
+        
         let valueBigInt = 0n;
         if (vlen > 0) {
             // Parse value bytes
@@ -256,7 +259,10 @@ export class TransactionOutput extends ChildMessage {
         }
         
         // Parse token length
-        this.tokenLen = Number(this.readVarInt());
+        const tokenLenVarInt = VarInt.fromBuffer(this.payload ?? Buffer.alloc(0), this.cursor);
+        this.tokenLen = Number(tokenLenVarInt.value);
+        this.cursor += tokenLenVarInt.getOriginalSizeInBytes();
+        
         let tokenBytes = Buffer.alloc(0);
         if (this.tokenLen > 0) {
             // Parse token bytes
@@ -267,7 +273,10 @@ export class TransactionOutput extends ChildMessage {
         this.value = new Coin(valueBigInt, tokenBytes);
         
         // Parse script length
-        this.scriptLen = Number(this.readVarInt());
+        const scriptLenVarInt = VarInt.fromBuffer(this.payload ?? Buffer.alloc(0), this.cursor);
+        this.scriptLen = Number(scriptLenVarInt.value);
+        this.cursor += scriptLenVarInt.getOriginalSizeInBytes();
+        
         console.log(`Parsing TransactionOutput: scriptLen=${this.scriptLen}, cursor=${this.cursor}, payload.length=${this.payload?.length}`);
         // Parse script bytes
         this.scriptBytes = this.readBytes(this.scriptLen);
@@ -537,6 +546,44 @@ export class TransactionOutput extends ChildMessage {
             result = 31 * result + this.scriptBytes[i];
         }
         return result;
+    }
+
+    /**
+     * Returns the size of the message in bytes after serialization.
+     * This method should return the actual size of the parsed data.
+     */
+    public getMessageSize(): number {
+        // Return the length that was set during parsing
+        // If length is not set (e.g., for newly created outputs), calculate it
+        if (this.length > 0) {
+            return this.length;
+        }
+        
+        // For newly created outputs, calculate the size
+        if (this.value && this.scriptBytes) {
+            // Calculate the size based on the serialization format:
+            // value length (varint) + value bytes + token length (varint) + token bytes + script length (varint) + script bytes
+            const valueBigInt = bigInt(this.value.getValue().toString());
+            let valueBytes = Utils.bigIntToBytes(valueBigInt);
+            // Remove leading zeros to match Java BigInteger serialization
+            let firstNonZeroIndex = 0;
+            while (firstNonZeroIndex < valueBytes.length && valueBytes[firstNonZeroIndex] === 0) {
+                firstNonZeroIndex++;
+            }
+            // If all bytes are zero, keep one zero byte
+            if (firstNonZeroIndex === valueBytes.length) {
+                valueBytes = new Uint8Array([0]);
+            } else {
+                valueBytes = valueBytes.slice(firstNonZeroIndex);
+            }
+            
+            return VarInt.sizeOf(valueBytes.length) + valueBytes.length +
+                   VarInt.sizeOf(this.value.getTokenid().length) + this.value.getTokenid().length +
+                   VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length;
+        }
+        
+        // Fallback to the parent implementation if needed
+        return super.getMessageSize();
     }
 
     public getDescription(): string | null {

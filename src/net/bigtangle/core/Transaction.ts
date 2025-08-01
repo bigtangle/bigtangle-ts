@@ -277,22 +277,43 @@ export class Transaction extends ChildMessage {
    */
   getHash(): Sha256Hash {
     if (this.hash === null) {
-      const buf = this.unsafeBitcoinSerialize();
-      const hash = Sha256Hash.wrapReversed(
-        Sha256Hash.hashTwiceRange(
-          buf,
-          0,
-          buf.length -
-            this.calculateMemoLen() -
-            this.calculateDataSignatureLen()
-        )
-      );
-      if (hash !== null) {
-        this.hash = hash;
+      // Serialize without memo and dataSignature
+      const stream = new UnsafeByteArrayOutputStream();
+      
+      // Serialize all fields except memo and dataSignature
+      Utils.uint32ToByteStreamLE(this.version, stream);
+      stream.write(new VarInt(this.inputs.length).encode());
+      for (const input of this.inputs) input.bitcoinSerialize(stream);
+      stream.write(new VarInt(this.outputs.length).encode());
+      for (const output of this.outputs) output.bitcoinSerializeToStream(stream);
+      Utils.uint32ToByteStreamLE(this.lockTime, stream);
+      
+      if (this.dataClassName === null) {
+        stream.write(new VarInt(0).encode());
       } else {
-        // Fallback to ZERO_HASH if wrapReversed returns null
-        this.hash = Sha256Hash.ZERO_HASH;
+        const dataClassNameBytes = Buffer.from(this.dataClassName, "utf8");
+        stream.write(new VarInt(dataClassNameBytes.length).encode());
+        stream.write(dataClassNameBytes);
       }
+
+      if (this.data === null) {
+        stream.write(new VarInt(0).encode());
+      } else {
+        stream.write(new VarInt(this.data.length).encode());
+        stream.write(this.data);
+      }
+
+      if (this.toAddressInSubtangle === null) {
+        stream.write(new VarInt(0).encode());
+      } else {
+        stream.write(new VarInt(this.toAddressInSubtangle.length).encode());
+        stream.write(this.toAddressInSubtangle);
+      }
+
+      // Exclude memo and dataSignature
+      const buf = stream.toByteArray();
+      const hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(buf));
+      this.hash = hash !== null ? hash : Sha256Hash.ZERO_HASH;
     }
     return this.hash;
   }
@@ -491,24 +512,43 @@ export class Transaction extends ChildMessage {
 
         this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
         this.outputs = [];
-        for (let i = 0; i < numOutputs; i++) {
-            console.log(`Parsing output ${i} at cursor ${this.cursor}`);
-            console.log(
-                `Payload bytes for output ${i}: ${this.payload
-                    ?.slice(this.cursor, this.cursor + 50)
-                    .toString("hex")}`
-            );
-            const output = new TransactionOutput(
-                this.params!,
-                this,
-                this.payload ? Buffer.from(this.payload) : Buffer.alloc(0),
-                this.cursor
-            );
+    for (let i = 0; i < numOutputs; i++) {
+      // Check if we have enough data to parse the output
+      if (this.cursor >= (this.payload?.length ?? 0)) {
+        throw new Error(`Cannot parse output ${i}: cursor ${this.cursor} beyond payload length ${this.payload?.length}`);
+      }
       
-            this.outputs.push(output);
-            this.cursor += output.getMessageSize();
-            this.optimalEncodingMessageSize += output.getMessageSize();
-        }
+      console.log(`Parsing output ${i} at cursor ${this.cursor}`);
+      console.log(
+        `Payload bytes for output ${i}: ${this.payload
+          ?.slice(this.cursor, Math.min(this.cursor + 50, this.payload.length))
+          .toString("hex")}`
+      );
+      
+      // Additional safety check to ensure we have enough data for the output
+      if (!this.payload) {
+        throw new Error(`Cannot parse output ${i}: payload is null`);
+      }
+      
+      // Create a new buffer that starts from the cursor position
+      const payloadFromCursor = this.payload ? this.payload.subarray(this.cursor) : Buffer.alloc(0);
+      const output = new TransactionOutput(
+        this.params!,
+        this,
+        payloadFromCursor,
+        0  // Start parsing from offset 0 in the new buffer
+      );
+      
+      // Check if output.getMessageSize() would take us beyond the payload
+      const messageSize = output.getMessageSize();
+      if (this.cursor + messageSize > this.payload.length) {
+        throw new Error(`Cannot parse output ${i}: message size ${messageSize} would exceed payload length. cursor: ${this.cursor}, payload length: ${this.payload.length}`);
+      }
+      
+      this.outputs.push(output);
+      this.cursor += messageSize;
+      this.optimalEncodingMessageSize += messageSize;
+    }
     this.lockTime = this.readUint32();
    
     this.optimalEncodingMessageSize += 4;
@@ -1058,20 +1098,13 @@ export class Transaction extends ChildMessage {
         // make changes to the inputs and outputs.
         // It would not be thread-safe to change the attributes of the
         // transaction object itself.
-        console.log("Creating transaction copy for signing");
-        const serializedTx = this.bitcoinSerializeCopy();
-        console.log(`Serialized transaction length: ${serializedTx.length}`);
-        console.log(
-          `Serialized transaction (first 100 bytes): ${serializedTx
-            .slice(0, 100)
-            .toString("hex")}`
-        );
         const params = this.params;
         if (!params) {
           throw new Error(
             "Network parameters are required to create a transaction copy"
           );
         }
+        const serializedTx = this.unsafeBitcoinSerialize();
         const tx = params
           .getDefaultSerializer()
           .makeTransaction(Buffer.from(serializedTx));
