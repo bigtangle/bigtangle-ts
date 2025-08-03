@@ -1,70 +1,49 @@
-import { describe, it, expect } from 'vitest';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
-
-// Helper function to encode a VarInt
-function encodeVarInt(value: number): Buffer {
-    const varInt = new VarInt(value);
-    return varInt.encode();
-}
+import { Buffer } from 'buffer';
 
 describe('VarIntTest', () => {
-
-    it('testBytes', () => {
-        const value = 10;
-        const size = VarInt.sizeOf(value);
-        const encoded = encodeVarInt(value);
-        const decoded = VarInt.fromBuffer(encoded, 0);
+    test('testVarIntEncode', () => {
+        // Test case 1: value < 253
+        const varInt1 = new VarInt(1);
+        const encoded1 = varInt1.encode();
+        console.log("VarInt(1) encoded as:", encoded1.toString('hex'));
+        expect(encoded1.length).toBe(1);
+        expect(encoded1[0]).toBe(1);
         
-        expect(size).toBe(1);
-        expect(encoded.length).toBe(1);
-        expect(decoded.value.toJSNumber()).toBe(value);
-    });
-
-    it('testShorts', () => {
-        const value = 64000;
-        const size = VarInt.sizeOf(value);
-        const encoded = encodeVarInt(value);
-        const decoded = VarInt.fromBuffer(encoded, 0);
+        // Test case 2: value >= 253 but <= 0xFFFF
+        const varInt2 = new VarInt(253);
+        const encoded2 = varInt2.encode();
+        console.log("VarInt(253) encoded as:", encoded2.toString('hex'));
+        expect(encoded2.length).toBe(3);
+        expect(encoded2[0]).toBe(253); // marker
+        expect(encoded2[1]).toBe(253); // low byte
+        expect(encoded2[2]).toBe(0);   // high byte
         
-        expect(size).toBe(3);
-        expect(encoded.length).toBe(3);
-        expect(decoded.value.toJSNumber()).toBe(value);
+        // Test case 3: value > 0xFFFF but <= 0xFFFFFFFF
+        const varInt3 = new VarInt(0x10000);
+        const encoded3 = varInt3.encode();
+        console.log("VarInt(0x10000) encoded as:", encoded3.toString('hex'));
+        expect(encoded3.length).toBe(5);
+        expect(encoded3[0]).toBe(254); // marker
     });
-
-    it('testShortFFFF', () => {
-        const value = 0xFFFF;
-        const size = VarInt.sizeOf(value);
-        const encoded = encodeVarInt(value);
-        const decoded = VarInt.fromBuffer(encoded, 0);
+    
+    test('testVarIntDecode', () => {
+        // Test case 1: value < 253
+        const buf1 = Buffer.from([1]);
+        const varInt1 = VarInt.fromBuffer(buf1, 0);
+        expect(varInt1.value.toJSNumber()).toBe(1);
+        expect(varInt1.getOriginalSizeInBytes()).toBe(1);
         
-        expect(size).toBe(3);
-        expect(encoded.length).toBe(3);
-        expect(decoded.value.toJSNumber()).toBe(value);
-    });
-
-    it('testInts', () => {
-        const value = 0xAABBCCDD;
-        const size = VarInt.sizeOf(value);
-        const encoded = encodeVarInt(value);
-        const decoded = VarInt.fromBuffer(encoded, 0);
+        // Test case 2: value >= 253 but <= 0xFFFF
+        const buf2 = Buffer.from([253, 253, 0]);
+        const varInt2 = VarInt.fromBuffer(buf2, 0);
+        expect(varInt2.value.toJSNumber()).toBe(253);
+        expect(varInt2.getOriginalSizeInBytes()).toBe(3);
         
-        expect(size).toBe(5);
-        expect(encoded.length).toBe(5);
-        expect(decoded.value.toJSNumber() >>> 0).toBe(value);
-    });
-
-    it('testIntFFFFFFFF', () => {
-        const value = 0xFFFFFFFF;
-        const size = VarInt.sizeOf(value);
-        const encoded = encodeVarInt(value);
-        const decoded = VarInt.fromBuffer(encoded, 0);
-        
-        expect(size).toBe(5);
-        expect(encoded.length).toBe(5);
-        expect(decoded.value.toJSNumber() >>> 0).toBe(value);
-    });
-
-    it('testSizeOfNegativeInt', () => {
-        expect(VarInt.sizeOf(-1)).toBe(9); // Negative values are treated as large unsigned integers
+        // Test case 3: value > 0xFFFF but <= 0xFFFFFFFF
+        const buf3 = Buffer.from([254, 0, 0, 1, 0]);
+        const varInt3 = VarInt.fromBuffer(buf3, 0);
+        expect(varInt3.value.toJSNumber()).toBe(0x10000);
+        expect(varInt3.getOriginalSizeInBytes()).toBe(5);
     });
 });

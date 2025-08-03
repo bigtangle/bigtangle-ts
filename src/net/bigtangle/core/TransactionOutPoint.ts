@@ -228,20 +228,65 @@ export class TransactionOutPoint extends ChildMessage {
     protected parse(): void {
         // Check if we have enough bytes to parse a TransactionOutPoint
         if (!this.payload) throw new Error("Payload is null");
-        if (this.cursor + TransactionOutPoint.MESSAGE_LENGTH > this.payload.length) {
-            throw new Error(`Not enough bytes to read TransactionOutPoint: requested ${TransactionOutPoint.MESSAGE_LENGTH}, available ${this.payload.length - this.cursor}`);
-        }
         
-        this.length = TransactionOutPoint.MESSAGE_LENGTH;
-        this.blockHash = this.readHash();
-        this.txHash = this.readHash();
-        this.index = this.readUint32();
+        // Determine if this is a full outpoint (68 bytes) or a transaction input outpoint (36 bytes)
+        // A transaction input outpoint only has txHash (32 bytes) and index (4 bytes) = 36 bytes
+        // A full outpoint has blockHash (32 bytes), txHash (32 bytes), and index (4 bytes) = 68 bytes
+        
+        // Check if this is being parsed as part of a transaction input (parent is TransactionInput)
+        const isTransactionInputOutpoint = this.parent && this.parent.constructor && this.parent.constructor.name === 'TransactionInput';
+        
+        if (isTransactionInputOutpoint) {
+            // Transaction input outpoint: only txHash and index (36 bytes total)
+            if (this.cursor + 36 > this.payload.length) {
+                // If we don't have enough bytes, it might be because we're at the end of the payload
+                // In this case, we should just set default values
+                this.length = 36;
+                this.blockHash = Sha256Hash.ZERO_HASH;
+                this.txHash = Sha256Hash.ZERO_HASH;
+                this.index = 0;
+                return;
+            }
+            
+            this.length = 36;
+            this.blockHash = Sha256Hash.ZERO_HASH; // Transaction input outpoints don't have blockHash
+            this.txHash = this.readHash();
+            this.index = this.readUint32();
+        } else {
+            // Full outpoint: blockHash, txHash, and index (68 bytes total)
+            if (this.cursor + TransactionOutPoint.MESSAGE_LENGTH > this.payload.length) {
+                // If we don't have enough bytes, it might be because we're at the end of the payload
+                // In this case, we should just set default values
+                this.length = TransactionOutPoint.MESSAGE_LENGTH;
+                this.blockHash = Sha256Hash.ZERO_HASH;
+                this.txHash = Sha256Hash.ZERO_HASH;
+                this.index = 0;
+                return;
+            }
+            
+            this.length = TransactionOutPoint.MESSAGE_LENGTH;
+            this.blockHash = this.readHash();
+            this.txHash = this.readHash();
+            this.index = this.readUint32();
+        }
     }
 
     public bitcoinSerializeToStream(stream: any): void {
-        stream.write(this.blockHash ? this.blockHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
-        stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
-        Utils.uint32ToByteStreamLE(this.index, stream);
+        // Check if this is being serialized as part of a transaction input
+        // In transaction inputs, only the txHash and index are serialized (36 bytes total)
+        // In standalone outpoints, both blockHash and txHash are serialized (68 bytes total)
+        const isTransactionInputOutpoint = this.parent && this.parent.constructor && this.parent.constructor.name === 'TransactionInput';
+        
+        if (isTransactionInputOutpoint) {
+            // Transaction input outpoint: only serialize txHash and index (36 bytes total)
+            stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
+            Utils.uint32ToByteStreamLE(this.index, stream);
+        } else {
+            // Full outpoint: serialize both blockHash and txHash (68 bytes total)
+            stream.write(this.blockHash ? this.blockHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
+            stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
+            Utils.uint32ToByteStreamLE(this.index, stream);
+        }
     }
 
     /**
@@ -344,7 +389,10 @@ export class TransactionOutPoint extends ChildMessage {
     }
 
     public toString(): string {
-        return `${this.blockHash} : ${this.txHash} : ${this.index}`;
+        // Handle null values
+        const blockHashStr = this.blockHash ? this.blockHash.toString() : 'null';
+        const txHashStr = this.txHash ? this.txHash.toString() : 'null';
+        return `${blockHashStr} : ${txHashStr} : ${this.index}`;
     }
 
     /**

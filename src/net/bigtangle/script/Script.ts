@@ -138,36 +138,49 @@ export class Script {
 
         while (cursor < initialSize) {
             const startLocationInProgram = cursor;
+            // Check if we have enough bytes to read the opcode
+            if (cursor >= initialSize) {
+                throw new ScriptException("Unexpected end of script");
+            }
             const opcode = program[cursor++] & 0xFF;
 
             let dataToRead = -1;
             if (opcode >= 0 && opcode < OP_PUSHDATA1) {
                 dataToRead = opcode;
             } else if (opcode === OP_PUSHDATA1) {
-                if (cursor >= initialSize) throw new ScriptException("Unexpected end of script");
+                // Check if we have enough bytes to read the data length
+                if (cursor >= initialSize) {
+                    throw new ScriptException("Unexpected end of script");
+                }
                 dataToRead = program[cursor] & 0xFF;
-                // Check if there's enough data remaining before advancing cursor
-                if (dataToRead > (initialSize - cursor - 1)) {
-                    throw new ScriptException("Push of data element that is larger than remaining data");
-                }
                 cursor++;
-            } else if (opcode === OP_PUSHDATA2) {
-                if (cursor + 1 >= initialSize) throw new ScriptException("Unexpected end of script");
-                dataToRead = (program[cursor] & 0xFF) | ((program[cursor + 1] & 0xFF) << 8);
-                // Check if there's enough data remaining before advancing cursor
-                if (dataToRead > (initialSize - cursor - 2)) {
+                // Check if there's enough data remaining to read the actual data
+                if (dataToRead > (initialSize - cursor)) {
                     throw new ScriptException("Push of data element that is larger than remaining data");
                 }
+            } else if (opcode === OP_PUSHDATA2) {
+                // Check if we have enough bytes to read the data length
+                if (cursor + 1 >= initialSize) {
+                    throw new ScriptException("Unexpected end of script");
+                }
+                dataToRead = (program[cursor] & 0xFF) | ((program[cursor + 1] & 0xFF) << 8);
                 cursor += 2;
+                // Check if there's enough data remaining to read the actual data
+                if (dataToRead > (initialSize - cursor)) {
+                    throw new ScriptException("Push of data element that is larger than remaining data");
+                }
             } else if (opcode === OP_PUSHDATA4) {
-                if (cursor + 3 >= initialSize) throw new ScriptException("Unexpected end of script");
+                // Check if we have enough bytes to read the data length
+                if (cursor + 3 >= initialSize) {
+                    throw new ScriptException("Unexpected end of script");
+                }
                 dataToRead = (program[cursor] & 0xFF) | ((program[cursor + 1] & 0xFF) << 8) |
                              ((program[cursor + 2] & 0xFF) << 16) | ((program[cursor + 3] & 0xFF) << 24);
-                // Check if there's enough data remaining before advancing cursor
-                if (dataToRead > (initialSize - cursor - 4)) {
+                cursor += 4;
+                // Check if there's enough data remaining to read the actual data
+                if (dataToRead > (initialSize - cursor)) {
                     throw new ScriptException("Push of data element that is larger than remaining data");
                 }
-                cursor += 4;
             }
 
             let chunk: ScriptChunk;

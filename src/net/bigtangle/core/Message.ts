@@ -275,7 +275,7 @@ export abstract class Message {
         }
     }
 
-    protected readInt64(): number {
+    protected readInt64(): BigInteger {
         try {
             if (this.payload === null) {
                 throw new ProtocolException("Payload is null");

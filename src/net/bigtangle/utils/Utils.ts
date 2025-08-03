@@ -257,7 +257,7 @@ export class Utils {
                ((bytes[offset + 3] & 0xff) << 24);
     }
 
-    public static readInt64(bytes: Uint8Array, offset: number): number {
+    public static readInt64(bytes: Uint8Array, offset: number): BigInteger {
         const low = (bytes[offset] & 0xff) |
                     ((bytes[offset + 1] & 0xff) << 8) |
                     ((bytes[offset + 2] & 0xff) << 16) |
@@ -266,7 +266,23 @@ export class Utils {
                      ((bytes[offset + 5] & 0xff) << 8) |
                      ((bytes[offset + 6] & 0xff) << 16) |
                      ((bytes[offset + 7] & 0xff) << 24);
-        return low + high * Math.pow(2, 32);
+        // Convert to BigInteger to properly handle 64-bit values
+        return bigInt(low).add(bigInt(high).multiply(bigInt(0x100000000)));
+    }
+
+    public static readUint64(bytes: Uint8Array, offset: number): BigInteger {
+        const low = (bytes[offset] & 0xff) |
+                    ((bytes[offset + 1] & 0xff) << 8) |
+                    ((bytes[offset + 2] & 0xff) << 16) |
+                    ((bytes[offset + 3] & 0xff) << 24);
+        const high = (bytes[offset + 4] & 0xff) |
+                     ((bytes[offset + 5] & 0xff) << 8) |
+                     ((bytes[offset + 6] & 0xff) << 16) |
+                     ((bytes[offset + 7] & 0xff) << 24);
+        // Convert to BigInteger to properly handle 64-bit unsigned values
+        // We need to handle the case where high is negative due to signed integer overflow
+        const highBigInt = high >= 0 ? bigInt(high) : bigInt(high).add(bigInt(0x100000000));
+        return bigInt(low).add(highBigInt.multiply(bigInt(0x100000000)));
     }
 
     public static readUint32BE(bytes: Uint8Array, offset: number): number {

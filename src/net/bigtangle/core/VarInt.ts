@@ -13,9 +13,33 @@ export class VarInt {
      *
      * @param value the unsigned long value (beware widening conversion of negatives!)
      */
-    constructor(value: BigInteger | number) {
-        this.value = typeof value === 'number' ? bigInt(value) : value;
-        this.originallyEncodedSize = this.getSizeInBytes();
+    constructor(value: BigInteger | number | Buffer, offset?: number) {
+        if (Buffer.isBuffer(value)) {
+            // Constructor with buffer and offset
+            const buf = value;
+            if (offset === undefined) {
+                throw new Error("Offset must be provided when constructing from buffer");
+            }
+            
+            const first = 0xFF & buf[offset];
+            if (first < 253) {
+                this.value = bigInt(first);
+                this.originallyEncodedSize = 1; // 1 data byte (8 bits)
+            } else if (first === 253) {
+                this.value = bigInt(0xFF & buf[offset + 1]).or(bigInt(0xFF & buf[offset + 2]).shiftLeft(8));
+                this.originallyEncodedSize = 3; // 1 marker + 2 data bytes (16 bits)
+            } else if (first === 254) {
+                this.value = bigInt(Utils.readUint32(buf, offset + 1));
+                this.originallyEncodedSize = 5; // 1 marker + 4 data bytes (32 bits)
+            } else {
+                this.value = Utils.readUint64(buf, offset + 1);
+                this.originallyEncodedSize = 9; // 1 marker + 8 data bytes (64 bits)
+            }
+        } else {
+            // Constructor with value
+            this.value = typeof value === 'number' ? bigInt(value) : value;
+            this.originallyEncodedSize = this.getSizeInBytes();
+        }
     }
 
     /**
@@ -25,44 +49,7 @@ export class VarInt {
      * @param offset the offset of the value
      */
     public static fromBuffer(buf: Buffer, offset: number): VarInt {
-        // Check if offset is within bounds
-        if (offset >= buf.length) {
-            throw new Error(`Offset ${offset} is beyond buffer length ${buf.length}`);
-        }
-        
-        const first = buf[offset] & 0xFF;
-        let value: BigInteger;
-        let originallyEncodedSize: number;
-
-        if (first < 253) {
-            value = bigInt(first);
-            originallyEncodedSize = 1; // 1 data byte (8 bits)
-        } else if (first === 253) {
-            // Check if we have enough bytes for 3-byte VarInt
-            if (offset + 2 >= buf.length) {
-                throw new Error(`Not enough bytes to read 3-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
-            }
-            value = bigInt(buf[offset + 1] & 0xFF).or(bigInt(buf[offset + 2] & 0xFF).shiftLeft(8));
-            originallyEncodedSize = 3; // 1 marker + 2 data bytes (16 bits)
-        } else if (first === 254) {
-            // Check if we have enough bytes for 5-byte VarInt
-            if (offset + 4 >= buf.length) {
-                throw new Error(`Not enough bytes to read 5-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
-            }
-            value = bigInt(Utils.readUint32(buf, offset + 1));
-            originallyEncodedSize = 5; // 1 marker + 4 data bytes (32 bits)
-        } else {
-            // Check if we have enough bytes for 9-byte VarInt
-            if (offset + 8 >= buf.length) {
-                throw new Error(`Not enough bytes to read 9-byte VarInt at offset ${offset}, buffer length ${buf.length}`);
-            }
-            value = bigInt(Utils.readInt64(buf, offset + 1));
-            originallyEncodedSize = 9; // 1 marker + 8 data bytes (64 bits)
-        }
-
-        const varInt = new VarInt(value);
-        (varInt as any).originallyEncodedSize = originallyEncodedSize;
-        return varInt;
+        return new VarInt(buf, offset);
     }
 
     /**
@@ -108,11 +95,7 @@ export class VarInt {
             case 1:
                 return Buffer.from([this.value.toJSNumber()]);
             case 3:
-                buf = Buffer.alloc(3);
-                buf[0] = 253;
-                buf[1] = this.value.and(0xFF).toJSNumber();
-                buf[2] = this.value.shiftRight(8).and(0xFF).toJSNumber();
-                return buf;
+                return Buffer.from([253, this.value.and(0xFF).toJSNumber(), this.value.shiftRight(8).and(0xFF).toJSNumber()]);
             case 5:
                 buf = Buffer.alloc(5);
                 buf[0] = 254;

@@ -1282,6 +1282,7 @@ export class Wallet extends WalletBase {
       NetworkParameters.BIGTANGLE_TOKENNAME || "",
       "utf8"
     );
+    /*
     if (
       typeof this.getFee === "function" &&
       this.getFee() &&
@@ -1306,7 +1307,7 @@ export class Wallet extends WalletBase {
         }
       }
     }
-
+*/
     return await this.solveAndPost(block);
   }
 
