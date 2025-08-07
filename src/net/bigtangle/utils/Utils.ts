@@ -33,19 +33,27 @@ export class Utils {
      * @param b The BigInteger to convert
      * @returns A byte array representing the BigInteger in two's-complement form
      */
-    public static bigIntToBytes(b: BigInteger): Uint8Array {
+    public static bigIntToBytes(b: BigInteger | bigint): Uint8Array {
         if (b === null) {
             return new Uint8Array(0);
         }
 
+        // Convert native bigint to BigInteger if needed
+        let bigIntValue: BigInteger;
+        if (typeof b === 'bigint') {
+            bigIntValue = bigInt(b.toString());
+        } else {
+            bigIntValue = b;
+        }
+
         // Handle zero case
-        if (b.isZero()) {
+        if (bigIntValue.isZero()) {
             return new Uint8Array([0]);
         }
 
         // Get the absolute value as bytes
-        const isNegative = b.isNegative();
-        let absValue = isNegative ? b.abs() : b;
+        const isNegative = bigIntValue.isNegative();
+        let absValue = isNegative ? bigIntValue.abs() : bigIntValue;
 
         // Convert to byte array by repeatedly dividing by 256
         const bytes: number[] = [];

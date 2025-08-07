@@ -1,20 +1,36 @@
-import { TestParams } from './src/net/bigtangle/params/TestParams';
-import { UtilGeneseBlock } from './src/net/bigtangle/core/UtilGeneseBlock';
+import bigInt from 'big-integer';
+import { Utils } from './src/net/bigtangle/utils/Utils';
+import { Buffer } from 'buffer';
 
-const PARAMS = TestParams.get();
+// Test how bigIntToBytes and bytesToBigInt work with zero
+console.log('Testing zero value serialization:');
 
-// Create a genesis block
-const blockGenisis = UtilGeneseBlock.createGenesis(PARAMS);
-const blockBytes = Buffer.from(blockGenisis.bitcoinSerializeCopy());
+// Test with zero
+const zeroBigInt = bigInt(0);
+console.log('Zero as bigInt:', zeroBigInt.toString());
 
-console.log("blockBytes length:", blockBytes.length);
-console.log("blockBytes (hex):", blockBytes.toString('hex'));
+const zeroBytes = Utils.bigIntToBytes(zeroBigInt);
+console.log('Zero serialized as bytes:', zeroBytes);
+console.log('Zero bytes as hex:', Buffer.from(zeroBytes).toString('hex'));
 
-// Try to deserialize it
-const block1 = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
-const serializedBlock = Buffer.from(block1.bitcoinSerializeCopy());
+const zeroBack = Utils.bytesToBigInt(zeroBytes);
+console.log('Zero deserialized back:', zeroBack.toString());
 
-console.log("serializedBlock length:", serializedBlock.length);
-console.log("serializedBlock (hex):", serializedBlock.toString('hex'));
+// Test with empty array
+try {
+  const emptyBytes = new Uint8Array(0);
+  console.log('Empty bytes array:', emptyBytes);
+  
+  const emptyBack = Utils.bytesToBigInt(emptyBytes);
+  console.log('Empty bytes deserialized:', emptyBack.toString());
+} catch (e) {
+  console.log('Error with empty bytes:', e);
+}
 
-console.log("Buffers equal:", Buffer.compare(blockBytes, serializedBlock) === 0);
+// Test with single zero byte
+const singleZeroBytes = new Uint8Array([0]);
+console.log('Single zero byte array:', singleZeroBytes);
+console.log('Single zero byte as hex:', Buffer.from(singleZeroBytes).toString('hex'));
+
+const singleZeroBack = Utils.bytesToBigInt(singleZeroBytes);
+console.log('Single zero byte deserialized:', singleZeroBack.toString());

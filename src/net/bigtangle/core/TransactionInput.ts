@@ -242,9 +242,11 @@ export class TransactionInput extends ChildMessage {
     }
 
     public bitcoinSerializeToStream(stream: any): void {
-        // Check if the outpoint knows it's part of a transaction input
-        const isTransactionInputOutpoint = this.outpoint.parent && this.outpoint.parent.constructor && this.outpoint.parent.constructor.name === 'TransactionInput';
-        this.outpoint.bitcoinSerialize(stream);
+        // For transaction inputs, we use the Bitcoin-style format:
+        // 32 bytes txHash + 4 bytes index
+        const txHash = this.outpoint.getTxHash() || Sha256Hash.ZERO_HASH;
+        stream.write(txHash.getReversedBytes());
+        Utils.uint32ToByteStreamLE(this.outpoint.getIndex(), stream);
         stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
         if (!this.isCoinBase())

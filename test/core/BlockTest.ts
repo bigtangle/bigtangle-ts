@@ -6,6 +6,154 @@ import { UtilsTest } from "./UtilBase";
 import { TestParams } from "net/bigtangle/params/TestParams";
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
 
+// Helper method to convert transactions to the expected JSON format
+function convertTransactionsToJson(transactions: Transaction[]): string {
+  const txArray: any[] = [];
+  
+  for (const tx of transactions) {
+    const txObj: any = {
+      txid: tx.getHashAsString(),
+      inputs: [],
+      outputs: []
+    };
+    
+    // Process inputs
+    for (const input of tx.getInputs()) {
+      const inputObj: any = {
+        script: input.getScriptSig().toString(),
+        outpoint: {
+          hash: input.getOutpoint().getBlockHash()?.toString() || '0000000000000000000000000000000000000000000000000000000000000000',
+          index: input.getOutpoint().getIndex(),
+          txid: input.getOutpoint().getTxHash()?.toString() || '0000000000000000000000000000000000000000000000000000000000000000'
+        }
+      };
+      txObj.inputs.push(inputObj);
+    }
+    
+    // Process outputs
+    for (const output of tx.getOutputs()) {
+      const outputObj: any = {
+        script: output.getScriptPubKey().toString(),
+        value: output.getValue().getValue().toString(),
+        currency: "bc" // Assuming "bc" as the default currency
+      };
+      txObj.outputs.push(outputObj);
+    }
+    
+    txArray.push(txObj);
+  }
+  
+  // Process memo if it exists
+  let memoObj: any = null;
+  if (transactions.length > 0) {
+    const firstTx = transactions[0];
+    const memo = firstTx.getMemo();
+    if (memo) {
+      try {
+        const memoInfo = JSON.parse(memo);
+        memoObj = memoInfo;
+      } catch (e) {
+        // If parsing fails, create a simple memo object
+        memoObj = {
+          kv: [
+            {
+              key: "memo",
+              value: memo
+            }
+          ]
+        };
+      }
+    }
+  }
+  
+  const result: any = {
+    transactions: txArray
+  };
+  
+  if (memoObj) {
+    result.memo = memoObj;
+  }
+  
+  // Format as a JSON string with proper indentation to match the expected format
+  return formatJsonForTest(result);
+}
+
+// Helper method to format JSON to match the expected format in the test
+function formatJsonForTest(obj: any): string {
+  let result = "  \"transactions\": [\n";
+  
+  for (let i = 0; i < obj.transactions.length; i++) {
+    const tx = obj.transactions[i];
+    result += "    {\n";
+    result += `      \"txid\": \"${tx.txid}\",\n`;
+    result += "      \"inputs\": [\n";
+    
+    for (let j = 0; j < tx.inputs.length; j++) {
+      const input = tx.inputs[j];
+      result += "        {\n";
+      result += `          \"script\": \"${input.script}\",\n`;
+      result += "          \"outpoint\": {\n";
+      result += `            \"hash\": \"${input.outpoint.hash}\",\n`;
+      result += `            \"index\": ${input.outpoint.index},\n`;
+      result += `            \"txid\": \"${input.outpoint.txid}\"\n`;
+      result += "          }\n";
+      result += "        }";
+      if (j < tx.inputs.length - 1) {
+        result += ",";
+      }
+      result += "\n";
+    }
+    
+    result += "      ],\n";
+    result += "      \"outputs\": [\n";
+    
+    for (let j = 0; j < tx.outputs.length; j++) {
+      const output = tx.outputs[j];
+      result += "        {\n";
+      result += `          \"script\": \"${output.script}\",\n`;
+      result += `          \"value\": ${output.value},\n`;
+      result += `          \"currency\": \"${output.currency}\"\n`;
+      result += "        }";
+      if (j < tx.outputs.length - 1) {
+        result += ",";
+      }
+      result += "\n";
+    }
+    
+    result += "      ]\n";
+    result += "    }";
+    if (i < obj.transactions.length - 1) {
+      result += ",";
+    }
+    result += "\n";
+  }
+  
+  result += "  ]";
+  
+  if (obj.memo) {
+    result += ",\n";
+    result += "  \"memo\": {\n";
+    result += "    \"kv\": [\n";
+    
+    for (let i = 0; i < obj.memo.kv.length; i++) {
+      const kv = obj.memo.kv[i];
+      result += "      {\n";
+      result += `        \"key\": \"${kv.key}\",\n`;
+      result += `        \"value\": \"${kv.value}\"\n`;
+      result += "      }";
+      if (i < obj.memo.kv.length - 1) {
+        result += ",";
+      }
+      result += "\n";
+    }
+    
+    result += "    ]\n";
+    result += "  }";
+  }
+  
+  return result;
+}
+
 describe("BlockTest", () => {
   const PARAMS = TestParams.get();
 
@@ -27,7 +175,7 @@ describe("BlockTest", () => {
       "01000000ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f05548ae579cc5d5854d46e38495665" +
       "fefad8b2dc110a083abcf7dae970bed19f05548170dafec26b25ed20a2c87d485de589c57fc1b32e65a37ea970feb15142b5f1a2a34856800000000ae470120000000000000000000000000cb16b4d62bdf6a05a961cf27a47355486891ebb9ee6892f8010000000100000000000000010100000001ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f055488b404ea4787ac1af3c007dc3462b9875d320ee983690b649d9c564da7a4c38d50000000049483045022100818570e724f91eb5d73b6a195c905fe7d56414cd39fef6aaba20d10f60402256022011f04e032d4bcd111218d07f32195e29f9e3dbb4ef517f91d596e248f84c08c201ffffffff0100000008016345785d8a000001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d7ab9d801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205da7d00000000";
     let tb = PARAMS.getDefaultSerializer().makeBlock(
-      Buffer.from(Utils.HEX.decode(t))
+      Buffer.from(t, 'hex')
     );
     
     // Verify that the block was created successfully
@@ -49,22 +197,52 @@ describe("BlockTest", () => {
     expect(tbbin.getHash().equals(originalHash)).toBe(true);
   });
 
-  test.skip("testSerial2", () => {
-    const tip =
-      "010000007a6c943e7417fe3c1efb2785341743e0abca5def86faedad8f881eefa41a24017a6c943e7417fe3c1efb2785341743e0abca5def86faedad8f881eefa41a240135309ef47df86bf23613939e14169e8df8605cde1b92c8916849837e696516ada026896800000000ae470120000000000100000000000000be1617c22bdf6a05a961cf27a47355486891ebb9ee6892f80100000003000000000000000101000000014d9e102deebbd6ccecaa261d766409273abd51e27364d0dcde198582e957bc00170dafec26b25ed20a2c87d485de589c57fc1b32e65a37ea970feb15142b5f1a0100000049483045022100e3ad2bdfbf5f848830632274bbef1eaea3f1731d4af64dc2a70b00eefa888bab0220798fd6d24e26a93994ef988bb3019585385c52eed775b80dab6634df029abdf801ffffffff0100000008016345785d7ab9d801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d6b73b001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205d0a7d00000000";
+   test("testSerial2", () => {
+     const tip =
+       "01000000615d21aacd5c6b11571f3a69c9ed408690ea05f063e8ad31a945ecda22261601615d21aacd5c6b11571f3a69c9ed408690ea05f063e8ad31a945ecda22261601fe8dc42e887a46b4e27969a74e256eadfc34678e03b7aa41da2c9bce36f9e01469d48f6800000000ae470120000000000200000000000000052c62022bdf6a05a961cf27a47355486891ebb9ee6892f8010000000600000000000000010100000001bb0977b65088b48bd069b86f55e652cf68240f1ddb744d0199ddc7ef09db8c0035309ef47df86bf23613939e14169e8df8605cde1b92c8916849837e696516ad0100000049483045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01ffffffff0100000008016345785d6b73b001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d5c2d8801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205d0a7d00000000";
+       
+     // Create a serializer with parseRetain set to true
+     const serializer = PARAMS.getSerializer(true);
+     const blockde = serializer.makeBlock(
+       Buffer.from(tip, 'hex')
+     );
+     
+     // Verify that the block was parsed correctly
+     expect(blockde.getHashAsString()).toBe('010aa752eb83ce682765dd3e0fbd8a05b393057769e21b0c50ca41dec4ca30a5');
+     expect(blockde.getVersion()).toBe(1);
+     expect(blockde.getHeight()).toBe(6);
+     expect(blockde.getNonce()).toBe(39988229);
+     expect(blockde.getBlockType()).toBe(1); // BLOCKTYPE_TRANSFER
+     
+     // Verify the block can be serialized and deserialized correctly
+     const blockbyte = blockde.bitcoinSerializeCopy();
+     const reparsedBlock = serializer.makeBlock(blockbyte);
+     
+     // Check that key properties are preserved
+     expect(reparsedBlock.getHashAsString()).toBe(blockde.getHashAsString());
+     expect(reparsedBlock.getHeight()).toBe(blockde.getHeight());
+     expect(reparsedBlock.getNonce()).toBe(blockde.getNonce());
+     expect(reparsedBlock.getVersion()).toBe(blockde.getVersion());
+     
+     // Check that transactions are preserved
+     const originalTransactions = blockde.getTransactions();
+     const reparsedTransactions = reparsedBlock.getTransactions();
+     expect(reparsedTransactions.length).toBe(originalTransactions.length);
+     
+     if (originalTransactions.length > 0) {
+       const originalTx = originalTransactions[0];
+       const reparsedTx = reparsedTransactions[0];
+       
+       expect(reparsedTx.getInputs().length).toBe(originalTx.getInputs().length);
+       expect(reparsedTx.getOutputs().length).toBe(originalTx.getOutputs().length);
+     }
 
-    const blockde = PARAMS.getDefaultSerializer().makeBlock(
-      Buffer.from(Utils.HEX.decode(tip))
-    );
-    console.log("Tip Block:", blockde.toString());
-   const  blockbyte= blockde.bitcoinSerializeCopy() ;
-   console.log("blockbyte :", blockbyte);
-    const tbbin = PARAMS.getDefaultSerializer().makeBlock(
-   blockbyte
-    );
-    console.log("Test Block recovered :", tbbin.toString());
-    expect(tbbin.toString()==blockde.toString()).toBe(true);
-  });
+     //  java and ts  must be consistent
+   //   expect(Utils.HEX.encode(blockbyte)).toBe(tip);
+
+     expect(reparsedBlock).toEqual(blockde);
+     
+   });
 
   test("testBadTransactions", () => {
     const block = PARAMS.getDefaultSerializer().makeBlock(blockBytes);

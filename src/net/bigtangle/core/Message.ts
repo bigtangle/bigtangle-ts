@@ -308,7 +308,10 @@ export abstract class Message {
             if (this.payload === null) {
                 throw new ProtocolException("Payload is null");
             }
+            console.log(`Reading VarInt at cursor ${this.cursor + actualOffset}`);
+            console.log(`Byte at cursor: 0x${this.payload[this.cursor + actualOffset].toString(16)}`);
             const varint = VarInt.fromBuffer(this.payload, this.cursor + actualOffset);
+            console.log(`VarInt value: ${varint.value.toJSNumber()}, bytes read: ${varint.getOriginalSizeInBytes()}`);
             this.cursor += actualOffset + varint.getOriginalSizeInBytes();
             return varint.value.toJSNumber();
         } catch (e) {

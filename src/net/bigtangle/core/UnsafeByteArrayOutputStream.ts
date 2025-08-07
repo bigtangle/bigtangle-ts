@@ -13,7 +13,7 @@ export class UnsafeByteArrayOutputStream {
     private buf: Buffer;
     private count: number = 0;
 
-    constructor(size: number = 32) {
+    constructor(size: number = 168) {
         this.buf = Buffer.alloc(size);
     }
 

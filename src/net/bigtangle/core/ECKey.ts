@@ -1,5 +1,5 @@
 import bigInt, { BigInteger } from "big-integer"; // Use big-integer
-import { secp256k1 } from "@noble/curves/secp256k1";
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { ECDSASignature } from "../core/ECDSASignature";
@@ -223,11 +223,25 @@ export class ECKey {
     if (!this.pub) {
       throw new Error("Public key is not available for verification");
     }
-    return secp256k1.verify(
-      { r: signature.r, s: signature.s },
-      messageHash,
-      this.pub.encode(true)
-    );
+    // Create a compact signature format (64 bytes) from r and s values
+    const rBytes = new Uint8Array(32);
+    const sBytes = new Uint8Array(32);
+    
+    // Convert bigints to bytes (big-endian)
+    const rHex = signature.r.toString(16).padStart(64, '0');
+    const sHex = signature.s.toString(16).padStart(64, '0');
+    
+    for (let i = 0; i < 32; i++) {
+      rBytes[i] = parseInt(rHex.substr(i * 2, 2), 16);
+      sBytes[i] = parseInt(sHex.substr(i * 2, 2), 16);
+    }
+    
+    // Concatenate r and s bytes to form the compact signature
+    const sigBytes = new Uint8Array(64);
+    sigBytes.set(rBytes, 0);
+    sigBytes.set(sBytes, 32);
+    
+    return secp256k1.verify(sigBytes, messageHash, this.pub.encode(true));
   }
 
   public isPubKeyOnly(): boolean {

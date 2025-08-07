@@ -57,13 +57,27 @@ export class BitcoinPacketHeader {
 }
 
 export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
-    private static readonly names = new Map<Function, string>([
-        [Block, "block"],
-        [Transaction, "tx"],
-        [HeadersMessage, "headers"],
-        [BloomFilter, "filterload"],
-        [FilteredBlock, "merkleblock"]
-    ]);
+    private static names: Map<Function, string> | null = null;
+
+    private static getNames(): Map<Function, string> {
+        if (BitcoinSerializer.names === null) {
+            // Lazy initialization to avoid circular dependencies
+            const { Block } = require('./Block');
+            const { Transaction } = require('./Transaction');
+            const { HeadersMessage } = require('./HeadersMessage');
+            const { BloomFilter } = require('./BloomFilter');
+            const { FilteredBlock } = require('./FilteredBlock');
+            
+            BitcoinSerializer.names = new Map<Function, string>([
+                [Block, "block"],
+                [Transaction, "tx"],
+                [HeadersMessage, "headers"],
+                [BloomFilter, "filterload"],
+                [FilteredBlock, "merkleblock"]
+            ]);
+        }
+        return BitcoinSerializer.names;
+    }
 
     constructor(params: NetworkParameters, parseRetain: boolean) {
         super(params, parseRetain);
@@ -106,7 +120,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Writes message to to the output stream.
      */
     public serializeMessage(message: Message, out: any): void {
-        const name = BitcoinSerializer.names.get(message.constructor);
+        const name = BitcoinSerializer.getNames().get(message.constructor);
         if (name == null) {
             throw new Error(`BitcoinSerializer doesn't currently know how to serialize ${message.constructor.name}`);
         }

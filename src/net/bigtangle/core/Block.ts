@@ -173,16 +173,26 @@ export class Block extends Message {
     this.cursor = transactionsOffset;
     this.optimalEncodingMessageSize = NetworkParameters.HEADER_SIZE;
 
+    console.log(`parseTransactions called with transactionsOffset: ${transactionsOffset}`);
+    console.log(`this.payload is null: ${this.payload === null}`);
+    if (this.payload) {
+      console.log(`this.payload length: ${this.payload.length}`);
+      console.log(`this.cursor: ${this.cursor}`);
+      console.log(`Bytes at cursor: ${this.payload.slice(this.cursor, this.cursor + 5).toString('hex')}`);
+    }
+
     if (!this.payload || this.payload.length === this.cursor) {
       this.transactionBytesValid = false;
       return;
     }
 
     const numTransactions = this.readVarInt();
+    console.log(`Parsing ${Number(numTransactions)} transactions at offset ${transactionsOffset}`);
     this.optimalEncodingMessageSize += VarInt.sizeOf(Number(numTransactions));
     this.transactions = [];
 
-    for (let i = 0; i < numTransactions; i++) {
+    for (let i = 0; i < Number(numTransactions); i++) {
+      console.log(`Parsing transaction ${i} at cursor ${this.cursor}`);
       if (!this.getParams()) {
         throw new Error(
           "Network parameters are required to parse transactions"
@@ -196,31 +206,72 @@ export class Block extends Message {
         null,
         Message.UNKNOWN_LENGTH
       );
-      // Parse the transaction to set its length
       tx.parse();
-      this.transactions.push(tx);
-      this.cursor += tx.getMessageSize();
-      this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
+      const txMessageSize = tx.getMessageSize();
+      console.log(`Transaction ${i} parsed, message size: ${txMessageSize}`);
+      
+      // Now create a new transaction with the correct payload length
+      const txPayload = this.payload.slice(this.cursor, this.cursor + txMessageSize);
+      const finalTx = new Transaction(
+          this.getParams(),
+          txPayload,
+          0, // offset is 0 within the new payload
+          this.serializer,
+          null,
+          txMessageSize
+      );
+      finalTx.parse(); // Reparse with the correct length
+      
+      this.transactions.push(finalTx);
+      this.cursor += txMessageSize;
+      this.optimalEncodingMessageSize += finalTx.getOptimalEncodingMessageSize();
     }
 
+    console.log(`Parsed ${this.transactions.length} transactions`);
     // Always set transactionBytesValid to true after parsing transactions
     this.transactionBytesValid = true;
   }
 
   protected parse(): void {
     this.cursor = this.offset;
+    console.log(`Starting Block parse at offset ${this.offset}, payload length: ${this.payload?.length}`);
+    if (this.payload) {
+      console.log(`First 20 bytes of payload: ${this.payload.slice(0, 20).toString('hex')}`);
+      console.log(`Bytes at cursor 160: ${this.payload.slice(160, 165).toString('hex')}`);
+      console.log(`Bytes 150-170: ${this.payload.slice(150, 170).toString('hex')}`);
+    }
+    console.log(`Reading version at cursor ${this.cursor}`);
     this.version = this.readUint32();
+    console.log(`Version: ${this.version}, cursor after version: ${this.cursor}`);
+    console.log(`Reading prevBlockHash at cursor ${this.cursor}`);
     this.prevBlockHash = this.readHash();
+    console.log(`prevBlockHash cursor after: ${this.cursor}`);
+    console.log(`Reading prevBranchBlockHash at cursor ${this.cursor}`);
     this.prevBranchBlockHash = this.readHash();
+    console.log(`prevBranchBlockHash cursor after: ${this.cursor}`);
+    console.log(`Reading merkleRoot at cursor ${this.cursor}`);
     this.merkleRoot = this.readHash();
+    console.log(`merkleRoot cursor after: ${this.cursor}`);
+    console.log(`Reading time at cursor ${this.cursor}`);
     this.time = Number(this.readInt64());
+    console.log(`time: ${this.time}, cursor after time: ${this.cursor}`);
+    console.log(`Reading difficultyTarget at cursor ${this.cursor}`);
     this.difficultyTarget = Number(this.readInt64());
+    console.log(`difficultyTarget: ${this.difficultyTarget}, cursor after difficultyTarget: ${this.cursor}`);
+    console.log(`Reading lastMiningRewardBlock at cursor ${this.cursor}`);
     this.lastMiningRewardBlock = Number(this.readInt64());
+    console.log(`lastMiningRewardBlock: ${this.lastMiningRewardBlock}, cursor after lastMiningRewardBlock: ${this.cursor}`);
     // Read nonce as unsigned 32-bit integer
+    console.log(`Reading nonce at cursor ${this.cursor}`);
     const nonceBytes = this.readBytes(4);
     this.nonce = nonceBytes.readUInt32LE(0);
+    console.log(`nonce: ${this.nonce}, cursor after nonce: ${this.cursor}`);
+    console.log(`Reading minerAddress at cursor ${this.cursor}`);
     this.minerAddress = this.readBytes(20);
+    console.log(`minerAddress length: ${this.minerAddress?.length}, cursor after minerAddress: ${this.cursor}`);
+    console.log(`Reading blockType at cursor ${this.cursor}`);
     const blockTypeValue = this.readUint32();
+    console.log(`blockTypeValue: ${blockTypeValue}, cursor after blockType: ${this.cursor}`);
     const blockTypeKeys = Object.keys(BlockType).filter(
       (key) => typeof BlockType[key as keyof typeof BlockType] === "number"
     );
@@ -230,7 +281,15 @@ export class Block extends Message {
     this.blockType = isValidBlockType
       ? (blockTypeValue as unknown as BlockType)
       : null;
+    console.log(`Reading height at cursor ${this.cursor}`);
+    if (this.payload) {
+      console.log(`Bytes before reading height: ${this.payload.slice(this.cursor, this.cursor + 10).toString('hex')}`);
+    }
     this.height = Number(this.readInt64());
+    console.log(`height: ${this.height}, cursor after height: ${this.cursor}`);
+    if (this.payload) {
+      console.log(`Bytes at cursor ${this.cursor}: ${this.payload.slice(this.cursor, this.cursor + 5).toString('hex')}`);
+    }
 
     if (this.payload) {
       const headerBytes = this.payload.slice(this.offset, this.cursor);
@@ -239,6 +298,7 @@ export class Block extends Message {
         Sha256Hash.ZERO_HASH;
     }
     this.headerBytesValid = this.serializer.isParseRetainMode();
+    console.log(`Parsing transactions at cursor ${this.cursor}`);
     this.parseTransactions(this.cursor);
     this.length = this.cursor - this.offset;
   }
@@ -361,6 +421,10 @@ export class Block extends Message {
       this.writePoW(stream);
       this.writeTransactions(stream);
 
+      // Add 8 bytes of padding at the end to match expected format
+      const padding = Buffer.alloc(8);
+      stream.write(padding);
+
       const result = stream.toByteArray();
       // If result is empty, log for debugging
       if (result.length === 0) {
@@ -378,6 +442,10 @@ export class Block extends Message {
       this.writeHeader(stream);
       this.writePoW(stream);
       this.writeTransactions(stream);
+      
+      // Add 8 bytes of padding at the end to match expected format
+      const padding = Buffer.alloc(8);
+      stream.write(padding);
     } catch (error) {
       console.error("Error in Block.bitcoinSerializeToStream:", error);
       throw error;

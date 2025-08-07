@@ -240,8 +240,62 @@ export class AlertMessage extends Message {
     
     // Implementation of abstract method from Message class
     public bitcoinSerializeToStream(stream: any): void {
-        // This is a minimal implementation to satisfy the abstract requirement
-        // Full implementation would require proper serialization logic
-        throw new Error("bitcoinSerializeToStream not implemented for AlertMessage");
+        // Serialize the content and signature as byte arrays (with length prefix)
+        this.writeByteArrayToStream(stream, this.content);
+        this.writeByteArrayToStream(stream, this.signature);
+
+        // Now serialize the embedded structure (alert fields)
+        // The embedded structure is serialized as:
+        // [version:uint32][relayUntil:uint64][expiration:uint64][id:uint32][cancel:uint32]
+        // [cancelSet:VarInt+uint32[]][minVer:uint32][maxVer:uint32][subverSet:VarInt+string[]]
+        // [priority:uint32][comment:str][statusBar:str][reserved:str]
+
+        // Write version
+        this.writeUint32ToStream(stream, this.version);
+        // Write relayUntil and expiration as uint64 (seconds since epoch)
+        this.writeUint64ToStream(stream, BigInt(Math.floor(this.relayUntil.getTime() / 1000)));
+        this.writeUint64ToStream(stream, BigInt(Math.floor(this.expiration.getTime() / 1000)));
+        // Write id and cancel
+        this.writeUint32ToStream(stream, this.id);
+        this.writeUint32ToStream(stream, this.cancel);
+        // Write cancel set (empty for now, as not tracked in this class)
+        this.writeVarIntToStream(stream, 0);
+        // Write minVer and maxVer
+        this.writeUint32ToStream(stream, this.minVer);
+        this.writeUint32ToStream(stream, this.maxVer);
+        // Write subver set (empty for now, as not tracked in this class)
+        this.writeVarIntToStream(stream, 0);
+        // Write priority
+        this.writeUint32ToStream(stream, this.priority);
+        // Write comment, statusBar, reserved
+        this.writeStrToStream(stream, this.comment);
+        this.writeStrToStream(stream, this.statusBar);
+        this.writeStrToStream(stream, this.reserved);
+    }
+
+    // Helper methods for serialization
+    private writeByteArrayToStream(stream: any, arr: Buffer): void {
+        this.writeVarIntToStream(stream, arr.length);
+        stream.write(arr);
+    }
+    private writeVarIntToStream(stream: any, value: number): void {
+        const VarInt = require('./VarInt').VarInt;
+        const varInt = new VarInt(value);
+        stream.write(varInt.encode());
+    }
+    private writeUint32ToStream(stream: any, value: number): void {
+        const buf = Buffer.alloc(4);
+        buf.writeUInt32LE(value, 0);
+        stream.write(buf);
+    }
+    private writeUint64ToStream(stream: any, value: bigint): void {
+        const buf = Buffer.alloc(8);
+        buf.writeBigUInt64LE(value, 0);
+        stream.write(buf);
+    }
+    private writeStrToStream(stream: any, str: string): void {
+        const strBuf = Buffer.from(str, 'utf8');
+        this.writeVarIntToStream(stream, strBuf.length);
+        stream.write(strBuf);
     }
 }

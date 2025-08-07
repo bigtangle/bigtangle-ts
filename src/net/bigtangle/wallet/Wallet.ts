@@ -1282,7 +1282,7 @@ export class Wallet extends WalletBase {
       NetworkParameters.BIGTANGLE_TOKENNAME || "",
       "utf8"
     );
-    /*
+   
     if (
       typeof this.getFee === "function" &&
       this.getFee() &&
@@ -1307,7 +1307,7 @@ export class Wallet extends WalletBase {
         }
       }
     }
-*/
+ 
     return await this.solveAndPost(block);
   }
 
@@ -1360,16 +1360,16 @@ export class Wallet extends WalletBase {
    blockBytes
     );
       console.log("Original block:", block.toString());
-   if( tbbin.toString() !== block.toString()  ){
+ 
     // If the serialization is not correct, log a warning
     console.log("Block serialization mismatch:");
     console.log("Original block:", block.toString());
     console.log("Deserialized block:", tbbin.toString());
     console.log("Block bytes length:", blockBytes.length);
-    console.log("Block bytes (first 100):", blockBytes.slice(0, 100).toString('hex'));
+    console.log("Block bytes ", Utils.HEX.encode(blockBytes ) );
     // For now, let's just log the warning and continue instead of throwing an error
     console.warn("Block serialization mismatch detected, but continuing with original block");
-   }
+  
    // I will add more logging here to see the exact difference
     if (tbbin.getTransactions().length !== block.getTransactions().length) {
         console.error("Transaction count mismatch");
@@ -1442,12 +1442,26 @@ export class Wallet extends WalletBase {
     const txHash = tx.getHash();
     // Use secp256k1.verify from @noble/curves/secp256k1
     // Assuming txHash.getBytes() returns the message hash as Uint8Array
-    // The secp256k1.verify function expects r and s as bigint
-    return secp256k1.verify(
-      { r: BigInt(signature.r.toString()), s: BigInt(signature.s.toString()) },
-      txHash.getBytes(),
-      pubKey
-    );
+    // The secp256k1.verify function expects a compact signature (64 bytes)
+    // Convert r and s values to bytes and concatenate them
+    const rBytes = new Uint8Array(32);
+    const sBytes = new Uint8Array(32);
+    
+    // Convert bigints to bytes (big-endian)
+    const rHex = BigInt(signature.r.toString()).toString(16).padStart(64, '0');
+    const sHex = BigInt(signature.s.toString()).toString(16).padStart(64, '0');
+    
+    for (let i = 0; i < 32; i++) {
+      rBytes[i] = parseInt(rHex.substr(i * 2, 2), 16);
+      sBytes[i] = parseInt(sHex.substr(i * 2, 2), 16);
+    }
+    
+    // Concatenate r and s bytes to form the compact signature
+    const sigBytes = new Uint8Array(64);
+    sigBytes.set(rBytes, 0);
+    sigBytes.set(sBytes, 32);
+    
+    return secp256k1.verify(sigBytes, txHash.getBytes(), pubKey);
   }
 
   /**

@@ -15,9 +15,8 @@ import { TransactionOutPoint } from './TransactionOutPoint';
 import { TransactionBag } from './TransactionBag';
 import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 
- 
 /**
  * <p>
  * A TransactionOutput message contains a scriptPubKey that controls who is able
@@ -62,10 +61,6 @@ export class TransactionOutput extends ChildMessage {
 
     private description: string | null = null;
 
-    /**
-     * Deserializes a transaction output message. This is usually part of a
-     * transaction message.
-     */
     /**
      * Deserializes a transaction output message. This is usually part of a
      * transaction message.
@@ -120,9 +115,9 @@ export class TransactionOutput extends ChildMessage {
             if (serializer) {
                 this.serializer = serializer;
             }
-        this.setParent(parent);
-        this.availableForSpending = true;
-        this.parse();
+            this.setParent(parent);
+            this.availableForSpending = true;
+            this.parse();
         } else if (args.length >= 4 && args[2] instanceof Coin && (args[3] instanceof Address || args[3] instanceof ECKey)) {
             // Creation constructors
             const value = args[2];
@@ -146,16 +141,15 @@ export class TransactionOutput extends ChildMessage {
             
             this.setParent(parent);
             this.availableForSpending = true;
-    // Calculate length matching Java implementation
-    // Value length (VarInt) + Value bytes
-    // Token ID length (VarInt) + Token ID bytes
-    // Script length (VarInt) + Script bytes
-    const valueBytes = Buffer.from(Utils.bigIntToBytes(bigInt(this.value.getValue().toString())));
-    const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-    this.length = 
-        VarInt.sizeOf(valueBytes.length) + valueBytes.length +
-        VarInt.sizeOf(this.value.getTokenid().length) + this.value.getTokenid().length +
-        VarInt.sizeOf(scriptBytesLength) + scriptBytesLength;
+            // Calculate length matching Java implementation
+            const tokenId = this.value.getTokenid();
+            const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
+            const valueBytes = Utils.bigIntToBytes(this.value.getValue());
+            this.length = 
+                VarInt.sizeOf(valueBytes.length) + 
+                valueBytes.length +
+                VarInt.sizeOf(scriptBytesLength) + scriptBytesLength +
+                VarInt.sizeOf(tokenId.length) + tokenId.length;
         } else if (args.length === 4 && args[2] instanceof Coin && args[3] instanceof Buffer) {
             // Direct constructor with script bytes
             const value = args[2];
@@ -174,15 +168,9 @@ export class TransactionOutput extends ChildMessage {
             this.setParent(parent);
             this.availableForSpending = true;
             // Calculate length matching Java implementation
-            // Value length (VarInt) + Value bytes
-            // Token ID length (VarInt) + Token ID bytes
-            // Script length (VarInt) + Script bytes
-            const valueBytes = Buffer.from(Utils.bigIntToBytes(bigInt(this.value.getValue().toString())));
+            const tokenId = this.value.getTokenid();
             const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-            this.length = 
-                VarInt.sizeOf(valueBytes.length) + valueBytes.length +
-                VarInt.sizeOf(this.value.getTokenid().length) + this.value.getTokenid().length +
-                VarInt.sizeOf(scriptBytesLength) + scriptBytesLength;
+            this.length = 8 + VarInt.sizeOf(tokenId.length) + tokenId.length + VarInt.sizeOf(scriptBytesLength) + scriptBytesLength;
         } else {
             throw new Error("Invalid constructor arguments");
         }
@@ -264,182 +252,90 @@ export class TransactionOutput extends ChildMessage {
             throw new ProtocolException("Payload is null");
         }
         this.cursor = this.offset;
-        console.log(`TransactionOutput parsing at offset ${this.offset}, payload length: ${this.payload.length}`);
-        
-        // Parse value length and value bytes (matching Java implementation)
-        let valueBytes: Buffer = Buffer.alloc(0);
-        let tokenBytes: Buffer = Buffer.alloc(0);
-        
-        // Check if we have any data left to read
-        if (this.payload && this.cursor < this.payload.length) {
-            try {
-                const valueLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
-                const valueLen = Number(valueLenVarInt.value);
-                
-                // Check if we have enough bytes to read the VarInt itself
-                if (this.cursor + valueLenVarInt.getOriginalSizeInBytes() > this.payload.length) {
-                    // Not enough bytes to read even the length VarInt, set defaults
-                    valueBytes = Buffer.alloc(0);
-                } else {
-                    // Advance cursor past the VarInt
-                    this.cursor += valueLenVarInt.getOriginalSizeInBytes();
-                    console.log(`Read value length: ${valueLen}, cursor is now at ${this.cursor}`);
-                    
-                    // Check if we have enough bytes to read the value data
-                    if (this.cursor + valueLen > this.payload.length) {
-                        // Not enough bytes to read the value data, set defaults
-                        valueBytes = Buffer.alloc(0);
-                        // Move cursor back to where it was before trying to read the VarInt
-                        this.cursor -= valueLenVarInt.getOriginalSizeInBytes();
-                    } else {
-                        valueBytes = this.readBytes(valueLen);
-                        console.log(`Read value bytes, cursor is now at ${this.cursor}`);
-                    }
-                }
-            } catch (e) {
-                // If we can't read the value length or value data, set defaults
-                valueBytes = Buffer.alloc(0);
-            }
-        } else {
-            // No more data, set default values
-            valueBytes = Buffer.alloc(0);
+    
+        // Read value (8 bytes)
+        if (this.cursor + 8 > this.payload.length) {
+            throw new RangeError(`Insufficient bytes for value: need 8, have ${this.payload.length - this.cursor}`);
         }
-
-        // Parse token length and token bytes
-        // Check if we have any data left to read
-        if (this.payload && this.cursor < this.payload.length) {
-            try {
-                const tokenLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
-                this.tokenLen = Number(tokenLenVarInt.value);
-                
-                // Check if we have enough bytes to read the VarInt itself
-                if (this.cursor + tokenLenVarInt.getOriginalSizeInBytes() > this.payload.length) {
-                    // Not enough bytes to read even the length VarInt, set defaults
-                    this.tokenLen = 0;
-                    tokenBytes = Buffer.alloc(0);
-                } else {
-                    // Advance cursor past the VarInt
-                    this.cursor += tokenLenVarInt.getOriginalSizeInBytes();
-                    console.log(`Read token length: ${this.tokenLen}, cursor is now at ${this.cursor}`);
-                    
-                    // Check if we have enough bytes to read the token data
-                    if (this.cursor + this.tokenLen > this.payload.length) {
-                        // Not enough bytes to read the token data, set defaults
-                        this.tokenLen = 0;
-                        tokenBytes = Buffer.alloc(0);
-                        // Move cursor back to where it was before trying to read the VarInt
-                        this.cursor -= tokenLenVarInt.getOriginalSizeInBytes();
-                    } else {
-                        tokenBytes = this.readBytes(this.tokenLen);
-                        console.log(`Read token bytes, cursor is now at ${this.cursor}`);
-                    }
-                }
-            } catch (e) {
-                // If we can't read the token length or token data, set defaults
-                this.tokenLen = 0;
-                tokenBytes = Buffer.alloc(0);
+        const valueBigIntJS = Utils.readInt64(this.payload, this.cursor);
+        const valueBigInt = BigInt(valueBigIntJS.toString());
+        this.cursor += 8;
+    
+        // Read token ID length (VarInt)
+        if (this.cursor >= this.payload.length) {
+            throw new RangeError(`No bytes left to read token ID length VarInt at cursor ${this.cursor}`);
+        }
+        const tokenLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
+        this.tokenLen = Number(tokenLenVarInt.value);
+        this.cursor += tokenLenVarInt.getOriginalSizeInBytes();
+    
+        // Read token ID bytes
+        let tokenBytes: Buffer;
+        if (this.tokenLen > 0) {
+            if (this.cursor + this.tokenLen > this.payload.length) {
+                throw new RangeError(`Insufficient bytes for token ID: need ${this.tokenLen}, have ${this.payload.length - this.cursor}`);
             }
+            tokenBytes = this.payload.slice(this.cursor, this.cursor + this.tokenLen);
+            this.cursor += this.tokenLen;
         } else {
-            // No more data, set default values
-            this.tokenLen = 0;
             tokenBytes = Buffer.alloc(0);
         }
-
-        // Create the Coin with value and token
-        try {
-            // Convert valueBytes to BigInt
-            let valueBigInt = 0n;
-            if (valueBytes.length > 0) {
-                // Convert bytes to BigInt (assuming little-endian)
-                const bigIntValue = Utils.bytesToBigInt(valueBytes);
-                valueBigInt = BigInt(bigIntValue.toString());
-            }
-            // Handle the case where valueBytes is empty (should result in 0)
-            this.value = new Coin(valueBigInt, tokenBytes);
-        } catch (e) {
-            // If we can't create a Coin, create a default one
-            this.value = new Coin(0n, Buffer.alloc(0));
+    
+        this.value = new Coin(valueBigInt, tokenBytes);
+    
+        // Read script length (VarInt)
+        if (this.cursor >= this.payload.length) {
+            throw new RangeError(`No bytes left to read script length VarInt at cursor ${this.cursor}`);
         }
-
-        // Parse script length and script bytes
-        // Check if we have any data left to read
-        if (this.payload && this.cursor < this.payload.length) {
-            try {
-                const scriptLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
-                this.scriptLen = Number(scriptLenVarInt.value);
-                
-                // Check if we have enough bytes to read the VarInt itself
-                if (this.cursor + scriptLenVarInt.getOriginalSizeInBytes() > this.payload.length) {
-                    // Not enough bytes to read even the length VarInt, set defaults
-                    this.scriptBytes = Buffer.alloc(0);
-                } else {
-                    // Advance cursor past the VarInt
-                    this.cursor += scriptLenVarInt.getOriginalSizeInBytes();
-                    console.log(`Read script length: ${this.scriptLen}, cursor is now at ${this.cursor}`);
-                    
-                    // Check if we have enough bytes to read the script data
-                    if (this.cursor + this.scriptLen > this.payload.length) {
-                        // Not enough bytes to read the script data, set defaults
-                        this.scriptBytes = Buffer.alloc(0);
-                        // Move cursor back to where it was before trying to read the VarInt
-                        this.cursor -= scriptLenVarInt.getOriginalSizeInBytes();
-                    } else {
-                        this.scriptBytes = this.readBytes(this.scriptLen);
-                        console.log(`Read script bytes, cursor is now at ${this.cursor}`);
-                    }
-                }
-            } catch (e) {
-                // If we can't read the script length or script data, set defaults
-                this.scriptBytes = Buffer.alloc(0);
+        const scriptLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
+        this.scriptLen = Number(scriptLenVarInt.value);
+        this.cursor += scriptLenVarInt.getOriginalSizeInBytes();
+    
+        // Read script bytes
+        if (this.scriptLen > 0) {
+            if (this.cursor + this.scriptLen > this.payload.length) {
+                throw new RangeError(`Insufficient bytes for script: need ${this.scriptLen}, have ${this.payload.length - this.cursor}`);
             }
+            this.scriptBytes = this.payload.slice(this.cursor, this.cursor + this.scriptLen);
+            this.cursor += this.scriptLen;
         } else {
-            // No more data, set default values
             this.scriptBytes = Buffer.alloc(0);
         }
-        
+    
         this.length = this.cursor - this.offset;
-        console.log(`TransactionOutput parsed, total length: ${this.length}`);
     }
+    
 
     public bitcoinSerializeToStream(stream: any): void {
         // Ensure scriptBytes is initialized
         if (!this.scriptBytes) {
             this.scriptBytes = Buffer.alloc(0);
         }
-        
+    
         // Ensure value is initialized
         if (!this.value) {
-            this.value = new Coin(0n, Buffer.alloc(0));
+            this.value = new Coin(BigInt(0), Buffer.alloc(0));
         }
-        
-        // Serialize value (matching Java implementation)
-        // First the length as VarInt, then the value bytes
-        const valueBigInt = this.value.getValue();
-        const valueBytes = Buffer.from(Utils.bigIntToBytes(bigInt(valueBigInt.toString())));
-        const valueLengthVarInt = new VarInt(valueBytes.length);
-        const valueLengthBytes = valueLengthVarInt.encode();
-        console.log(`Serializing value: ${valueBigInt.toString()} as ${valueBytes.length} bytes: ${valueBytes.toString('hex')}`);
-        console.log(`  Length VarInt: ${valueLengthVarInt.value.toString()} encoded as ${valueLengthBytes.length} bytes: ${valueLengthBytes.toString('hex')}`);
-        stream.write(valueLengthBytes);
+    
+        // Serialize value (8 bytes LE)
+        const value = this.value.getValue();
+        const valueBytes = Buffer.alloc(8);
+        Utils.uint64ToByteArrayLE(bigInt(value.toString()), valueBytes, 0);
         stream.write(valueBytes);
-
-        // Serialize token ID
+    
+        // Serialize token ID (VarInt length + bytes)
         const tokenId = this.value.getTokenid();
         const tokenIdLengthVarInt = new VarInt(tokenId.length);
-        const tokenIdLengthBytes = tokenIdLengthVarInt.encode();
-        console.log(`Serializing token ID: ${tokenId.toString('hex')} as ${tokenId.length} bytes`);
-        console.log(`  Token ID Length VarInt: ${tokenIdLengthVarInt.value.toString()} encoded as ${tokenIdLengthBytes.length} bytes: ${tokenIdLengthBytes.toString('hex')}`);
-        stream.write(tokenIdLengthBytes);
-        stream.write(Buffer.from(tokenId));
-        
-        // Serialize script
+        stream.write(tokenIdLengthVarInt.encode());
+        if (tokenId.length > 0) {
+            stream.write(tokenId);
+        }
+    
+        // Serialize script (VarInt length + bytes)
         const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
         const scriptLengthVarInt = new VarInt(scriptBytesLength);
-        const scriptLengthBytes = scriptLengthVarInt.encode();
-        console.log(`Serializing script: ${this.scriptBytes ? this.scriptBytes.toString('hex') : ''} as ${scriptBytesLength} bytes`);
-        console.log(`  Script Length VarInt: ${scriptLengthVarInt.value.toString()} encoded as ${scriptLengthBytes.length} bytes: ${scriptLengthBytes.toString('hex')}`);
-        stream.write(scriptLengthBytes);
-        if (this.scriptBytes) {
+        stream.write(scriptLengthVarInt.encode());
+        if (scriptBytesLength > 0) {
             stream.write(this.scriptBytes);
         }
     }
@@ -674,46 +570,6 @@ export class TransactionOutput extends ChildMessage {
         return result;
     }
 
-    /**
-     * Returns the size of the message in bytes after serialization.
-     * This method should return the actual size of the parsed data.
-     */
-    public getMessageSize(): number {
-        if (this.length > 0) {
-            return this.length;
-        }
-        this.length = this.calculateLength();
-        return this.length;
-    }
-
-    public getOptimalEncodingMessageSize(): number {
-        return this.getMessageSize();
-    }
-
-    /**
-     * Calculate the length of this TransactionOutput when serialized.
-     * This method is used when the length was not set correctly during parsing.
-     */
-    private calculateLength(): number {
-        // Ensure value and scriptBytes are initialized
-        if (!this.value) {
-            this.value = new Coin(0n, Buffer.alloc(0));
-        }
-        if (!this.scriptBytes) {
-            this.scriptBytes = Buffer.alloc(0);
-        }
-        
-        const tokenId = this.value.getTokenid();
-        const valueBytes = Buffer.from(Utils.bigIntToBytes(bigInt(this.value.getValue().toString())));
-        const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-        // Value length (VarInt) + Value bytes
-        // Token ID length (VarInt) + Token ID bytes
-        // Script length (VarInt) + Script bytes
-        return VarInt.sizeOf(valueBytes.length) + valueBytes.length +
-            VarInt.sizeOf(tokenId.length) + tokenId.length +
-            VarInt.sizeOf(scriptBytesLength) + scriptBytesLength;
-    }
-
     public getDescription(): string | null {
         return this.description;
     }
@@ -744,7 +600,7 @@ export class TransactionOutput extends ChildMessage {
      * @param to ECKey to send to
      * @return A new TransactionOutput object
      */
-    public static fromECKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
+    public static fromKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
         return new TransactionOutput(params, parent, value, to);
     }
 }

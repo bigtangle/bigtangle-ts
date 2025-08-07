@@ -205,7 +205,7 @@ export class FakeTxBuilder {
         to: ECKey,
     ): Transaction {
         const t = new Transaction(params);
-        const outputToMe = TransactionOutput.fromECKey(params, t, value, to);
+        const outputToMe = TransactionOutput.fromKey(params, t, value, to);
         t.addOutput(outputToMe);
         const change = TransactionOutput.fromAddress(
             params,
@@ -221,7 +221,7 @@ export class FakeTxBuilder {
         // is not really valid but it doesn't
         // matter for our purposes.
         const prevTx = new Transaction(params);
-        const prevOut = TransactionOutput.fromECKey(params, prevTx, value, to);
+        const prevOut = TransactionOutput.fromKey(params, prevTx, value, to);
         prevTx.addOutput(prevOut);
         // Connect it.
         const input = new TransactionInput(params, t, Buffer.from([]), prevOut.getOutPointFor(Sha256Hash.ZERO_HASH));

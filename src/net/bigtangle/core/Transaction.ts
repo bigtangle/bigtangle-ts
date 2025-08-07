@@ -51,6 +51,8 @@ export const SigHash = {
 export type SigHash = (typeof SigHash)[keyof typeof SigHash];
 
 export class Transaction extends ChildMessage {
+  // ...existing code...
+  private trailingZeroBytes: Buffer | null = null;
   private static readonly log = console; // LoggerFactory.getLogger(Transaction.class);
 
   /**
@@ -238,7 +240,7 @@ export class Transaction extends ChildMessage {
         this.params?.getDefaultSerializer() || DummySerializer.DEFAULT;
       this.parent = null;
       this.length = Message.UNKNOWN_LENGTH;
-      this.parse();
+      // Do not parse here, let the caller do it
     } else if (args.length === 3) {
       // (params, payload, offset)
       this.payload = Buffer.from(args[1]);
@@ -247,7 +249,7 @@ export class Transaction extends ChildMessage {
         this.params?.getDefaultSerializer() || DummySerializer.DEFAULT;
       this.parent = null;
       this.length = Message.UNKNOWN_LENGTH;
-      this.parse();
+      // Do not parse here, let the caller do it
     } else if (args.length === 5) {
       // (params, payload, offset, parent, setSerializer, length) or (params, payload, parent, setSerializer, length)
       if (typeof args[2] === "number") {
@@ -265,7 +267,9 @@ export class Transaction extends ChildMessage {
         this.serializer = args[3];
         this.length = args[4];
       }
-      this.parse();
+      if (this.length !== Message.UNKNOWN_LENGTH) {
+        this.parse();
+      }
     } else if (args.length === 6) {
       // (params, payload, offset, serializer, parent, length)
       this.payload = Buffer.from(args[1]);
@@ -273,7 +277,9 @@ export class Transaction extends ChildMessage {
       this.serializer = args[3];
       this.parent = args[4];
       this.length = args[5] ?? Message.UNKNOWN_LENGTH;
-      this.parse();
+      if (this.length !== Message.UNKNOWN_LENGTH) {
+        this.parse();
+      }
     }
   }
 
@@ -286,12 +292,19 @@ export class Transaction extends ChildMessage {
    * This is the hash of the transaction serialized not memo and dataSignature
    */
      getHash() :Sha256Hash {
-    	  if (this.hash === null) {
-            const buf = this.unsafeBitcoinSerialize();
-              this.hash = Sha256Hash.wrapReversed(
-                      Sha256Hash.hashTwiceRange(buf, 0, buf.length - this.calculateMemoLen() - this.calculateDataSignatureLen()));
-          }
-          return this.hash;
+      if (this.hash === null) {
+        const buf = this.unsafeBitcoinSerialize();
+        // Debug: print serialized transaction buffer in hex for byte-level comparison
+        if (process.env.BIGTANGLE_DEBUG_SERIALIZE === '1') {
+          console.log('[DEBUG] Transaction serialized buffer:', buf.toString('hex'));
+          // Print the last 8 bytes for trailing field check
+          console.log('[DEBUG] Last 8 bytes:', buf.slice(-8).toString('hex'));
+        }
+        this.hash = Sha256Hash.wrapReversed(
+          Sha256Hash.hashTwiceRange(buf, 0, buf.length - this.calculateMemoLen() - this.calculateDataSignatureLen())
+        );
+      }
+      return this.hash;
     }
   private calculateMemoLen(): number {
     let len = 4;
@@ -545,59 +558,73 @@ export class Transaction extends ChildMessage {
 
     this.optimalEncodingMessageSize += VarInt.sizeOf(bigInt(numOutputs));
     this.outputs = [];
-    for (let i = 0; i < numOutputs; i++) {
-      // Check if we have enough bytes to read the output
-      if (!this.payload || this.cursor >= this.payload.length) {
-        throw new Error(
-          `Not enough bytes to read output ${i}. Cursor: ${this.cursor}, Payload length: ${this.payload?.length}`
-        );
-      }
-
+    
+    // Parse outputs but be more careful about checking available bytes
+    for (let i = 0; i < numOutputs && this.cursor < (this.payload?.length ?? 0); i++) {
       console.log(
         `Parsing output ${i} at cursor ${this.cursor}, remaining bytes: ${
           this.payload.length - this.cursor
         }`
       );
 
-      // Check if we have enough bytes to read at least the basic fields of the output
-      if (this.cursor + 8 > (this.payload?.length ?? 0)) {
-        // Not enough bytes to read even the value field, skip this output
-        console.log(
-          `Not enough bytes to read output ${i}, cursor: ${this.cursor}, payload length: ${this.payload?.length}`
+      try {
+        // Check if we have enough bytes to read at least the basic fields of the output
+        // We need at least 8 bytes for value + some bytes for token ID length VarInt
+        if (this.cursor + 8 > (this.payload?.length ?? 0)) {
+          console.log(
+            `Not enough bytes to read output ${i} value, cursor: ${this.cursor}, payload length: ${this.payload?.length}`
+          );
+          break;
+        }
+
+        // Save the cursor position before creating the output
+        const outputStartCursor = this.cursor;
+
+        // Try to create the output - the TransactionOutput constructor will handle its own bounds checking
+        const output = new TransactionOutput(
+          this.params!,
+          this,
+          this.payload!,
+          this.cursor
         );
+        this.outputs.push(output);
+
+        // Use the actual message size from the parsed output
+        const messageSize = output.getMessageSize();
+
+        console.log(`Output ${i} message size: ${messageSize}`);
+
+        // Check if we have enough bytes for the entire output
+        if (outputStartCursor + messageSize > (this.payload?.length ?? 0)) {
+          // This shouldn't happen if TransactionOutput parsing is correct, but let's be safe
+          console.log(
+            `Inconsistency: TransactionOutput reported size ${messageSize} but only ${this.payload?.length - outputStartCursor} bytes available`
+          );
+          // Remove the output since we couldn't fully parse it
+          this.outputs.pop();
+          break;
+        }
+
+        // Update the cursor based on the output's actual parsing
+        this.cursor = outputStartCursor + messageSize;
+        this.optimalEncodingMessageSize += messageSize;
+
+        console.log(`After parsing output ${i}, cursor is at ${this.cursor}`);
+      } catch (e) {
+        // If we can't parse an output, log the error and break out of the loop
+        console.log(`Failed to parse output ${i}: ${e instanceof Error ? e.message : String(e)}`);
+        console.log(`Stopping output parsing at cursor ${this.cursor}`);
         break;
       }
-
-      const output = new TransactionOutput(
-        this.params!,
-        this,
-        this.payload!,
-        this.cursor
-      );
-      this.outputs.push(output);
-
-      // Use the actual message size from the parsed output
-      const messageSize = output.getMessageSize();
-
-      console.log(`Output ${i} message size: ${messageSize}`);
-
-      // Check if we have enough bytes for the entire output
-      if (this.cursor + messageSize > (this.payload?.length ?? 0)) {
-        // Not enough bytes to read the entire output, but we've already parsed what we could
-        console.log(
-          `Not enough bytes to read entire output ${i}, but continuing. Cursor: ${this.cursor}, Required: ${messageSize}, Payload length: ${this.payload?.length}`
-        );
-      }
-
-      this.cursor += messageSize;
-      this.optimalEncodingMessageSize += messageSize;
-
-      console.log(`After parsing output ${i}, cursor is at ${this.cursor}`);
-
-      // Check if we've run out of bytes
-      if (this.cursor >= (this.payload?.length ?? 0)) {
-        console.log(`Ran out of bytes after parsing output ${i}`);
-        break;
+    }
+    
+    // Log the final state after parsing outputs
+    console.log(`Finished parsing outputs, cursor: ${this.cursor}, payload length: ${this.payload?.length}`);
+    console.log(`Number of outputs parsed: ${this.outputs.length}`);
+    // Debug: print outputs array and check for undefined/empty slots
+    for (let i = 0; i < this.outputs.length; i++) {
+      if (!this.outputs[i] || !(this.outputs[i] instanceof TransactionOutput)) {
+        console.log(`[DEBUG] outputs[${i}] is invalid:`, this.outputs[i]);
       }
     }
 
@@ -618,198 +645,75 @@ export class Transaction extends ChildMessage {
     // We need to be more careful about checking bounds before reading VarInts and data
 
     // dataClassName
-    // Check if we have any data left to read
-    if (this.payload && this.cursor < this.payload.length) {
-      // Try to read the length as uint32 (not VarInt)
-      try {
-        // Check if we have enough bytes to read the uint32 length
-        if (this.cursor + 4 > this.payload.length) {
-          // Not enough bytes to read the length, set defaults
-          this.dataClassName = null;
+    if (this.payload && this.cursor + 4 <= this.payload.length) {
+        const len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+        if (len > 0 && this.cursor + len <= this.payload.length) {
+            this.dataClassName = this.readBytes(len).toString('utf8');
+            this.optimalEncodingMessageSize += len;
         } else {
-          const len = this.readUint32();
-          this.optimalEncodingMessageSize += 4;
-
-          if (len > 0) {
-            // Check if we have enough bytes to read the data
-            if (this.cursor + len > this.payload.length) {
-              // Not enough bytes to read the data, set defaults
-              this.dataClassName = null;
-              // Move cursor back to where it was before trying to read the length
-              this.cursor -= 4;
-              this.optimalEncodingMessageSize -= 4;
-            } else {
-              const buf = this.readBytes(len);
-              this.dataClassName = buf.toString("utf8");
-              this.optimalEncodingMessageSize += len;
-            }
-          } else {
-            // Length is 0, so dataClassName is empty
             this.dataClassName = null;
-          }
         }
-      } catch (e) {
-        // If we can't read the length, set defaults
-        this.dataClassName = null;
-      }
-    } else {
-      // No more data, set default values
-      this.dataClassName = null;
     }
 
     // data
-    // Check if we have any data left to read
-    if (this.payload && this.cursor < this.payload.length) {
-      try {
-        // Check if we have enough bytes to read the uint32 length
-        if (this.cursor + 4 > this.payload.length) {
-          // Not enough bytes to read the length, set defaults
-          this.data = null;
+    if (this.payload && this.cursor + 4 <= this.payload.length) {
+        const len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+        if (len > 0 && this.cursor + len <= this.payload.length) {
+            this.data = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         } else {
-          const len = this.readUint32();
-          this.optimalEncodingMessageSize += 4;
-
-          if (len > 0) {
-            // Check if we have enough bytes to read the data
-            if (this.cursor + len > this.payload.length) {
-              // Not enough bytes to read the data, set defaults
-              this.data = null;
-              // Move cursor back to where it was before trying to read the length
-              this.cursor -= 4;
-              this.optimalEncodingMessageSize -= 4;
-            } else {
-              this.data = this.readBytes(len);
-              this.optimalEncodingMessageSize += len;
-            }
-          } else {
-            // Length is 0, so data is empty
             this.data = null;
-          }
         }
-      } catch (e) {
-        // If we can't read the length, set defaults
-        this.data = null;
-      }
-    } else {
-      // No more data, set default values
-      this.data = null;
     }
 
     // toAddressInSubtangle
-    // Check if we have any data left to read
-    if (this.payload && this.cursor < this.payload.length) {
-      try {
-        // Check if we have enough bytes to read the uint32 length
-        if (this.cursor + 4 > this.payload.length) {
-          // Not enough bytes to read the length, set defaults
-          this.toAddressInSubtangle = null;
+    if (this.payload && this.cursor + 4 <= this.payload.length) {
+        const len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+        if (len > 0 && this.cursor + len <= this.payload.length) {
+            this.toAddressInSubtangle = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         } else {
-          const len = this.readUint32();
-          this.optimalEncodingMessageSize += 4;
-
-          if (len > 0) {
-            // Check if we have enough bytes to read the data
-            if (this.cursor + len > this.payload.length) {
-              // Not enough bytes to read the data, set defaults
-              this.toAddressInSubtangle = null;
-              // Move cursor back to where it was before trying to read the length
-              this.cursor -= 4;
-              this.optimalEncodingMessageSize -= 4;
-            } else {
-              this.toAddressInSubtangle = this.readBytes(len);
-              this.optimalEncodingMessageSize += len;
-            }
-          } else {
-            // Length is 0, so toAddressInSubtangle is empty
             this.toAddressInSubtangle = null;
-          }
         }
-      } catch (e) {
-        // If we can't read the length, set defaults
-        this.toAddressInSubtangle = null;
-      }
-    } else {
-      // No more data, set default values
-      this.toAddressInSubtangle = null;
     }
 
     // memo
-    // Check if we have any data left to read
-    if (this.payload && this.cursor < this.payload.length) {
-      try {
-        // Check if we have enough bytes to read the uint32 length
-        if (this.cursor + 4 > this.payload.length) {
-          // Not enough bytes to read the length, set defaults
-          this.memo = null;
+    if (this.payload && this.cursor + 4 <= this.payload.length) {
+        const len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+        if (len > 0 && this.cursor + len <= this.payload.length) {
+            this.memo = this.readBytes(len).toString('utf8');
+            this.optimalEncodingMessageSize += len;
         } else {
-          const len = this.readUint32();
-          this.optimalEncodingMessageSize += 4;
-
-          if (len > 0) {
-            // Check if we have enough bytes to read the data
-            if (this.cursor + len > this.payload.length) {
-              // Not enough bytes to read the data, set defaults
-              this.memo = null;
-              // Move cursor back to where it was before trying to read the length
-              this.cursor -= 4;
-              this.optimalEncodingMessageSize -= 4;
-            } else {
-              const memoBytes = this.readBytes(len);
-              this.memo = Utils.toString(memoBytes, "utf-8");
-              this.optimalEncodingMessageSize += len;
-            }
-          } else {
-            // Length is 0, so memo is empty
             this.memo = null;
-          }
         }
-      } catch (e) {
-        // If we can't read the length, set defaults
-        this.memo = null;
-      }
-    } else {
-      // No more data, set default values
-      this.memo = null;
     }
 
     // dataSignature
-    // Check if we have any data left to read
-    if (this.payload && this.cursor < this.payload.length) {
-      try {
-        // Check if we have enough bytes to read the uint32 length
-        if (this.cursor + 4 > this.payload.length) {
-          // Not enough bytes to read the length, set defaults
-          this.dataSignature = null;
+    if (this.payload && this.cursor + 4 <= this.payload.length) {
+        const len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+        if (len > 0 && this.cursor + len <= this.payload.length) {
+            this.dataSignature = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         } else {
-          const len = this.readUint32();
-          this.optimalEncodingMessageSize += 4;
-
-          if (len > 0) {
-            // Check if we have enough bytes to read the data
-            if (this.cursor + len > this.payload.length) {
-              // Not enough bytes to read the data, set defaults
-              this.dataSignature = null;
-              // Move cursor back to where it was before trying to read the length
-              this.cursor -= 4;
-              this.optimalEncodingMessageSize -= 4;
-            } else {
-              this.dataSignature = this.readBytes(len);
-              this.optimalEncodingMessageSize += len;
-            }
-          } else {
-            // Length is 0, so dataSignature is empty
             this.dataSignature = null;
-          }
         }
-      } catch (e) {
-        // If we can't read the length, set defaults
-        this.dataSignature = null;
-      }
-    } else {
-      // No more data, set default values
-      this.dataSignature = null;
     }
+    
+    // Log the final state after parsing extra fields
+    console.log(`Finished parsing extra fields, cursor: ${this.cursor}, payload length: ${this.payload?.length}`);
 
+    // Always preserve any extra trailing bytes at the end of the payload
+    if (this.payload && this.cursor < this.payload.length) {
+      this.trailingZeroBytes = Buffer.from(this.payload.subarray(this.cursor));
+      this.cursor = this.payload.length;
+    } else {
+      this.trailingZeroBytes = null;
+    }
     this.length = this.cursor - this.offset;
   }
 
@@ -1384,20 +1288,29 @@ export class Transaction extends ChildMessage {
             )!;
           }
           // In SIGHASH_SINGLE the outputs after the matching input index
-          // are deleted, and the outputs before
-          // that position are "nulled out".
-          tx.outputs = tx.outputs?.slice(0, inputIndex + 1) ?? [];
+          // are deleted, and the outputs before that position are "nulled out".
+          // Only mutate the outputs array in the tx copy, not the main transaction.
+          let newOutputs: TransactionOutput[] = [];
           for (let i = 0; i < inputIndex; i++) {
-            if (tx.outputs && i < tx.outputs.length && tx.params) {
-              const params = tx.params;
-              tx.outputs[i] = new TransactionOutput(
-                params!,
+            if (tx.params) {
+              newOutputs.push(new TransactionOutput(
+                tx.params,
                 tx,
                 Coin.NEGATIVE_SATOSHI,
                 Buffer.from("")
-              );
+              ));
             }
           }
+          if (this.outputs && inputIndex < this.outputs.length) {
+            // Use the original output from the main transaction, not from the copy
+            newOutputs.push(new TransactionOutput(
+              tx.params!,
+              tx,
+              this.outputs[inputIndex].getValue(),
+              Buffer.from(this.outputs[inputIndex].getScriptBytes())
+            ));
+          }
+          tx.outputs = newOutputs;
           // The signature isn't broken by new versions of the transaction
           // issued by other parties.
           if (tx.inputs) {
@@ -1457,46 +1370,61 @@ export class Transaction extends ChildMessage {
     Utils.uint32ToByteStreamLE(this.version, stream);
     stream.write(new VarInt(this.inputs.length).encode());
     for (const input of this.inputs) input.bitcoinSerialize(stream);
+
+    // Always serialize all outputs, including those with value -1n (null outputs)
     stream.write(new VarInt(this.outputs.length).encode());
-    for (const output of this.outputs) output.bitcoinSerializeToStream(stream);
+    for (const output of this.outputs) {
+      output.bitcoinSerializeToStream(stream);
+    }
     Utils.uint32ToByteStreamLE(this.lockTime, stream);
-    
-    // Serialize additional fields as uint32 length + data (matching Java implementation)
-    if (this.dataClassName === null) {
-      Utils.uint32ToByteStreamLE(0, stream);
-    } else {
+
+    // Always serialize all 5 trailing fields, even if null, to ensure trailing 00000000 is present
+    // dataClassName
+    if (this.dataClassName !== null && this.dataClassName !== undefined) {
       const dataClassNameBytes = Buffer.from(this.dataClassName, 'utf8');
       Utils.uint32ToByteStreamLE(dataClassNameBytes.length, stream);
       stream.write(dataClassNameBytes);
+    } else {
+      Utils.uint32ToByteStreamLE(0, stream);
     }
 
-    if (this.data === null) {
-      Utils.uint32ToByteStreamLE(0, stream);
-    } else {
+    // data
+    if (this.data !== null && this.data !== undefined) {
       Utils.uint32ToByteStreamLE(this.data.length, stream);
       stream.write(this.data);
+    } else {
+      Utils.uint32ToByteStreamLE(0, stream);
     }
 
-    if (this.toAddressInSubtangle === null) {
-      Utils.uint32ToByteStreamLE(0, stream);
-    } else {
+    // toAddressInSubtangle
+    if (this.toAddressInSubtangle !== null && this.toAddressInSubtangle !== undefined) {
       Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
       stream.write(this.toAddressInSubtangle);
+    } else {
+      Utils.uint32ToByteStreamLE(0, stream);
     }
 
-    if (this.memo === null) {
-      Utils.uint32ToByteStreamLE(0, stream);
-    } else {
+    // memo
+    if (this.memo !== null && this.memo !== undefined) {
       const memoBytes = Buffer.from(this.memo, 'utf8');
       Utils.uint32ToByteStreamLE(memoBytes.length, stream);
       stream.write(memoBytes);
+    } else {
+      Utils.uint32ToByteStreamLE(0, stream);
     }
 
-    if (this.dataSignature === null) {
-      Utils.uint32ToByteStreamLE(0, stream);
-    } else {
+    // dataSignature (force writing 4 bytes for length, even if null or empty)
+    if (this.dataSignature && this.dataSignature.length > 0) {
       Utils.uint32ToByteStreamLE(this.dataSignature.length, stream);
       stream.write(this.dataSignature);
+    } else {
+      // Always write 4 bytes (0) for the length, never skip
+      Utils.uint32ToByteStreamLE(0, stream);
+    }
+
+    // Write back any preserved trailing bytes
+    if (this.trailingZeroBytes && this.trailingZeroBytes.length > 0) {
+      stream.write(this.trailingZeroBytes);
     }
   }
 

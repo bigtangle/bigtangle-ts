@@ -8,7 +8,6 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Utils } from '../utils/Utils';
 import { Buffer } from 'buffer';
 import { MessageSerializer } from './MessageSerializer';
-import { DummySerializer } from './DummySerializer';
 import { Message } from './Message';
 import { KeyBag } from '../wallet/KeyBag';
 import { RedeemData } from '../wallet/RedeemData';
@@ -41,106 +40,38 @@ export class TransactionOutPoint extends ChildMessage {
     constructor(params: NetworkParameters, payload: Buffer, offset: number);
     constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer<any>);
     constructor(...args: any[]) {
-        // Call super first unconditionally
         super(args[0]);
-        
-        // Now initialize properties based on constructor signature
-        if (args.length === 5) {
-            // (params, payload, offset, parent, serializer)
-            this.parseFromPayload(args[1], args[2], args[4], args[3]);
-        } else if (args.length === 3 && args[1] instanceof Buffer) {
-            // (params, payload, offset)
-            this.parseFromPayload(args[1], args[2]);
-        } else if (args.length === 4) {
-            if (typeof args[1] === 'number') {
-                // (params, index, blockHash, fromTxOrTransactionHash)
-                this.index = args[1];
-                // Ensure blockHash is a Sha256Hash object
-                if (args[2] instanceof Sha256Hash) {
-                    this.blockHash = args[2];
-                } else if (args[2] === null) {
-                    this.blockHash = null;
-                } else {
-                    // If it's not a Sha256Hash object, try to convert it
-                    try {
-                        // Check if args[2] is a Buffer or can be converted to one
-                        let buffer: Buffer;
-                        if (Buffer.isBuffer(args[2])) {
-                            buffer = args[2];
-                        } else if (typeof args[2] === 'object' && args[2] !== null && 'getBytes' in args[2]) {
-                            // If it's already a Sha256Hash-like object with getBytes method
-                            buffer = (args[2] as any).getBytes();
-                        } else {
-                            // Try to convert to Buffer
-                            buffer = Buffer.from(args[2]);
-                        }
-                        this.blockHash = Sha256Hash.wrap(buffer);
-                    } catch (e) {
-                        this.blockHash = Sha256Hash.ZERO_HASH;
-                    }
-                }
-                // Check if the fourth argument is a Transaction or a Sha256Hash
-                if (args[3] instanceof Transaction) {
-                    this.fromTx = args[3];
-                    // Only call getHash() if fromTx is not null and has the method
-                    if (this.fromTx && typeof this.fromTx.getHash === 'function') {
-                        this.txHash = this.fromTx.getHash();
-                    } else {
-                        this.txHash = Sha256Hash.ZERO_HASH;
-                    }
-                } else if (args[3] instanceof Sha256Hash) {
-                    this.txHash = args[3];
+        const safeSha256 = (val: any) => {
+            try {
+                if (val instanceof Sha256Hash) return val;
+                if (val === null) return null;
+                if (Buffer.isBuffer(val)) return Sha256Hash.wrap(val);
+                if (typeof val === 'object' && val !== null && 'getBytes' in val) return Sha256Hash.wrap(val.getBytes());
+                return Sha256Hash.wrap(Buffer.from(val));
+            } catch {
+                return Sha256Hash.ZERO_HASH;
+            }
+        };
+        const handleFourArgs = (a1: any, a2: any, a3: any, a4: any) => {
+            if (typeof a2 === 'number') {
+                this.index = a2;
+                this.blockHash = safeSha256(a3);
+                if (a4 instanceof Transaction) {
+                    this.fromTx = a4;
+                    this.txHash = (this.fromTx && typeof this.fromTx.getHash === 'function') ? this.fromTx.getHash() : Sha256Hash.ZERO_HASH;
+                } else if (a4 instanceof Sha256Hash) {
+                    this.txHash = a4;
                     this.fromTx = null;
-                } else if (args[3] === null) {
+                } else if (a4 === null) {
                     this.txHash = Sha256Hash.ZERO_HASH;
                     this.fromTx = null;
                 } else {
-                    // Try to convert to Sha256Hash
-                    try {
-                        let buffer: Buffer;
-                        if (Buffer.isBuffer(args[3])) {
-                            buffer = args[3];
-                        } else if (typeof args[3] === 'object' && args[3] !== null && 'getBytes' in args[3]) {
-                            // If it's already a Sha256Hash-like object with getBytes method
-                            buffer = (args[3] as any).getBytes();
-                        } else {
-                            // Try to convert to Buffer
-                            buffer = Buffer.from(args[3]);
-                        }
-                        this.txHash = Sha256Hash.wrap(buffer);
-                        this.fromTx = null;
-                    } catch (e) {
-                        this.txHash = Sha256Hash.ZERO_HASH;
-                        this.fromTx = null;
-                    }
+                    this.txHash = safeSha256(a4);
+                    this.fromTx = null;
                 }
             } else {
-                // (params, blockHash, connectedOutput)
-                // Ensure blockHash is a Sha256Hash object
-                if (args[1] instanceof Sha256Hash) {
-                    this.blockHash = args[1];
-                } else if (args[1] === null) {
-                    this.blockHash = null;
-                } else {
-                    // If it's not a Sha256Hash object, try to convert it
-                    try {
-                        // Check if args[1] is a Buffer or can be converted to one
-                        let buffer: Buffer;
-                        if (Buffer.isBuffer(args[1])) {
-                            buffer = args[1];
-                        } else if (typeof args[1] === 'object' && args[1] !== null && 'getBytes' in args[1]) {
-                            // If it's already a Sha256Hash-like object with getBytes method
-                            buffer = (args[1] as any).getBytes();
-                        } else {
-                            // Try to convert to Buffer
-                            buffer = Buffer.from(args[1]);
-                        }
-                        this.blockHash = Sha256Hash.wrap(buffer);
-                    } catch (e) {
-                        this.blockHash = Sha256Hash.ZERO_HASH;
-                    }
-                }
-                this.connectedOutput = args[2];
+                this.blockHash = safeSha256(a2);
+                this.connectedOutput = a3;
                 if (this.connectedOutput) {
                     this.index = this.connectedOutput.getIndex();
                     this.txHash = this.connectedOutput.getParentTransactionHash();
@@ -149,34 +80,18 @@ export class TransactionOutPoint extends ChildMessage {
                     this.txHash = Sha256Hash.ZERO_HASH;
                 }
             }
+        };
+        if (args.length === 5) {
+            this.parseFromPayload(args[1], args[2], args[4], args[3]);
+        } else if (args.length === 3 && args[1] instanceof Buffer) {
+            this.parseFromPayload(args[1], args[2]);
+        } else if (args.length === 4) {
+            handleFourArgs(args[0], args[1], args[2], args[3]);
         } else if (args.length === 3 && !(args[1] instanceof Buffer)) {
-            // (params, index, blockHash, transactionHash)
             this.index = args[1];
-            // Ensure blockHash is a Sha256Hash object
-            if (args[2] instanceof Sha256Hash) {
-                this.blockHash = args[2];
-            } else {
-                // If it's not a Sha256Hash object, try to convert it
-                try {
-                    // Check if args[2] is a Buffer or can be converted to one
-                    let buffer: Buffer;
-                    if (Buffer.isBuffer(args[2])) {
-                        buffer = args[2];
-                    } else if (typeof args[2] === 'object' && args[2] !== null && 'getBytes' in args[2]) {
-                        // If it's already a Sha256Hash-like object with getBytes method
-                        buffer = (args[2] as any).getBytes();
-                    } else {
-                        // Try to convert to Buffer
-                        buffer = Buffer.from(args[2]);
-                    }
-                    this.blockHash = Sha256Hash.wrap(buffer);
-                } catch (e) {
-                    this.blockHash = Sha256Hash.ZERO_HASH;
-                }
-            }
+            this.blockHash = safeSha256(args[2]);
             this.txHash = args[3];
         } else {
-            // Default initialization
             this.blockHash = null;
             this.txHash = null;
             this.index = 0;
@@ -184,10 +99,7 @@ export class TransactionOutPoint extends ChildMessage {
             this.connectedOutput = null;
         }
         this.length = TransactionOutPoint.MESSAGE_LENGTH;
-        
-        // Initialize serializer to prevent null errors
         if (!this.serializer) {
-            // Using DummySerializer equivalent that matches MessageSerializer<NetworkParameters> type
             this.serializer = {
                 params: null,
                 parseRetain: false,
@@ -226,67 +138,20 @@ export class TransactionOutPoint extends ChildMessage {
     }
 
     protected parse(): void {
-        // Check if we have enough bytes to parse a TransactionOutPoint
-        if (!this.payload) throw new Error("Payload is null");
         
-        // Determine if this is a full outpoint (68 bytes) or a transaction input outpoint (36 bytes)
-        // A transaction input outpoint only has txHash (32 bytes) and index (4 bytes) = 36 bytes
-        // A full outpoint has blockHash (32 bytes), txHash (32 bytes), and index (4 bytes) = 68 bytes
-        
-        // Check if this is being parsed as part of a transaction input (parent is TransactionInput)
-        const isTransactionInputOutpoint = this.parent && this.parent.constructor && this.parent.constructor.name === 'TransactionInput';
-        
-        if (isTransactionInputOutpoint) {
-            // Transaction input outpoint: only txHash and index (36 bytes total)
-            if (this.cursor + 36 > this.payload.length) {
-                // If we don't have enough bytes, it might be because we're at the end of the payload
-                // In this case, we should just set default values
-                this.length = 36;
-                this.blockHash = Sha256Hash.ZERO_HASH;
-                this.txHash = Sha256Hash.ZERO_HASH;
-                this.index = 0;
-                return;
-            }
-            
-            this.length = 36;
-            this.blockHash = Sha256Hash.ZERO_HASH; // Transaction input outpoints don't have blockHash
-            this.txHash = this.readHash();
-            this.index = this.readUint32();
-        } else {
-            // Full outpoint: blockHash, txHash, and index (68 bytes total)
-            if (this.cursor + TransactionOutPoint.MESSAGE_LENGTH > this.payload.length) {
-                // If we don't have enough bytes, it might be because we're at the end of the payload
-                // In this case, we should just set default values
-                this.length = TransactionOutPoint.MESSAGE_LENGTH;
-                this.blockHash = Sha256Hash.ZERO_HASH;
-                this.txHash = Sha256Hash.ZERO_HASH;
-                this.index = 0;
-                return;
-            }
-            
             this.length = TransactionOutPoint.MESSAGE_LENGTH;
             this.blockHash = this.readHash();
             this.txHash = this.readHash();
             this.index = this.readUint32();
-        }
+       
     }
-
     public bitcoinSerializeToStream(stream: any): void {
-        // Check if this is being serialized as part of a transaction input
-        // In transaction inputs, only the txHash and index are serialized (36 bytes total)
-        // In standalone outpoints, both blockHash and txHash are serialized (68 bytes total)
-        const isTransactionInputOutpoint = this.parent && this.parent.constructor && this.parent.constructor.name === 'TransactionInput';
-        
-        if (isTransactionInputOutpoint) {
-            // Transaction input outpoint: only serialize txHash and index (36 bytes total)
-            stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
-            Utils.uint32ToByteStreamLE(this.index, stream);
-        } else {
+       
             // Full outpoint: serialize both blockHash and txHash (68 bytes total)
             stream.write(this.blockHash ? this.blockHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
             stream.write(this.txHash ? this.txHash.getReversedBytes() : Sha256Hash.ZERO_HASH.getReversedBytes());
             Utils.uint32ToByteStreamLE(this.index, stream);
-        }
+      
     }
 
     /**

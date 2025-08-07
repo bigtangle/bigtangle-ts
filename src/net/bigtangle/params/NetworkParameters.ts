@@ -5,14 +5,16 @@ import { BitcoinSerializer } from "../core/BitcoinSerializer";
 import { Utils } from "../utils/Utils";
 export abstract class NetworkParameters {
   // Static constants
-  static readonly HEADER_SIZE =
-    88 + //THis is the size of the block header in bytes, not bitcoin
+  static readonly HEADER_SIZE = 168;
+  /*
+    80 + // Standard Bitcoin block header size
     32 + // additional branch prev block
-    2 * 4 + // time and difftarget from int to long
+    2 * 4 + // time and difftarget from int to long (8 bytes each instead of 4)
     8 + // sequence (lastMiningReward) long
     20 + // miner address
     4 + // blockType
     8; // height
+    */
   static readonly BLOCK_VERSION_GENESIS = 1;
   static readonly MAX_DEFAULT_BLOCK_SIZE = 1000000;
   static readonly MAX_REWARD_BLOCK_SIZE = 1000000;
