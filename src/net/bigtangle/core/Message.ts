@@ -110,7 +110,7 @@ export abstract class Message {
      * <p>Child messages of this object(e.g. Transactions belonging to a Block) will not have their internal byte caches
      * invalidated unless they are also modified internally.</p>
      */
-    protected unCache(): void {
+    public unCache(): void {
         this.payload = null;
         this.recached = false;
     }

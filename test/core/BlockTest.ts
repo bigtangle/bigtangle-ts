@@ -218,6 +218,39 @@ describe("BlockTest", () => {
      const blockbyte = blockde.bitcoinSerializeCopy();
      const reparsedBlock = serializer.makeBlock(blockbyte);
      
+      const transInfoJava =  
+    "  \"transactions\": [\n" +
+    "    {\n" +
+    "      \"txid\": \"0521262fb70c9481b52f63ac611c4cece15155080260fa3400579c1e57dfbfd9\",\n" +
+    "      \"inputs\": [\n" +
+    "        {\n" +
+    "          \"script\": \"\",\n" +
+    "          \"outpoint\": {\n" +
+    "            \"hash\": \"0000000000000000000000000000000000000000000000000000000000000000\",\n" +
+    "            \"index\": 4104007733,\n" +
+    "            \"txid\": \"008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb\"\n" +
+    "          }\n" +
+    "        }\n" +
+    "      ],\n" +
+    "      \"outputs\": [\n" +
+    "        {\n" +
+    "          \"script\": \"PUSHDATA(32)[3a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276] NOP\",\n" +
+    "          \"value\": 3723186925439166640,\n" +
+    "          \"currency\": \"bc\"\n" +
+    "        }\n" +
+    "      ]\n" +
+    "    }\n" +
+    "  ],\n" +
+    "  \"memo\": {\n" +
+    "    \"kv\": [\n" +
+    "      {\n" +
+    "        \"key\": \"memo\",\n" +
+    "        \"value\": \"payList\"\n" +
+    "      }\n" +
+    "    ]\n" +
+    "  }\n" +
+    "}";
+
      // Check that key properties are preserved
      expect(reparsedBlock.getHashAsString()).toBe(blockde.getHashAsString());
      expect(reparsedBlock.getHeight()).toBe(blockde.getHeight());
@@ -237,11 +270,20 @@ describe("BlockTest", () => {
        expect(reparsedTx.getOutputs().length).toBe(originalTx.getOutputs().length);
      }
 
+         console.log("Test Block recovered :", reparsedBlock.toString());
+      console.log(" Orignal  Block  :", blockde.toString());
      //  java and ts  must be consistent
-   //   expect(Utils.HEX.encode(blockbyte)).toBe(tip);
+       expect(Utils.HEX.encode(blockbyte)).toBe(tip);
 
      expect(reparsedBlock).toEqual(blockde);
-     
+ 
+     // Convert the actual transaction to JSON format
+   const actualTransInfo = convertTransactionsToJson(originalTransactions);
+   const actualTransInfoWithMemo = actualTransInfo + ",\n  \"memo\": {\n    \"kv\": [\n      {\n        \"key\": \"memo\",\n        \"value\": \"payList\"\n      }\n    ]\n  }\n";
+   
+   // Test that the actual transaction data matches the expected Java format
+   expect(actualTransInfoWithMemo).toBe(transInfoJava);
+
    });
 
   test("testBadTransactions", () => {

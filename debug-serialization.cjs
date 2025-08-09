@@ -1,79 +1,62 @@
-const { TestParams } = require('./dist/net/bigtangle/params/TestParams');
-const { Utils } = require('./dist/net/bigtangle/core/Utils');
+const fs = require('fs');
 
-const PARAMS = TestParams.get();
-const tip = '01000000ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f05548ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f05548170dafec26b25ed20a2c87d485de589c57fc1b32e65a37ea970feb15142b5f1a2a34856800000000ae470120000000000000000000000000cb16b4d62bdf6a05a961cf27a47355486891ebb9ee6892f8010000000100000000000000010100000001ae579cc5d5854d46e38495665fefad8b2dc110a083abcf7dae970bed19f055488b404ea4787ac1af3c007dc3462b9875d320ee983690b649d9c564da7a4c38d50000000049483045022100818570e724f91eb5d73b6a195c905fe7d56414cd39fef6aaba20d10f60402256022011f04e032d4bcd111218d07f32195e29f9e3dbb4ef517f91d596e248f84c08c201ffffffff0100000008016345785d8a000001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d7ab9d801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205da7d00000000';
+// Import the required modules
+const { TestParams } = require('./dist/src/net/bigtangle/params/TestParams.js');
+const { Utils } = require('./dist/src/net/bigtangle/utils/Utils.js');
 
-console.log('=== Analyzing Java Serialization Compatibility ===');
-console.log('Expected hex length:', tip.length);
-console.log('Expected hex:', tip);
+// Load the test data
+const tip = "01000000615d21aacd5c6b11571f3a69c9ed408690ea05f063e8ad31a945ecda22261601615d21aacd5c6b11571f3a69c9ed408690ea05f063e8ad31a945ecda22261601fe8dc42e887a46b4e27969a74e256eadfc34678e03b7aa41da2c9bce36f9e01469d48f6800000000ae470120000000000200000000000000052c62022bdf6a05a961cf27a47355486891ebb9ee6892f8010000000600000000000000010100000001bb0977b65088b48bd069b86f55e652cf68240f1ddb744d0199ddc7ef09db8c0035309ef47df86bf23613939e14169e8df8605cde1b92c8916849837e696516ad0100000049483045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01ffffffff0100000008016345785d6b73b001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac02030f424001bc1976a91451d65cb4f2e64551c447cd41635dd9214bbaf19d88ac08016345785d5c2d8801bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac00000000000000000000000000000000420000007b0a2020226b7622203a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276616c756522203a20227061794c697374220a20207d205d0a7d00000000";
 
 // Parse the block
+const PARAMS = TestParams.get();
 const blockde = PARAMS.getDefaultSerializer().makeBlock(
-  Buffer.from(Utils.HEX.decode(tip))
+  Buffer.from(tip, 'hex')
 );
 
-// Serialize it back
-const actual = blockde.bitcoinSerializeCopy();
-const actualHex = actual.toString('hex');
+// Serialize the block
+const blockbyte = blockde.bitcoinSerializeCopy();
+const hexOutput = Utils.HEX.encode(blockbyte);
 
-console.log('Actual hex length:', actualHex.length);
-console.log('Actual hex:', actualHex);
+console.log('Serialized block length:', hexOutput.length);
+console.log('Expected length:', tip.length);
+console.log('Are lengths equal?', hexOutput.length === tip.length);
 
-// Compare lengths
-console.log('Length match:', tip.length === actualHex.length);
+// Check if they end the same way
+console.log('Expected end (last 8 chars):', tip.slice(-8));
+console.log('Actual end (last 8 chars):', hexOutput.slice(-8));
 
-// Find first difference
-const expectedBuf = Buffer.from(tip, 'hex');
-console.log('\n=== Detailed Comparison ===');
-console.log('Expected buffer length:', expectedBuf.length);
-console.log('Actual buffer length:', actual.length);
+// Check if they start the same way
+console.log('Expected start:', tip.substring(0, 64));
+console.log('Actual start:', hexOutput.substring(0, 64));
 
-let firstDiff = -1;
-for (let i = 0; i < Math.min(expectedBuf.length, actual.length); i++) {
-  if (expectedBuf[i] !== actual[i]) {
-    firstDiff = i;
-    break;
+// Compare the full strings
+if (hexOutput !== tip) {
+  console.log('Strings are different');
+  
+  // Find the first difference
+  let diffIndex = -1;
+  for (let i = 0; i < Math.min(hexOutput.length, tip.length); i++) {
+    if (hexOutput[i] !== tip[i]) {
+      diffIndex = i;
+      break;
+    }
   }
-}
-
-if (firstDiff !== -1) {
-  console.log(`\nFirst difference at byte ${firstDiff}`);
-  console.log(`Expected: 0x${expectedBuf[firstDiff].toString(16).padStart(2, '0')}`);
-  console.log(`Actual:   0x${actual[firstDiff].toString(16).padStart(2, '0')}`);
   
-  // Show context around the difference
-  const start = Math.max(0, firstDiff - 10);
-  const end = Math.min(expectedBuf.length, firstDiff + 10);
-  
-  console.log('\nContext around difference:');
-  console.log('Expected:', expectedBuf.slice(start, end).toString('hex'));
-  console.log('Actual:  ', actual.slice(start, end).toString('hex'));
-  
-  // Show byte positions
-  console.log('\nByte positions:');
-  for (let i = start; i < end; i++) {
-    process.stdout.write(i.toString().padStart(3, '0') + ' ');
+  if (diffIndex !== -1) {
+    console.log('First difference at index:', diffIndex);
+    console.log('Expected char:', tip[diffIndex]);
+    console.log('Actual char:', hexOutput[diffIndex]);
+    
+    // Show surrounding context
+    const start = Math.max(0, diffIndex - 10);
+    const end = Math.min(hexOutput.length, diffIndex + 10);
+    console.log('Expected context:', tip.substring(start, end));
+    console.log('Actual context:', hexOutput.substring(start, end));
+  } else {
+    console.log('Strings have same characters but different lengths');
+    console.log('Expected length:', tip.length);
+    console.log('Actual length:', hexOutput.length);
   }
-  console.log();
 } else {
-  console.log('Buffers are identical up to the shorter length');
-}
-
-// Check if the issue is with trailing bytes
-console.log('\n=== Trailing Analysis ===');
-console.log('Expected last 20 bytes:', expectedBuf.slice(-20).toString('hex'));
-console.log('Actual last 20 bytes:  ', actual.slice(-20).toString('hex'));
-
-// Check block structure
-console.log('\n=== Block Structure Analysis ===');
-console.log('Block hash:', blockde.getHashAsString());
-console.log('Block version:', blockde.getVersion());
-console.log('Block time:', blockde.getTime());
-console.log('Transaction count:', blockde.getTransactions().length);
-
-if (blockde.getTransactions().length > 0) {
-  const tx = blockde.getTransactions()[0];
-  console.log('First tx hash:', tx.getHashAsString());
-  console.log('First tx outputs:', tx.getOutputs().length);
+  console.log('Strings are identical');
 }
