@@ -895,7 +895,7 @@ export class Transaction extends ChildMessage {
       const blockHash = p1;
       const from = p2;
       return this.addInput(
-        new TransactionInput(
+          TransactionInput.fromOutpoint(
           this.params!,
           this,
           from.getScriptBytes(),
@@ -913,7 +913,7 @@ export class Transaction extends ChildMessage {
       const outputIndex = p3 as number;
       const script = p4 as Script;
       return this.addInput(
-        new TransactionInput(
+          TransactionInput.fromOutpoint(
           this.params!,
           this,
           Buffer.from(script.getProgram()),
@@ -951,7 +951,7 @@ export class Transaction extends ChildMessage {
     if (this.outputs.length === 0) {
       throw new Error("Attempting to sign tx without outputs.");
     }
-    const input = new TransactionInput(
+    const input =   TransactionInput.fromOutpoint(
       this.params!,
       this,
       Buffer.from(""),

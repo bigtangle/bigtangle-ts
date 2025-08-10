@@ -33,7 +33,7 @@ export abstract class ChildMessage extends Message {
             // manually on serialization.
             if (this.parent instanceof ChildMessage) {
                 this.parent.unCache();
-            } else {
+            } else if (typeof (this.parent as any).unCache === 'function') {
                 // For regular Message objects, call the protected unCache method
                 (this.parent as any).unCache();
             }
@@ -46,7 +46,7 @@ export abstract class ChildMessage extends Message {
         if (this.parent !== null) {
             if (this.parent instanceof ChildMessage) {
                 this.parent.unCache();
-            } else {
+            } else if (typeof (this.parent as any).unCache === 'function') {
                 // For regular Message objects, call the protected unCache method
                 (this.parent as any).unCache();
             }

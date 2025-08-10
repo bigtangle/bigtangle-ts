@@ -1063,7 +1063,7 @@ export class Block extends Message {
       txCounter++;
 
       coinbase.addInput(
-        new TransactionInput(
+          TransactionInput.fromOutpoint(
           this.getParams(),
           coinbase,
           Buffer.from(inputBuilder.build().getProgram()),

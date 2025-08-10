@@ -224,7 +224,7 @@ describe('ScriptTest', () => {
             throw new Error('Failed to create transaction hash from valid hash bytes');
         }
         const outpoint = new TransactionOutPoint(PARAMS, 0, blockHash, txHash);
-        tx.addInput(new TransactionInput(PARAMS, tx, Buffer.from([]), outpoint));
+        tx.addInput(  TransactionInput.fromOutpoint(PARAMS, tx, Buffer.from([]), outpoint));
         const script = new ScriptBuilder().smallNum(0).build();
 
         const stack: Buffer[] = [];

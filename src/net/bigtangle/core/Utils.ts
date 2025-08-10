@@ -194,4 +194,10 @@ export class Utils {
         
         return ripemd160Hash;
     }
+
+    public static bigIntToBytes(value: bigint): Buffer {
+        const hex = value.toString(16);
+        const paddedHex = hex.length % 2 === 0 ? hex : '0' + hex;
+        return Buffer.from(paddedHex, 'hex');
+    }
 }

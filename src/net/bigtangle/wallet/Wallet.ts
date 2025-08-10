@@ -1606,7 +1606,7 @@ export class Wallet extends WalletBase {
 
         // Create TransactionInput using getHash() instead of getOutPointHash()
 
-        const outpoint = new TransactionOutPoint(
+        const outpoint =   TransactionOutPoint.fromOutput(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput
@@ -1732,7 +1732,7 @@ export class Wallet extends WalletBase {
         myCoin = spendableOutput.getValue().add(myCoin);
 
         // Create TransactionInput using spendableOutput
-        const outpoint = new TransactionOutPoint(
+        const outpoint =   TransactionOutPoint.fromOutput(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput

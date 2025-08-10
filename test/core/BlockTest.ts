@@ -218,38 +218,8 @@ describe("BlockTest", () => {
      const blockbyte = blockde.bitcoinSerializeCopy();
      const reparsedBlock = serializer.makeBlock(blockbyte);
      
-      const transInfoJava =  
-    "  \"transactions\": [\n" +
-    "    {\n" +
-    "      \"txid\": \"0521262fb70c9481b52f63ac611c4cece15155080260fa3400579c1e57dfbfd9\",\n" +
-    "      \"inputs\": [\n" +
-    "        {\n" +
-    "          \"script\": \"\",\n" +
-    "          \"outpoint\": {\n" +
-    "            \"hash\": \"0000000000000000000000000000000000000000000000000000000000000000\",\n" +
-    "            \"index\": 4104007733,\n" +
-    "            \"txid\": \"008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb\"\n" +
-    "          }\n" +
-    "        }\n" +
-    "      ],\n" +
-    "      \"outputs\": [\n" +
-    "        {\n" +
-    "          \"script\": \"PUSHDATA(32)[3a205b207b0a20202020226b657922203a20226d656d6f222c0a202020202276] NOP\",\n" +
-    "          \"value\": 3723186925439166640,\n" +
-    "          \"currency\": \"bc\"\n" +
-    "        }\n" +
-    "      ]\n" +
-    "    }\n" +
-    "  ],\n" +
-    "  \"memo\": {\n" +
-    "    \"kv\": [\n" +
-    "      {\n" +
-    "        \"key\": \"memo\",\n" +
-    "        \"value\": \"payList\"\n" +
-    "      }\n" +
-    "    ]\n" +
-    "  }\n" +
-    "}";
+      const blockJava =   "hash: 010aa752eb83ce682765dd3e0fbd8a05b393057769e21b0c50ca41dec4ca30a5\nversion: 1   time: 1754256489 (2025-08-03T21:28:09Z)\nheight: 6\nchain length: 2\nprevious: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nbranch: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nmerkle: 14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\ndifficulty target (nBits):    536954798\nnonce: 39988229\nmineraddress: 14zyhLV1FWsdjj7WCP9EomckQ8GHudL8bY\nblocktype: BLOCKTYPE_TRANSFER\n1 transaction(s):\n14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\n   in   PUSHDATA(72)[3045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01]\n        outpoint:008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb : ad1665697e83496891c8921bde5c60f88d9e16149e931336f26bf87df49e3035 : 1\n   out  DUP HASH160 PUSHDATA(20)[51d65cb4f2e64551c447cd41635dd9214bbaf19d] EQUALVERIFY CHECKSIG\n[1000000:bc]\n   out  PUSHDATA(33)[02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975] CHECKSIG\n[99999999996997000:bc]\nmemo {\n  \"kv\" : [ {\n    \"key\" : \"memo\",\n    \"value\" : \"payList\"\n  } ]\n}";
+
 
      // Check that key properties are preserved
      expect(reparsedBlock.getHashAsString()).toBe(blockde.getHashAsString());
@@ -278,11 +248,10 @@ describe("BlockTest", () => {
      expect(reparsedBlock).toEqual(blockde);
  
      // Convert the actual transaction to JSON format
-   const actualTransInfo = convertTransactionsToJson(originalTransactions);
-   const actualTransInfoWithMemo = actualTransInfo + ",\n  \"memo\": {\n    \"kv\": [\n      {\n        \"key\": \"memo\",\n        \"value\": \"payList\"\n      }\n    ]\n  }\n";
-   
+   const actualTransInfo =  blockde.toString()  ;
+    
    // Test that the actual transaction data matches the expected Java format
-   expect(actualTransInfoWithMemo).toBe(transInfoJava);
+   expect(actualTransInfo).toBe(blockJava);
 
    });
 

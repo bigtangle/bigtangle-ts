@@ -199,7 +199,7 @@ public static fromJSON(json: any): Coin {
     }
 
     public getTokenid(): Buffer {
-        return Buffer.from(this.tokenid);
+        return this.tokenid;
     }
 
     public toJSON() {

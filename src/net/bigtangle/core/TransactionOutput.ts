@@ -16,6 +16,8 @@ import { TransactionBag } from './TransactionBag';
 import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
 import bigInt, { BigInteger } from 'big-integer';
+import { Message } from './Message';
+import { ProtocolVersion } from './ProtocolVersion';
 
 /**
  * <p>
@@ -61,11 +63,7 @@ export class TransactionOutput extends ChildMessage {
 
     private description: string | null = null;
 
-    /**
-     * Deserializes a transaction output message. This is usually part of a
-     * transaction message.
-     */
-    constructor(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number);
+    constructor(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number, serializer?: any);
     /**
      * Deserializes a transaction output message. This is usually part of a
      * transaction message.
@@ -81,7 +79,7 @@ export class TransactionOutput extends ChildMessage {
      *            the serializer to use for this message.
      * @throws ProtocolException
      */
-    constructor(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number, serializer: any);
+    constructor(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number);
     /**
      * Creates an output that sends 'value' to the given address (public key
      * hash). The amount should be created with something like
@@ -102,7 +100,6 @@ export class TransactionOutput extends ChildMessage {
     constructor(...args: any[]) {
         const params = args[0];
         const parent = args[1];
-        super(params);
         
         if (args.length >= 4 && args[2] instanceof Buffer && typeof args[3] === 'number') {
             // Deserialization constructors
@@ -110,16 +107,39 @@ export class TransactionOutput extends ChildMessage {
             const offset = args[3];
             const serializer = args[4];
             
-            this.payload = payload;
-            this.offset = offset;
             if (serializer) {
+                // Call super with no arguments to avoid calling it twice
+                super(params);
+                // Initialize fields directly instead of calling super with too many args
                 this.serializer = serializer;
+                this.protocolVersion = params.getProtocolVersionNum(ProtocolVersion.CURRENT);
+                this.params = params;
+                this.payload = payload;
+                this.offset = offset;
+                this.cursor = offset;
+                this.length = Message.UNKNOWN_LENGTH;
+                this.setParent(parent);
+                this.availableForSpending = true;
+                this.parse();
+                
+                if (this.length === Message.UNKNOWN_LENGTH) {
+                    throw new Error(`Length field has not been set in constructor for ${this.constructor.name} after parse.`);
+                }
+                
+                if (!serializer.isParseRetainMode()) {
+                    this.payload = null;
+                }
+            } else {
+                // Create a serializer that retains the payload for parsing
+                const retainingSerializer = params.getSerializer(true);
+                // Call super with the payload, offset, and retaining serializer
+                super(params, payload, offset, retainingSerializer, Message.UNKNOWN_LENGTH);
+                this.setParent(parent);
+                this.availableForSpending = true;
             }
-            this.setParent(parent);
-            this.availableForSpending = true;
-            this.parse();
         } else if (args.length >= 4 && args[2] instanceof Coin && (args[3] instanceof Address || args[3] instanceof ECKey)) {
             // Creation constructors
+            super(params);
             const value = args[2];
             const to = args[3];
             
@@ -142,16 +162,12 @@ export class TransactionOutput extends ChildMessage {
             this.setParent(parent);
             this.availableForSpending = true;
             // Calculate length matching Java implementation
-            const tokenId = this.value.getTokenid();
-            const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-            const valueBytes = Utils.bigIntToBytes(this.value.getValue());
-            this.length = 
-                VarInt.sizeOf(valueBytes.length) + 
-                valueBytes.length +
-                VarInt.sizeOf(scriptBytesLength) + scriptBytesLength +
-                VarInt.sizeOf(tokenId.length) + tokenId.length;
+            this.length = this.value.getTokenid().length + VarInt.sizeOf(this.value.getTokenid().length)
+                    + VarInt.sizeOf(this.scriptBytes.length) + this.scriptBytes.length
+                    + VarInt.sizeOf(Utils.bigIntToBytes(this.value.getValue()).length) + Utils.bigIntToBytes(this.value.getValue()).length;
         } else if (args.length === 4 && args[2] instanceof Coin && args[3] instanceof Buffer) {
             // Direct constructor with script bytes
+            super(params);
             const value = args[2];
             const scriptBytes = args[3];
             
@@ -167,23 +183,33 @@ export class TransactionOutput extends ChildMessage {
             this.scriptBytes = scriptBytes;
             this.setParent(parent);
             this.availableForSpending = true;
-            // Calculate length matching Java implementation
-            const tokenId = this.value.getTokenid();
-            const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-            this.length = 8 + VarInt.sizeOf(tokenId.length) + tokenId.length + VarInt.sizeOf(scriptBytesLength) + scriptBytesLength;
+            this.length = this.value.getTokenid().length + VarInt.sizeOf(this.value.getTokenid().length)
+                    + VarInt.sizeOf(scriptBytes.length) + scriptBytes.length
+                    + VarInt.sizeOf(Utils.bigIntToBytes(this.value.getValue()).length) + Utils.bigIntToBytes(this.value.getValue()).length;
         } else {
             throw new Error("Invalid constructor arguments");
         }
     }
 
+    public static fromPayloadWithSerializer(params: NetworkParameters, parent: Transaction | null, payload: Buffer, offset: number, serializer: any): TransactionOutput {
+        return new TransactionOutput(params, parent, payload, offset, serializer);
+    }
+
+    public static fromAddress(params: NetworkParameters, parent: Transaction | null, value: Coin, to: Address): TransactionOutput {
+        return new TransactionOutput(params, parent, value, to);
+    }
+
+    public static fromKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
+        return new TransactionOutput(params, parent, value, to);
+    }
+
+    public static fromScriptBytes(params: NetworkParameters, parent: Transaction | null, value: Coin, scriptBytes: Buffer): TransactionOutput {
+        return new TransactionOutput(params, parent, value, scriptBytes);
+    }
+
     public getScriptPubKey(): Script {
         if (this.scriptPubKey == null) {
-            try {
-                this.scriptPubKey = new Script(this.scriptBytes);
-            } catch (e) {
-                // If we can't parse the script, create an empty script
-                this.scriptPubKey = new Script(Buffer.alloc(0));
-            }
+            this.scriptPubKey = new Script(this.scriptBytes);
         }
         return this.scriptPubKey;
     }
@@ -248,96 +274,26 @@ export class TransactionOutput extends ChildMessage {
     }
 
     protected parse(): void {
-        if (!this.payload) {
-            throw new ProtocolException("Payload is null");
-        }
-        this.cursor = this.offset;
-    
-        // Read value (8 bytes)
-        if (this.cursor + 8 > this.payload.length) {
-            throw new RangeError(`Insufficient bytes for value: need 8, have ${this.payload.length - this.cursor}`);
-        }
-        const valueBigIntJS = Utils.readInt64(this.payload, this.cursor);
-        const valueBigInt = BigInt(valueBigIntJS.toString());
-        this.cursor += 8;
-    
-        // Read token ID length (VarInt)
-        if (this.cursor >= this.payload.length) {
-            throw new RangeError(`No bytes left to read token ID length VarInt at cursor ${this.cursor}`);
-        }
-        const tokenLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
-        this.tokenLen = Number(tokenLenVarInt.value);
-        this.cursor += tokenLenVarInt.getOriginalSizeInBytes();
-    
-        // Read token ID bytes
-        let tokenBytes: Buffer;
-        if (this.tokenLen > 0) {
-            if (this.cursor + this.tokenLen > this.payload.length) {
-                throw new RangeError(`Insufficient bytes for token ID: need ${this.tokenLen}, have ${this.payload.length - this.cursor}`);
-            }
-            tokenBytes = this.payload.slice(this.cursor, this.cursor + this.tokenLen);
-            this.cursor += this.tokenLen;
-        } else {
-            tokenBytes = Buffer.alloc(0);
-        }
-    
-        this.value = new Coin(valueBigInt, tokenBytes);
-    
-        // Read script length (VarInt)
-        if (this.cursor >= this.payload.length) {
-            throw new RangeError(`No bytes left to read script length VarInt at cursor ${this.cursor}`);
-        }
-        const scriptLenVarInt = VarInt.fromBuffer(this.payload, this.cursor);
-        this.scriptLen = Number(scriptLenVarInt.value);
-        this.cursor += scriptLenVarInt.getOriginalSizeInBytes();
-    
-        // Read script bytes
-        if (this.scriptLen > 0) {
-            if (this.cursor + this.scriptLen > this.payload.length) {
-                throw new RangeError(`Insufficient bytes for script: need ${this.scriptLen}, have ${this.payload.length - this.cursor}`);
-            }
-            this.scriptBytes = this.payload.slice(this.cursor, this.cursor + this.scriptLen);
-            this.cursor += this.scriptLen;
-        } else {
-            this.scriptBytes = Buffer.alloc(0);
-        }
-    
+        const vlen = this.readVarInt();
+        const v = this.readBytes(vlen);
+        this.tokenLen = this.readVarInt();
+        this.value = new Coin(Utils.bytesToBigInt(v), this.readBytes(this.tokenLen));
+        
+        this.scriptLen = this.readVarInt();
+        this.scriptBytes = this.readBytes(this.scriptLen);
         this.length = this.cursor - this.offset;
     }
-    
 
     public bitcoinSerializeToStream(stream: any): void {
-        // Ensure scriptBytes is initialized
-        if (!this.scriptBytes) {
-            this.scriptBytes = Buffer.alloc(0);
-        }
-    
-        // Ensure value is initialized
-        if (!this.value) {
-            this.value = new Coin(BigInt(0), Buffer.alloc(0));
-        }
-    
-        // Serialize value (8 bytes LE)
-        const value = this.value.getValue();
-        const valueBytes = Buffer.alloc(8);
-        Utils.uint64ToByteArrayLE(bigInt(value.toString()), valueBytes, 0);
-        stream.write(valueBytes);
-    
-        // Serialize token ID (VarInt length + bytes)
-        const tokenId = this.value.getTokenid();
-        const tokenIdLengthVarInt = new VarInt(tokenId.length);
-        stream.write(tokenIdLengthVarInt.encode());
-        if (tokenId.length > 0) {
-            stream.write(tokenId);
-        }
-    
-        // Serialize script (VarInt length + bytes)
-        const scriptBytesLength = this.scriptBytes ? this.scriptBytes.length : 0;
-        const scriptLengthVarInt = new VarInt(scriptBytesLength);
-        stream.write(scriptLengthVarInt.encode());
-        if (scriptBytesLength > 0) {
-            stream.write(this.scriptBytes);
-        }
+        const valuebytes = Utils.bigIntToBytes(this.value.getValue());
+        stream.write(new VarInt(valuebytes.length).encode());
+        stream.write(Buffer.from(valuebytes));
+
+        const tokenid = this.value.getTokenid();
+        stream.write(new VarInt(tokenid.length).encode());
+        stream.write(tokenid);
+        stream.write(new VarInt(this.scriptBytes.length).encode());
+        stream.write(this.scriptBytes);
     }
 
     /**
@@ -363,12 +319,14 @@ export class TransactionOutput extends ChildMessage {
      * this.
      */
     public getIndex(): number {
-        const outputs = this.getParentTransaction()?.getOutputs();
-        if (outputs) {
-            for (let i = 0; i < outputs.length; i++) {
-                if (outputs[i] === this)
-                    return i;
-            }
+        const parentTransaction = this.getParentTransaction();
+        if (!parentTransaction) {
+            throw new Error("Output is not attached to a transaction");
+        }
+        const outputs = parentTransaction.getOutputs();
+        for (let i = 0; i < outputs.length; i++) {
+            if (outputs[i] === this)
+                return i;
         }
         throw new Error("Output linked to wrong parent transaction?");
     }
@@ -381,13 +339,14 @@ export class TransactionOutput extends ChildMessage {
      * @throws Error
      *             if the transaction was already marked as spent.
      */
-    public markAsSpent(input: TransactionInput): void {
+    public markAsSpent(input: TransactionInput | null): void {
         if (!this.availableForSpending) throw new Error("Transaction already marked as spent.");
         this.availableForSpending = false;
         this.spentBy = input;
-        if (this.parent != null) {
+        const parentTransactionHash = this.getParentTransactionHash();
+        if (this.parent != null && parentTransactionHash) {
             if (TransactionOutput.log && TransactionOutput.log.isDebugEnabled())
-                TransactionOutput.log.debug("Marked " + this.getParentTransactionHash() + ":" + this.getIndex() + " as spent by " + input);
+                TransactionOutput.log.debug("Marked " + parentTransactionHash + ":" + this.getIndex() + " as spent by " + input);
         } else if (TransactionOutput.log && TransactionOutput.log.isDebugEnabled()) {
             TransactionOutput.log.debug("Marked floating output as spent by " + input);
         }
@@ -397,9 +356,10 @@ export class TransactionOutput extends ChildMessage {
      * Resets the spent pointer / availableForSpending flag to null.
      */
     public markAsUnspent(): void {
-        if (this.parent != null) {
+        const parentTransactionHash = this.getParentTransactionHash();
+        if (this.parent != null && parentTransactionHash) {
             if (TransactionOutput.log && TransactionOutput.log.isDebugEnabled())
-                TransactionOutput.log.debug("Un-marked " + this.getParentTransactionHash() + ":" + this.getIndex() + " as spent by " + this.spentBy);
+                TransactionOutput.log.debug("Un-marked " + parentTransactionHash + ":" + this.getIndex() + " as spent by " + this.spentBy);
         } else if (TransactionOutput.log && TransactionOutput.log.isDebugEnabled()) {
             TransactionOutput.log.debug("Un-marked floating output as spent by " + this.spentBy);
         }
@@ -474,7 +434,8 @@ export class TransactionOutput extends ChildMessage {
         } catch (e) {
             // Just means we didn't understand the output of this transaction:
             // ignore it.
-            if (TransactionOutput.log) TransactionOutput.log.debug("Could not parse tx " + (this.parent != null ? this.parent.getHash() : "(no parent)") + " output script: " + e);
+            const parentHash = this.parent != null ? this.parent.getHash() : "(no parent)";
+            if (TransactionOutput.log) TransactionOutput.log.debug("Could not parse tx " + parentHash + " output script: " + e);
             return false;
         }
     }
@@ -516,7 +477,7 @@ export class TransactionOutput extends ChildMessage {
      * Returns the transaction that owns this output.
      */
     public getParentTransaction(): Transaction | null {
-        return this.parent as unknown as Transaction;
+        return this.parent as Transaction;
     }
 
     /**
@@ -535,7 +496,7 @@ export class TransactionOutput extends ChildMessage {
         if (this.params === null) {
             throw new Error("Cannot create TransactionOutPoint with null params");
         }
-        return new TransactionOutPoint(this.params, this.getIndex(), containingBlockHash, this.getParentTransaction());
+        return   TransactionOutPoint.fromTx(this.params, this.getIndex(), containingBlockHash, this.getParentTransaction());
     }
 
     /**
@@ -546,7 +507,7 @@ export class TransactionOutput extends ChildMessage {
         if (this.params === null) {
             throw new Error("Cannot duplicate TransactionOutput with null params");
         }
-        return new TransactionOutput(this.params, null, this.value, Buffer.from(this.scriptBytes));
+        return TransactionOutput.fromScriptBytes(this.params, null, this.value, Buffer.from(this.scriptBytes));
     }
 
     public equals(o: any): boolean {
@@ -576,31 +537,5 @@ export class TransactionOutput extends ChildMessage {
 
     public setDescription(description: string | null): void {
         this.description = description;
-    }
-
-    /**
-     * Creates a new TransactionOutput object with the given parameters.
-     * 
-     * @param params NetworkParameters object
-     * @param parent Parent transaction
-     * @param value Value to send
-     * @param to Address to send to
-     * @return A new TransactionOutput object
-     */
-    public static fromAddress(params: NetworkParameters, parent: Transaction | null, value: Coin, to: Address): TransactionOutput {
-        return new TransactionOutput(params, parent, value, to);
-    }
-
-    /**
-     * Creates a new TransactionOutput object with the given parameters.
-     * 
-     * @param params NetworkParameters object
-     * @param parent Parent transaction
-     * @param value Value to send
-     * @param to ECKey to send to
-     * @return A new TransactionOutput object
-     */
-    public static fromKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
-        return new TransactionOutput(params, parent, value, to);
     }
 }

@@ -546,7 +546,7 @@ export abstract class RemoteTest {
     // Create input
     const containingBlockHash = output.getBlockHash()!;
     const outPoint = spendableOutput.getOutPointFor(containingBlockHash);
-    const input = new TransactionInput(
+    const input =   TransactionInput.fromScriptBytes(
       this.networkParameters,
       tx,
       outPoint.bitcoinSerializeCopy()
