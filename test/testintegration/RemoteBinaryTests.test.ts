@@ -31,11 +31,10 @@ describe("RemoteBinaryTests", () => {
     const block = serializer.makeBlock(Buffer.from(tip, "hex"));
     // Post to the server
     const url = tests.contextRoot + (ReqCmd.saveBlock || "/saveBlock");
-    const response = await OkHttp3Util.post(url, block.bitcoinSerializeCopy());
-    if (response && tests.networkParameters?.getDefaultSerializer) {
-      return tests.networkParameters
-        .getDefaultSerializer()
-        .makeBlock(Buffer.from(response));
-    }
+    await expect(
+      OkHttp3Util.post(url, block.bitcoinSerializeCopy())
+    ).rejects.toThrow(
+      "net.bigtangle.exception.VerificationException$UnsolidException: Not solid. Server disallows unsolid blocks."
+    );
   });
 });
