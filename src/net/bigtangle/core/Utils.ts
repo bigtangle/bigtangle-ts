@@ -200,4 +200,11 @@ export class Utils {
         const paddedHex = hex.length % 2 === 0 ? hex : '0' + hex;
         return Buffer.from(paddedHex, 'hex');
     }
+
+    public static addAll(buffer1: Buffer, buffer2: Buffer): Buffer {
+        const result = Buffer.alloc(buffer1.length + buffer2.length);
+        buffer1.copy(result, 0);
+        buffer2.copy(result, buffer1.length);
+        return result;
+    }
 }

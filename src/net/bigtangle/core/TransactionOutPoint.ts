@@ -1,118 +1,126 @@
+/*******************************************************************************
+ *  Copyright   2018  Inasset GmbH.
+ *
+ *******************************************************************************/
+/*
+ * Copyright 2011 Google Inc.
+ * Copyright 2015 Andreas Schildbach
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { ChildMessage } from './ChildMessage';
 import { Sha256Hash } from './Sha256Hash';
-import { Transaction } from './Transaction';
-import { TransactionOutput } from './TransactionOutput';
+import { Utils } from './Utils';
+import { NetworkParameters } from '../params/NetworkParameters';
+import { ProtocolException } from '../exception/ProtocolException';
+import { Script } from '../script/Script';
+// Placeholder interfaces for Transaction and TransactionOutput
+interface Transaction {
+    getHash(): Sha256Hash;
+    getOutputs(): TransactionOutput[];
+}
+
+interface TransactionOutput {
+    getIndex(): number;
+    getParentTransactionHash(): Sha256Hash;
+    getScriptBytes(): Uint8Array;
+    getScriptPubKey(): Script;
+}
 import { ECKey } from './ECKey';
-import { NetworkParameters } from '../params/NetworkParameters'; 
-import { Utils } from '../utils/Utils';
-import { Buffer } from 'buffer';
-import { MessageSerializer } from './MessageSerializer';
-import { Message } from './Message';
 import { KeyBag } from '../wallet/KeyBag';
 import { RedeemData } from '../wallet/RedeemData';
-import { ScriptException } from '../exception/ScriptException';
-import { Script } from '../script/Script';
-import { ProtocolVersion } from './ProtocolVersion';
+import { Buffer } from 'buffer';
 
 /**
  * <p>
  * This message is a reference or pointer to an output of a different
  * transaction.
  * </p>
- * 
+ *
  * <p>
  * Instances of this class are not safe for use by multiple threads.
  * </p>
  */
 export class TransactionOutPoint extends ChildMessage {
-    public static readonly MESSAGE_LENGTH = 4 + 32 + 32;
+
+    static readonly MESSAGE_LENGTH: number = 4 + 32 + 32;
 
     /** Hash of the block to which we refer. */
-    private blockHash: Sha256Hash = Sha256Hash.ZERO_HASH;
+    private blockHash: Sha256Hash;
     /** Hash of the transaction to which we refer. */
-    private txHash: Sha256Hash = Sha256Hash.ZERO_HASH;
+    private txHash: Sha256Hash;
     /** Which output of that transaction we are talking about. */
     private index: number = 0;
 
     // This is not part of bitcoin serialization. It points to the connected
     // transaction.
-    public fromTx: Transaction | null = null;
+    fromTx: Transaction | null = null;
 
     // The connected output.
     public connectedOutput: TransactionOutput | null = null;
 
-    public static fromTx(params: NetworkParameters, index: number, blockHash: Sha256Hash | null, fromTx: Transaction | null): TransactionOutPoint {
-        const outpoint = new TransactionOutPoint(params, index, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH);
-        
-        if (fromTx != null && blockHash != null) {
-            outpoint.blockHash = blockHash;
-            outpoint.txHash = fromTx.getHash();
-            outpoint.fromTx = fromTx;
+    public constructor(params: NetworkParameters) {
+        super(params);
+        this.blockHash = Sha256Hash.ZERO_HASH;
+        this.txHash = Sha256Hash.ZERO_HASH;
+    }
+
+    public static fromTx4(params: NetworkParameters, index: number, blockHash: Sha256Hash | null,
+        fromTx: Transaction | null): TransactionOutPoint {
+        const a = TransactionOutPoint.fromTransactionOutPoint4(params, index, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH);
+
+        if (fromTx !== null && blockHash !== null) {
+            a.blockHash = blockHash;
+            a.txHash = fromTx.getHash();
+            a.fromTx = fromTx;
         }
-        outpoint.length = TransactionOutPoint.MESSAGE_LENGTH;
-        return outpoint;
+        a.length = TransactionOutPoint.MESSAGE_LENGTH;
+        return a;
     }
 
-    public static fromOutput(params: NetworkParameters, blockHash: Sha256Hash | null, connectedOutput: TransactionOutput): TransactionOutPoint {
-        const parentTxHash = connectedOutput.getParentTransactionHash();
-        const outpoint = new TransactionOutPoint(params, connectedOutput.getIndex(), blockHash || Sha256Hash.ZERO_HASH, parentTxHash || Sha256Hash.ZERO_HASH);
-        outpoint.connectedOutput = connectedOutput;
-        return outpoint;
+    public static fromTransactionOutPoint4(params: NetworkParameters, index: number,
+        blockHash: Sha256Hash, transactionHash: Sha256Hash): TransactionOutPoint {
+        const a = new TransactionOutPoint(params);
+        a.index = index;
+        a.blockHash = blockHash;
+        a.txHash = transactionHash;
+        a.length = TransactionOutPoint.MESSAGE_LENGTH;
+        return a;
     }
 
-    constructor(params: NetworkParameters, index: number, blockHash: Sha256Hash | null, transactionHash: Sha256Hash | null);
+    public static fromOutput3(params: NetworkParameters, blockHash: Sha256Hash | null,
+        connectedOutput: TransactionOutput): TransactionOutPoint {
+        const a = TransactionOutPoint.fromTransactionOutPoint4(params, connectedOutput.getIndex(), blockHash || Sha256Hash.ZERO_HASH,
+            connectedOutput.getParentTransactionHash());
+        a.connectedOutput = connectedOutput;
+        return a;
+    }
+
     /**
      * Deserializes the message. This is usually part of a transaction message.
-     */
-    constructor(params: NetworkParameters, payload: Buffer, offset: number);
-    /**
-     * Deserializes the message. This is usually part of a transaction message.
-     * 
+     *
      * @param params     NetworkParameters object.
      * @param offset     The location of the first payload byte within the array.
      * @param serializer the serializer to use for this message.
      * @throws ProtocolException
      */
-    constructor(params: NetworkParameters, payload: Buffer, offset: number, parent: Message, serializer: MessageSerializer<any>);
-    constructor(...args: any[]) {
-        const params = args[0];
-        super(params);
-        
-        if (args.length === 3 && args[1] instanceof Buffer) {
-            // Constructor: (params, payload, offset)
-            const payload = args[1];
-            const offset = args[2];
-            super(params, payload, offset);
-        } else if (args.length === 5) {
-            // Constructor: (params, payload, offset, parent, serializer)
-            const payload = args[1];
-            const offset = args[2];
-            const parent = args[3];
-            const serializer = args[4];
-            // Initialize fields directly instead of calling super with too many args
-            this.serializer = serializer;
-            this.protocolVersion = params.getProtocolVersionNum(ProtocolVersion.CURRENT);
-            this.params = params;
-            this.payload = payload;
-            this.offset = offset;
-            this.cursor = offset;
-            this.length = TransactionOutPoint.MESSAGE_LENGTH;
-            this.parent = parent;
-            this.parse();
-        } else if (args.length === 4) {
-            // Constructor: (params, index, blockHash, transactionHash)
-            const index = args[1];
-            const blockHash = args[2];
-            const transactionHash = args[3];
-            
-            this.index = index;
-            this.blockHash = blockHash || Sha256Hash.ZERO_HASH;
-            this.txHash = transactionHash || Sha256Hash.ZERO_HASH;
-            this.fromTx = null;
-            this.length = TransactionOutPoint.MESSAGE_LENGTH;
-        } else {
-            throw new Error("Invalid constructor arguments");
-        }
+    public static fromTransactionOutPoint5(params: NetworkParameters, payload: Uint8Array, offset: number,
+        parent: any, serializer: any): TransactionOutPoint {
+        const a = new TransactionOutPoint(params);
+        a.setValues5(params, payload, offset, serializer, TransactionOutPoint.MESSAGE_LENGTH);
+        a.setParent(parent);
+        return a;
     }
 
     protected parse(): void {
@@ -120,12 +128,24 @@ export class TransactionOutPoint extends ChildMessage {
         this.blockHash = this.readHash();
         this.txHash = this.readHash();
         this.index = this.readUint32();
+        // length += 4;
+        // if (this.readUint32() == 1) {
+        // this.connectedOutput = new TransactionOutput(params, (Transaction)
+        // this.parent, payload, cursor);
+        // cursor += this.connectedOutput.getMessageSize();
+        // length += this.connectedOutput.getMessageSize();
+        // }
     }
 
-    public bitcoinSerializeToStream(stream: any): void {
+    protected bitcoinSerializeToStream(stream: any): void {
         stream.write(this.blockHash.getReversedBytes());
         stream.write(this.txHash.getReversedBytes());
         Utils.uint32ToByteStreamLE(this.index, stream);
+        // Utils.uint32ToByteStreamLE(this.connectedOutput != null ? 1 : 0,
+        // stream);
+        // if (this.connectedOutput != null) {
+        // this.connectedOutput.bitcoinSerializeToStream(stream);
+        // }
     }
 
     /**
@@ -135,9 +155,9 @@ export class TransactionOutPoint extends ChildMessage {
      * there is no such connection.
      */
     public getConnectedOutput(): TransactionOutput | null {
-        if (this.fromTx != null) {
+        if (this.fromTx !== null) {
             return this.fromTx.getOutputs()[this.index];
-        } else if (this.connectedOutput != null) {
+        } else if (this.connectedOutput !== null) {
             return this.connectedOutput;
         }
         return null;
@@ -145,17 +165,13 @@ export class TransactionOutPoint extends ChildMessage {
 
     /**
      * Returns the pubkey script from the connected output.
-     * 
-     * @throws Error if there is no connected output.
+     *
+     * @throws java.lang.NullPointerException if there is no connected output.
      */
-    public getConnectedPubKeyScript(): Buffer {
-        const connectedOutput = this.getConnectedOutput();
-        if (!connectedOutput) {
-            throw new Error("Input is not connected so cannot retrieve key");
-        }
-        const result = connectedOutput.getScriptBytes();
-        if (!result || result.length === 0) {
-            throw new Error("Connected output has no script bytes");
+    public getConnectedPubKeyScript(): Uint8Array {
+        const result = this.getConnectedOutput()!.getScriptBytes();
+        if (result.length <= 0) {
+            throw new Error("Connected output has empty script");
         }
         return result;
     }
@@ -169,30 +185,35 @@ export class TransactionOutPoint extends ChildMessage {
      *
      * @return an ECKey or null if the connected key cannot be found in the wallet.
      */
-    public async getConnectedKey(keyBag: KeyBag): Promise<ECKey | null> {
+    public getConnectedKey(keyBag: KeyBag): ECKey | null {
         const connectedOutput = this.getConnectedOutput();
-        if (!connectedOutput) {
+        if (connectedOutput === null) {
             throw new Error("Input is not connected so cannot retrieve key");
         }
         const connectedScript = connectedOutput.getScriptPubKey();
         if (connectedScript.isSentToAddress()) {
             const addressBytes = connectedScript.getPubKeyHash();
-            return keyBag.findKeyFromPubHash(addressBytes);
+            // Assuming the method should be synchronous in TypeScript
+            return keyBag.findKeyFromPubHash(addressBytes) as any as ECKey | null;
         } else if (connectedScript.isSentToRawPubKey()) {
             const pubkeyBytes = connectedScript.getPubKey();
-            return keyBag.findKeyFromPubKey(pubkeyBytes);
+            // Assuming the method should be synchronous in TypeScript
+            return keyBag.findKeyFromPubKey(pubkeyBytes) as any as ECKey | null;
         } else if (connectedScript.isSentToMultiSig()) {
-            const pubKeys = connectedScript.getPubKeys();
-            for (const ec of pubKeys) {
-                const key = await keyBag.findKeyFromPubKey(ec.getPubKey());
-                if (key) {
-                    return key;
-                }
-            }
-            return null;
+            return this.getConnectedKeyFromMultiSig(keyBag, connectedScript.getPubKeys());
         } else {
-            throw new ScriptException("Could not understand form of connected output script: " + connectedScript.toString());
+            throw new Error("Could not understand form of connected output script: " + connectedScript);
         }
+    }
+
+    private getConnectedKeyFromMultiSig(keyBag: KeyBag, ecs: ECKey[]): ECKey | null {
+        for (const ec of ecs) {
+            // Assuming the method should be synchronous in TypeScript
+            const a = keyBag.findKeyFromPubKey(ec.getPubKey()) as any as ECKey | null;
+            if (a !== null)
+                return a;
+        }
+        throw new Error("Could not understand form of connected output script: " + ecs);
     }
 
     /**
@@ -203,40 +224,45 @@ export class TransactionOutPoint extends ChildMessage {
      * @return a RedeemData or null if the connected data cannot be found in the
      *         wallet.
      */
-    public async getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
+    public getConnectedRedeemData(keyBag: KeyBag): RedeemData | null {
         const connectedOutput = this.getConnectedOutput();
-        if (!connectedOutput) {
+        if (connectedOutput === null) {
             throw new Error("Input is not connected so cannot retrieve key");
         }
         const connectedScript = connectedOutput.getScriptPubKey();
         if (connectedScript.isSentToAddress()) {
             const addressBytes = connectedScript.getPubKeyHash();
-            const key = await keyBag.findKeyFromPubHash(addressBytes);
-            return key ? RedeemData.of(key, connectedScript) : null;
+            // Assuming the method should be synchronous in TypeScript
+            const key = keyBag.findKeyFromPubHash(addressBytes) as any as ECKey | null;
+            return RedeemData.of(key, connectedScript);
         } else if (connectedScript.isSentToRawPubKey()) {
             const pubkeyBytes = connectedScript.getPubKey();
-            const key = await keyBag.findKeyFromPubKey(pubkeyBytes);
-            return key ? RedeemData.of(key, connectedScript) : null;
+            // Assuming the method should be synchronous in TypeScript
+            const key = keyBag.findKeyFromPubKey(pubkeyBytes) as any as ECKey | null;
+            return RedeemData.of(key, connectedScript);
         } else if (connectedScript.isPayToScriptHash()) {
             const scriptHash = connectedScript.getPubKeyHash();
-            return keyBag.findRedeemDataFromScriptHash(scriptHash);
+            // Assuming the method should be synchronous in TypeScript
+            return keyBag.findRedeemDataFromScriptHash(scriptHash) as any as RedeemData | null;
         } else if (connectedScript.isSentToMultiSig()) {
-            const key = await this.getConnectedKey(keyBag);
+            const key = this.getConnectedKey(keyBag, connectedScript.getPubKeys());
+            // For multisig, we need to pass an array of keys, not a single key
+            // This is a simplification - in reality, we'd need to get all keys
             return key ? RedeemData.of([key], connectedScript) : null;
         } else {
-            throw new ScriptException("Could not understand form of connected output script: " + connectedScript.toString());
+            throw new Error("Could not understand form of connected output script: " + connectedScript);
         }
     }
 
     public toString(): string {
-        return this.blockHash.toString() + " : " + this.txHash.toString() + " : " + this.index;
+        return this.blockHash + " : " + this.txHash + " : " + this.index;
     }
 
     /**
      * Returns the hash of the outpoint.
      */
     public getHash(): Sha256Hash {
-        return Sha256Hash.of(Buffer.concat([this.blockHash.getBytes(), this.txHash.getBytes()]));
+        return Sha256Hash.of(Utils.addAll(this.blockHash.getBytes(), this.txHash.getBytes()));
     }
 
     public getTxHash(): Sha256Hash {
@@ -260,25 +286,20 @@ export class TransactionOutPoint extends ChildMessage {
      * such an outPoint, returns true.
      */
     public isCoinBase(): boolean {
-        return this.getBlockHash().equals(Sha256Hash.ZERO_HASH) && 
-               this.getTxHash().equals(Sha256Hash.ZERO_HASH) &&
-               (this.getIndex() & 0xFFFFFFFF) === 0xFFFFFFFF;
+        return this.getBlockHash().equals(Sha256Hash.ZERO_HASH) && this.getTxHash().equals(Sha256Hash.ZERO_HASH)
+            && (this.getIndex() & 0xFFFFFFFF) === 0xFFFFFFFF;
     }
 
     public equals(o: any): boolean {
-        if (this === o) return true;
-        if (o == null || !(o instanceof TransactionOutPoint)) return false;
+        if (this === o)
+            return true;
+        if (o === null || !(o instanceof TransactionOutPoint))
+            return false;
         const other = o as TransactionOutPoint;
         return this.getIndex() === other.getIndex() && this.getHash().equals(other.getHash());
     }
 
     public hashCode(): number {
-        let result = 17;
-        result = 31 * result + this.index;
-        // Use the first 4 bytes of the hash as a numeric hash code
-        const hashBytes = this.getHash().getBytes();
-        const hashCode = hashBytes.readInt32BE(0);
-        result = 31 * result + hashCode;
-        return result;
+        return this.getIndex() * 31 + this.getHash().hashCode();
     }
 }

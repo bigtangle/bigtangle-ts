@@ -1,30 +1,41 @@
+/*******************************************************************************
+ *  Copyright   2018  Inasset GmbH.
+ *
+ *******************************************************************************/
+/*
+ * Copyright 2011 Steve Coughlan.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { Message } from './Message';
 import { NetworkParameters } from '../params/NetworkParameters';
-import { MessageSerializer } from './MessageSerializer';
-import { Buffer } from 'buffer';
-import { ProtocolVersion } from './ProtocolVersion';
 
 /**
  * <p>Represents a Message type that can be contained within another Message.  ChildMessages that have a cached
  * backing byte array need to invalidate their parent's caches as well as their own if they are modified.</p>
- * 
+ *
  * <p>Instances of this class are not safe for use by multiple threads.</p>
  */
 export abstract class ChildMessage extends Message {
 
-    public parent: Message | null;
+    protected parent: Message | null = null;
 
-    constructor(params: NetworkParameters, payload?: Buffer, offset: number = 0, serializer?: MessageSerializer<any>, parent?: Message) {
-        // Call the parent constructor with all the parameters
-        if (payload) {
-            super(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer || params.getDefaultSerializer(), payload.length - offset);
-        } else {
-            super(params);
-        }
-        
-        // Initialize our own properties
-        this.parent = parent || null;
+
+    public constructor(params: NetworkParameters) {
+        super(params);
     }
+
 
     public setParent(parent: Message | null): void {
         if (this.parent !== null && this.parent !== parent && parent !== null) {
@@ -33,39 +44,36 @@ export abstract class ChildMessage extends Message {
             // manually on serialization.
             if (this.parent instanceof ChildMessage) {
                 this.parent.unCache();
-            } else if (typeof (this.parent as any).unCache === 'function') {
-                // For regular Message objects, call the protected unCache method
-                (this.parent as any).unCache();
             }
         }
         this.parent = parent;
     }
 
-    public unCache(): void {
+    /* (non-Javadoc)
+      * @see Message#unCache()
+      */
+    protected unCache(): void {
         super.unCache();
         if (this.parent !== null) {
             if (this.parent instanceof ChildMessage) {
                 this.parent.unCache();
-            } else if (typeof (this.parent as any).unCache === 'function') {
-                // For regular Message objects, call the protected unCache method
-                (this.parent as any).unCache();
             }
         }
     }
-    
-    public adjustLength(adjustment: number): void;
-    public adjustLength(newArraySize: number, adjustment: number): void;
-    public adjustLength(...args: any[]): void {
-        if (args.length === 1) {
-            super.adjustLength(0, args[0]);
-        } else if (args.length === 2) {
-            super.adjustLength(args[0], args[1]);
+
+    protected adjustLength(adjustment: number): void;
+    protected adjustLength(newArraySize: number, adjustment: number): void;
+    protected adjustLength(newArraySize: number, adjustment?: number): void {
+        if (adjustment === undefined) {
+            // Call the parent method with just the adjustment parameter
+            super.adjustLength(0, newArraySize);
+        } else {
+            // Call the parent method with both parameters
+            super.adjustLength(newArraySize, adjustment);
         }
         if (this.parent !== null) {
-            if (args.length === 1) {
-                (this.parent as any).adjustLength(0, args[0]);
-            } else if (args.length === 2) {
-                (this.parent as any).adjustLength(args[0], args[1]);
+            if (this.parent instanceof ChildMessage) {
+                this.parent.adjustLength(newArraySize, adjustment || 0);
             }
         }
     }

@@ -1,14 +1,45 @@
-import { NetworkParameters } from '../params/NetworkParameters';
-import { MessageSerializer } from './MessageSerializer';
+/*******************************************************************************
+ *  Copyright   2018  Inasset GmbH.
+ *
+ *******************************************************************************/
+/*
+ * Copyright 2011 Google Inc.
+ * Copyright 2014 Andreas Schildbach
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { ProtocolException } from '../exception/ProtocolException';
-import { DummySerializer } from './DummySerializer';
-import { ProtocolVersion } from './ProtocolVersion';
-import { Utils } from '../utils/Utils';
+import { NetworkParameters } from '../params/NetworkParameters';
+import { ProtocolVersion } from '../params/ProtocolVersion';
 import { VarInt } from './VarInt';
-import bigInt, { BigInteger } from 'big-integer';
-import { Buffer } from 'buffer';
-import { Sha256Hash } from './Sha256Hash';
+import { Utils } from './Utils';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
+import { Sha256Hash } from './Sha256Hash';
+import { MessageSerializer } from './MessageSerializer';
+
+// Importing necessary types and functions
+import { Preconditions } from '../utils/Preconditions';
+import { BigInteger } from 'big-integer';
+import { Buffer } from 'buffer';
+
+const { checkState } = Preconditions;
+
+// Define OutputStream interface to match UnsafeByteArrayOutputStream
+interface OutputStream {
+    write(b: number | Buffer): void;
+    writeBytes(b: Buffer, off: number, len: number): void;
+}
 
 /**
  * <p>A Message is a data structure that can be serialized/deserialized using the Bitcoin serialization format.
@@ -19,6 +50,7 @@ import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
  */
 export abstract class Message {
     public static readonly MAX_SIZE: number = 0x02000000; // 32MB
+
     public static readonly UNKNOWN_LENGTH: number = Number.MIN_SAFE_INTEGER;
 
     // The offset is how many bytes into the provided byte array this message payload starts at.
@@ -30,60 +62,29 @@ export abstract class Message {
     protected length: number = Message.UNKNOWN_LENGTH;
 
     // The raw message payload bytes themselves.
-    protected payload: Buffer | null = null;
+    protected payload: Uint8Array | null = null;
 
     protected recached: boolean = false;
-    protected serializer: MessageSerializer<any> = DummySerializer.DEFAULT;
+    protected serializer: MessageSerializer<NetworkParameters> | null = null;
 
     protected protocolVersion: number = 0;
 
     protected params: NetworkParameters | null = null;
 
-    protected constructor();
-    protected constructor(params: NetworkParameters);
-    protected constructor(params: NetworkParameters, payload: Buffer, offset: number, protocolVersion: number);
-    protected constructor(params: NetworkParameters, payload: Buffer, offset: number, protocolVersion: number, serializer: MessageSerializer<any>, length: number);
-    protected constructor(params: NetworkParameters, payload: Buffer, offset: number);
-    protected constructor(params: NetworkParameters, payload: Buffer, offset: number, serializer: MessageSerializer<any>, length: number);
-    protected constructor(...args: any[]) {
-        if (args.length === 0) {
-            this.serializer = DummySerializer.DEFAULT;
-        } else if (args.length === 1) {
-            this.params = args[0];
-            if (this.params) {
-                this.serializer = this.params.getDefaultSerializer();
-            }
-        } else if (args.length >= 4) {
-            const params = args[0];
-            const payload = args[1];
-            const offset = args[2];
-            const protocolVersion = args[3];
-            
-            if (args.length === 4) {
-                // Constructor with 4 parameters
-                this.init(params, payload, offset, protocolVersion, params.getDefaultSerializer(), Message.UNKNOWN_LENGTH);
-            } else if (args.length === 6) {
-                // Constructor with 6 parameters
-                const serializer = args[4];
-                const length = args[5];
-                this.init(params, payload, offset, protocolVersion, serializer, length);
-            } else if (args.length === 5 && typeof args[4] === 'number') {
-                // Constructor with 5 parameters (last one is length)
-                const serializer = params.getDefaultSerializer();
-                const length = args[4];
-                this.init(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer, length);
-            } else if (args.length === 5) {
-                // Constructor with 5 parameters (last one is serializer)
-                const serializer = args[4];
-                const length = Message.UNKNOWN_LENGTH;
-                this.init(params, payload, offset, params.getProtocolVersionNum(ProtocolVersion.CURRENT), serializer, length);
-            }
-        }
+
+    public constructor(params: NetworkParameters) {
+        this.params = params;
+        this.serializer = params.getDefaultSerializer();
     }
 
-    private init(params: NetworkParameters, payload: Buffer, offset: number, protocolVersion: number, serializer: MessageSerializer<any>, length: number): void {
+
+    protected setValues3(params: NetworkParameters, payload: Uint8Array, offset: number): void {
+        this.setValues5(params, payload, offset, params.getDefaultSerializer(), Message.UNKNOWN_LENGTH);
+    }
+
+    protected setValues5(params: NetworkParameters, payload: Uint8Array, offset: number, serializer: MessageSerializer<NetworkParameters>, length: number): void {
         this.serializer = serializer;
-        this.protocolVersion = protocolVersion;
+        this.protocolVersion = params.getProtocolVersionNum(ProtocolVersion.CURRENT);
         this.params = params;
         this.payload = payload;
         this.cursor = this.offset = offset;
@@ -92,13 +93,14 @@ export abstract class Message {
         this.parse();
 
         if (this.length === Message.UNKNOWN_LENGTH) {
-            throw new Error(`Length field has not been set in constructor for ${this.constructor.name} after parse.`);
+            checkState(false, `Length field has not been set in constructor for ${this.constructor.name} after parse.`);
         }
 
-        if (!serializer.isParseRetainMode()) {
+        if (this.serializer && !this.serializer.isParseRetainMode()) {
             this.payload = null;
         }
     }
+
 
     // These methods handle the serialization/deserialization using the custom Bitcoin protocol.
 
@@ -110,7 +112,7 @@ export abstract class Message {
      * <p>Child messages of this object(e.g. Transactions belonging to a Block) will not have their internal byte caches
      * invalidated unless they are also modified internally.</p>
      */
-    public unCache(): void {
+    protected unCache(): void {
         this.payload = null;
         this.recached = false;
     }
@@ -148,11 +150,10 @@ export abstract class Message {
      *
      * @return a freshly allocated serialized byte array
      */
-    public bitcoinSerializeCopy(): Buffer {
+    public bitcoinSerialize(): Uint8Array {
         const bytes = this.unsafeBitcoinSerialize();
-
-        const copy = Buffer.alloc(bytes.length);
-        bytes.copy(copy, 0, 0, bytes.length);
+        const copy = new Uint8Array(bytes.length);
+        copy.set(bytes);
         return copy;
     }
 
@@ -173,7 +174,7 @@ export abstract class Message {
      *
      * @return a byte array owned by this object, do NOT mutate it.
      */
-    public unsafeBitcoinSerialize(): Buffer {
+    public unsafeBitcoinSerialize(): Uint8Array {
         // 1st attempt to use a cached array.
         if (this.payload !== null) {
             if (this.offset === 0 && this.length === this.payload.length) {
@@ -182,8 +183,8 @@ export abstract class Message {
                 return this.payload;
             }
 
-            const buf = Buffer.alloc(this.length);
-            this.payload.copy(buf, 0, this.offset, this.offset + this.length);
+            const buf = new Uint8Array(this.length);
+            buf.set(this.payload.subarray(this.offset, this.offset + this.length));
             return buf;
         }
 
@@ -195,7 +196,7 @@ export abstract class Message {
             // Cannot happen, we are serializing to a memory stream.
         }
 
-        if (this.serializer.isParseRetainMode()) {
+        if (this.serializer && this.serializer.isParseRetainMode()) {
             // A free set of steak knives!
             // If there happens to be a call to this method we gain an opportunity to recache
             // the byte array and in this case it contains no bytes from parent messages.
@@ -223,11 +224,13 @@ export abstract class Message {
      * Serialize this message to the provided OutputStream using the bitcoin wire format.
      *
      * @param stream
+     * @throws IOException
      */
-    public bitcoinSerialize(stream: any): void {
+    public bitcoinSerialize(stream: OutputStream): void {
         // 1st check for cached bytes.
         if (this.payload !== null && this.length !== Message.UNKNOWN_LENGTH) {
-            stream.write(this.payload, this.offset, this.length);
+            const buffer = Buffer.from(this.payload);
+            stream.writeBytes(buffer, this.offset, this.length);
             return;
         }
 
@@ -237,8 +240,8 @@ export abstract class Message {
     /**
      * Serializes this message to the provided stream. If you just want the raw bytes use bitcoinSerialize().
      */
-    protected bitcoinSerializeToStream(stream: any): void {
-        console.error(`Error: ${this.constructor.name} class has not implemented bitcoinSerializeToStream method. Generating message with no payload`);
+    protected bitcoinSerializeToStream(stream: OutputStream): void {
+        console.error(`Error: ${this.constructor.name} class has not implemented bitcoinSerializeToStream method.  Generating message with no payload`);
     }
 
     /**
@@ -253,114 +256,113 @@ export abstract class Message {
      * This returns a correct value by parsing the message.
      */
     public getMessageSize(): number {
-        if (this.length === Message.UNKNOWN_LENGTH)
-            throw new Error(`Length field has not been set in ${this.constructor.name}.`);
+        if (this.length === Message.UNKNOWN_LENGTH) {
+            checkState(false, `Length field has not been set in ${this.constructor.name}.`);
+        }
         return this.length;
     }
 
     protected readUint32(): number {
         try {
-            if (this.payload === null) {
+            if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const u = this.payload.readUInt32LE(this.cursor);
+            const u = Utils.readUint32(Buffer.from(this.payload), this.cursor);
             this.cursor += 4;
             return u;
         } catch (e) {
-            if (e instanceof Error) {
-                throw new ProtocolException(e.message, e);
-            } else {
-                throw new ProtocolException(String(e));
+            if (e instanceof ArrayIndexOutOfBoundsException) {
+                throw new ProtocolException(e.message || "Array index out of bounds");
             }
+            throw e;
         }
     }
 
-    protected readInt64(): BigInteger {
+    protected readInt64(): bigint {
         try {
-            if (this.payload === null) {
+            if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const u = Utils.readInt64(this.payload, this.cursor);
+            const u = Utils.readInt64(Buffer.from(this.payload), this.cursor);
             this.cursor += 8;
             return u;
         } catch (e) {
-            if (e instanceof Error) {
-                throw new ProtocolException(e.message, e);
-            } else {
-                throw new ProtocolException(String(e));
+            if (e instanceof ArrayIndexOutOfBoundsException) {
+                throw new ProtocolException(e.message || "Array index out of bounds");
             }
+            throw e;
         }
     }
 
-    protected readUint64(): BigInteger {
+    protected readUint64(): bigint {
         // Java does not have an unsigned 64 bit type. So scrape it off the wire then flip.
-        if (this.payload === null) {
+        if (!this.payload) {
             throw new ProtocolException("Payload is null");
         }
-        return bigInt(Utils.HEX.encode(Utils.reverseBytes(this.readBytes(8))), 16);
+        // Use readInt64 and convert to unsigned if needed
+        const value = Utils.readInt64(Buffer.from(this.payload), this.cursor);
+        this.cursor += 8;
+        return value;
     }
 
-    protected readVarInt(): number;
-    protected readVarInt(offset: number): number;
-    protected readVarInt(offset?: number): number {
-        const actualOffset = offset || 0;
+    protected readVarInt(): number {
+        return this.readVarIntWithOffset(0);
+    }
+
+    protected readVarIntWithOffset(offset: number): number {
         try {
-            if (this.payload === null) {
+            if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            console.log(`Reading VarInt at cursor ${this.cursor + actualOffset}`);
-            console.log(`Byte at cursor: 0x${this.payload[this.cursor + actualOffset].toString(16)}`);
-            const varint = VarInt.fromBuffer(this.payload, this.cursor + actualOffset);
-            console.log(`VarInt value: ${varint.value.toJSNumber()}, bytes read: ${varint.getOriginalSizeInBytes()}`);
-            this.cursor += actualOffset + varint.getOriginalSizeInBytes();
-            return varint.value.toJSNumber();
+            const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
+            this.cursor += offset + varint.getOriginalSizeInBytes();
+            return varint.value;
         } catch (e) {
-            if (e instanceof Error) {
-                throw new ProtocolException(e.message, e);
-            } else {
-                throw new ProtocolException(String(e));
+            if (e instanceof ArrayIndexOutOfBoundsException) {
+                throw new ProtocolException(e.message || "Array index out of bounds");
             }
+            throw e;
         }
     }
 
-    protected readBytes(length: number): Buffer {
+    protected readBytes(length: number): Uint8Array {
         if (length > Message.MAX_SIZE) {
             throw new ProtocolException("Claimed value length too large: " + length);
         }
         try {
-            if (this.payload === null) {
+            if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const b = Buffer.alloc(length);
-            this.payload.copy(b, 0, this.cursor, this.cursor + length);
+            const b = new Uint8Array(length);
+            b.set(this.payload.subarray(this.cursor, this.cursor + length));
             this.cursor += length;
             return b;
         } catch (e) {
-            if (this.payload !== null) {
-                console.debug(" payload.length " + this.payload.length + " readBytes" + length);
+            if (e instanceof IndexOutOfBoundsException) {
+                console.debug(" payload.length " + (this.payload ? this.payload.length : 0) + " readBytes" + length);
+                throw new ProtocolException(e.message || "Index out of bounds");
             }
-            if (e instanceof Error) {
-                throw new ProtocolException(e.message, e);
-            } else {
-                throw new ProtocolException(String(e));
-            }
+            throw e;
         }
     }
 
-    protected readByteArray(): Buffer {
+    protected readByteArray(): Uint8Array {
         const len = this.readVarInt();
         return this.readBytes(len);
     }
 
     protected readStr(): string {
         const length = this.readVarInt();
-        return length === 0 ? "" : Utils.toString(this.readBytes(length), "UTF-8"); // optimization for empty strings
+        if (length === 0) return ""; // optimization for empty strings
+        const bytes = this.readBytes(length);
+        const decoder = new TextDecoder("utf-8");
+        return decoder.decode(bytes);
     }
 
     protected readHash(): Sha256Hash {
         // We have to flip it around, as it's been read off the wire in little endian.
         // Not the most efficient way to do this but the clearest.
-        return Sha256Hash.wrapReversed(this.readBytes(32));
+        return Sha256Hash.wrapReversed(Buffer.from(this.readBytes(32)));
     }
 
     protected hasMoreBytes(): boolean {
@@ -368,10 +370,7 @@ export abstract class Message {
     }
 
     /** Network parameters this message was created with. */
-    public getParams(): NetworkParameters  {
-        if( this.params === null) {
-            throw new Error("Network parameters are not set for this message.");
-        }
+    public getParams(): NetworkParameters | null {
         return this.params;
     }
 
@@ -379,10 +378,21 @@ export abstract class Message {
      * Set the serializer for this message when deserialized by Java.
      */
     private readObject(inStream: any): void {
-        // This is a placeholder for Java deserialization compatibility
-        // In TypeScript, we don't need to implement this method
-        if (this.params !== null) {
-            this.serializer = this.params.getDefaultSerializer();
-        }
+        // In TypeScript, we don't need to implement this method as it's specific to Java serialization
+    }
+}
+
+// Helper classes for exceptions
+class ArrayIndexOutOfBoundsException extends Error {
+    constructor(message?: string) {
+        super(message);
+        this.name = "ArrayIndexOutOfBoundsException";
+    }
+}
+
+class IndexOutOfBoundsException extends Error {
+    constructor(message?: string) {
+        super(message);
+        this.name = "IndexOutOfBoundsException";
     }
 }
