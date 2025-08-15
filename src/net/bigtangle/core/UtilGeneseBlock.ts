@@ -15,13 +15,11 @@ export class UtilGeneseBlock {
     private static genesisKey: ECKey = ECKey.fromPrivate(bigInt('18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725', 16));
 
     public static createGenesis(params: NetworkParameters): Block {
-        const block = new Block(params, NetworkParameters.BLOCK_VERSION_GENESIS);
+        const block = Block.setBlock7(params, Sha256Hash.ZERO_HASH, Sha256Hash.ZERO_HASH,
+            BlockType.BLOCKTYPE_INITIAL, 0, Utils.encodeCompactBits(params.getMaxTarget()), 0);
+        block.setHeight(0);
         // Use the public key hash from the genesisKey for the miner address
         block.setMinerAddress(Buffer.from(UtilGeneseBlock.genesisKey.getPubKeyHash()));
-        block.setPrevBlockHash(Sha256Hash.ZERO_HASH);
-        block.setPrevBranchBlockHash(Sha256Hash.ZERO_HASH);
-        block.setBlockType(BlockType.BLOCKTYPE_INITIAL);
-        block.setHeight(0);
         block.addCoinbaseTransaction(
             // Use the public key bytes from the genesisKey for the coinbase transaction
             Buffer.from(UtilGeneseBlock.genesisKey.getPubKey()),
@@ -31,7 +29,7 @@ export class UtilGeneseBlock {
         );
         // For genesis block, we don't need to solve it, just set a valid difficulty target
         block.setDifficultyTarget(Utils.encodeCompactBits(params.getMaxTarget()));
-        block.solveWithoutTarget();
+        // Since this is a genesis block, we don't need to solve it
         try {
             block.verifyHeader();
         } catch (e: unknown) {

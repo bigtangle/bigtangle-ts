@@ -1,3 +1,4 @@
+import { describe, test, expect } from "vitest";
 import { BlockType } from "../../src/net/bigtangle/core/BlockType";
  
 

@@ -212,7 +212,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * serialization format support.
      */
     public makeBlock(payloadBytes: Buffer): Block {
-        return Block.fromPayloadWithOffsetAndParent(this.params, payloadBytes, 0, null, this, payloadBytes.length);
+        return Block.setBlock4(this.params, payloadBytes, this, payloadBytes.length);
     }
 
     /**
@@ -236,7 +236,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * serialization format support.
      */
     public makeTransaction(payloadBytes: Buffer): Transaction {
-        return new Transaction(this.params, payloadBytes, 0, this, null, payloadBytes.length);
+        return Transaction.fromTransaction6(this.params, payloadBytes, 0, null, this, payloadBytes.length);
     }
 
     public seekPastMagicBytes(inBuffer: Buffer): Buffer {

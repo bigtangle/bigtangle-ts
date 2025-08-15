@@ -25,20 +25,10 @@ import { Utils } from './Utils';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/ProtocolException';
 import { Script } from '../script/Script';
-// Placeholder interfaces for Transaction and TransactionOutput
-interface Transaction {
-    getHash(): Sha256Hash;
-    getOutputs(): TransactionOutput[];
-}
-
-interface TransactionOutput {
-    getIndex(): number;
-    getParentTransactionHash(): Sha256Hash;
-    getScriptBytes(): Uint8Array;
-    getScriptPubKey(): Script;
-}
 import { ECKey } from './ECKey';
 import { KeyBag } from '../wallet/KeyBag';
+import { Transaction } from './Transaction';
+import { TransactionOutput } from './TransactionOutput';
 import { RedeemData } from '../wallet/RedeemData';
 import { Buffer } from 'buffer';
 
@@ -137,7 +127,7 @@ export class TransactionOutPoint extends ChildMessage {
         // }
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
+    public bitcoinSerializeToStream(stream: any): void {
         stream.write(this.blockHash.getReversedBytes());
         stream.write(this.txHash.getReversedBytes());
         Utils.uint32ToByteStreamLE(this.index, stream);
@@ -245,7 +235,7 @@ export class TransactionOutPoint extends ChildMessage {
             // Assuming the method should be synchronous in TypeScript
             return keyBag.findRedeemDataFromScriptHash(scriptHash) as any as RedeemData | null;
         } else if (connectedScript.isSentToMultiSig()) {
-            const key = this.getConnectedKey(keyBag, connectedScript.getPubKeys());
+            const key = this.getConnectedKey(keyBag);
             // For multisig, we need to pass an array of keys, not a single key
             // This is a simplification - in reality, we'd need to get all keys
             return key ? RedeemData.of([key], connectedScript) : null;

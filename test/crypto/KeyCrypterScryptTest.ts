@@ -2,6 +2,7 @@
 import { Buffer } from 'buffer';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('KeyCrypterScryptTest', () => {
     const TEST_BYTES1 = Buffer.from([

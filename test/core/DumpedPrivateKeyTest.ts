@@ -2,6 +2,7 @@ import { DumpedPrivateKey } from '../../src/net/bigtangle/core/DumpedPrivateKey'
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import bigInt from 'big-integer';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
+import { describe, test, expect } from 'vitest';
 
 // Minimal mock network parameters for testing
 class MockNetworkParameters extends NetworkParameters {

@@ -1,6 +1,7 @@
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
+import { describe, test, expect } from 'vitest';
 
 describe('MonetaryFormatTest', () => {
     const NO_CODE = MonetaryFormat.FIAT.withNoCode();

@@ -5,6 +5,7 @@ import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { describe, test, expect } from 'vitest';
 
 describe('TransactionOutputTest', () => {
     test('testP2SHOutputScript', () => {

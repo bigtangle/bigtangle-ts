@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { MnemonicCode } from '../../src/net/bigtangle/crypto/MnemonicCode';
 import { MnemonicException } from '../../src/net/bigtangle/crypto/MnemonicException';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('MnemonicCodeTest', () => {
     const vectors = [

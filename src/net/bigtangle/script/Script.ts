@@ -1430,7 +1430,7 @@ export class Script {
 
         // There are two kinds of nLockTime, need to ensure we're comparing apples-to-apples
         if (!(
-            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD_BIG)))) < 0) ||
+            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD)))) < 0) ||
             ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD)))) >= 0))
         ) {
             throw new ScriptException("Locktime requirement type mismatch");
@@ -1618,7 +1618,11 @@ export class Script {
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
             const payloadBytes = txContainingThis.bitcoinSerializeCopy();
-            clonedTx = txContainingThis.getParams().getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
+            const params = txContainingThis.getParams();
+            if (params === null) {
+                throw new Error("Transaction parameters are null");
+            }
+            clonedTx = params.getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.
         }

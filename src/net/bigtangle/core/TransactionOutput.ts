@@ -34,6 +34,7 @@ import { TransactionInput } from './TransactionInput';
 import { TransactionBag } from './TransactionBag';
 import { Preconditions } from '../utils/Preconditions';
 import { Buffer } from 'buffer';
+import { Transaction } from './Transaction';
 
 const { checkArgument, checkNotNull, checkState } = Preconditions;
 
@@ -375,7 +376,7 @@ export class TransactionOutput extends ChildMessage {
             let buf = "TxOut of ";
             buf += this.value.toString();
             if (script.isSentToAddress() || script.isPayToScriptHash())
-                buf += " to " + script.getToAddress(this.params);
+                buf += " to " + script.getToAddress(this.params!);
             else if (script.isSentToRawPubKey())
                 buf += " to pubkey " + Utils.HEX.encode(script.getPubKey());
             else if (script.isSentToMultiSig())
@@ -406,8 +407,8 @@ export class TransactionOutput extends ChildMessage {
     /**
      * Returns the transaction hash that owns this output.
      */
-    public getParentTransactionHash(): Sha256Hash | null {
-        return this.parent === null ? null : this.parent.getHash();
+    public getParentTransactionHash(): Sha256Hash {
+        return this.parent === null ? Sha256Hash.ZERO_HASH : this.parent.getHash();
     }
 
     /**
@@ -426,7 +427,7 @@ export class TransactionOutput extends ChildMessage {
      */
     public duplicateDetached(): TransactionOutput {
         // TODO: Implement Arrays.clone
-        return new TransactionOutput(this.params, null, this.value, this.scriptBytes);
+        return new TransactionOutput(this.params!, null, this.value, this.scriptBytes);
     }
 
     public equals(o: any): boolean {
@@ -449,7 +450,7 @@ export class TransactionOutput extends ChildMessage {
 
     public hashCode(): number {
         let result = this.value.hashCode();
-        result = 31 * result + (this.parent ? this.parent.hashCode() : 0);
+        result = 31 * result + (this.parent ? (this.parent as any).hashCode() : 0);
         for (let i = 0; i < this.scriptBytes.length; i++) {
             result = 31 * result + this.scriptBytes[i];
         }

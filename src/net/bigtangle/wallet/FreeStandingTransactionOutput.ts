@@ -52,9 +52,9 @@ export class FreeStandingTransactionOutput extends TransactionOutput {
         return this.output.getIndex();
     }
 
-    public getParentTransactionHash(): Sha256Hash | null {
+    public getParentTransactionHash(): Sha256Hash {
         const txHash = this.output.getTxHash();
-        return txHash || null;
+        return txHash || Sha256Hash.ZERO_HASH;
     }
 
     // Implement missing methods from TransactionOutput
@@ -71,11 +71,11 @@ export class FreeStandingTransactionOutput extends TransactionOutput {
     }
 
     public getOutPointFor(containingBlockHash: Sha256Hash): TransactionOutPoint {
-        return new TransactionOutPoint(
+        return TransactionOutPoint.fromTx4(
             this.networkParams, // Use locally stored params
             this.getIndex(),
             containingBlockHash,
-            this.getParentTransactionHash()
+            null // fromTx is null for free standing outputs
         );
     }
 }

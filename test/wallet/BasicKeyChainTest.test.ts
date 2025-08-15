@@ -2,7 +2,7 @@ import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { BloomFilter } from '../../src/net/bigtangle/core/BloomFilter';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
-import { expect } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 // Helper function to create test keys
 function createTestKey(): ECKey {

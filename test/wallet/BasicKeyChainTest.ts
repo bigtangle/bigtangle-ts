@@ -2,6 +2,7 @@ import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import bigInt from 'big-integer';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('BasicKeyChainTest', () => {
     let chain: BasicKeyChain;

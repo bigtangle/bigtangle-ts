@@ -113,6 +113,14 @@ export class ECKey {
     return new ECKey(null, pubPoint, compressed);
   }
 
+  public static fromPublicOnly(
+    pubKeyBytes: Uint8Array,
+    compressed: boolean = true
+  ): ECKey {
+    // This is the same as fromPublic, just a different name
+    return ECKey.fromPublic(pubKeyBytes, compressed);
+  }
+
   public static publicPointFromPrivate(privKey: BigInteger): ECPoint {
     // Convert directly to Uint8Array
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);

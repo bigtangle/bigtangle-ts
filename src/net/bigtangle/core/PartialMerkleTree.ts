@@ -108,7 +108,7 @@ export class PartialMerkleTree extends Message {
         }
 
         const nFlagBytes = this.readVarInt();
-        this.matchedChildBits = this.readBytes(Number(nFlagBytes));
+        this.matchedChildBits = Buffer.from(this.readBytes(Number(nFlagBytes)));
 
         this.length = this.cursor - this.offset;
     }

@@ -8,6 +8,7 @@ import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 // Placeholder
 import { ChildNumber } from '../crypto/ChildNumber';
 import { ECDSASignature } from '../crypto/ECDSASignature';
+import { SigHash } from '../core/SigHash';
 
 /**
  * <p>This signer may be used as a template for creating custom multisig transaction signers.</p>
@@ -58,12 +59,12 @@ export abstract class CustomTransactionSigner extends StatelessTransactionSigner
                 continue;
             }
 
-            const sighash = tx.hashForSignature(i, redeemData.redeemScript.getProgram(), Transaction.SigHash.ALL);
+            const sighash = tx.hashForSignature(i, redeemData.redeemScript.getProgram(), SigHash.ALL);
             if (sighash === null) {
                 throw new Error(`Hash for signature is null for input ${i}`);
             }
             const sigKey = this.getSignature(sighash, propTx.keyPaths.get(scriptPubKey));
-            const txSig = new TransactionSignature(sigKey.sig.r, sigKey.sig.s, Transaction.SigHash.ALL);
+            const txSig = new TransactionSignature(sigKey.sig.r, sigKey.sig.s, SigHash.ALL);
             const sigIndex = inputScript.getSigInsertionIndex(sighash, sigKey.pubKey);
             inputScript = scriptPubKey.getScriptSigWithSignature(inputScript, txSig.encodeToBitcoin(), sigIndex);
             txIn.setScriptSig(inputScript);

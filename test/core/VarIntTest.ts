@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
 import { Buffer } from 'buffer';
 

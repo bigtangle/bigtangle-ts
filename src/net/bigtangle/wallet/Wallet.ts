@@ -19,6 +19,7 @@ import { TransactionOutput } from "../core/TransactionOutput";
 import { UTXO } from "../core/UTXO";
 import { UserSettingDataInfo } from "../core/UserSettingDataInfo";
 import { Utils } from "../utils/Utils";
+import { Sha256Hash } from "../core/Sha256Hash";
 import { DeterministicKey } from "../crypto/DeterministicKey";
 import { ECIESCoder } from "../crypto/ECIESCoder";
 import { TransactionSignature } from "../crypto/TransactionSignature";
@@ -45,6 +46,7 @@ import bigInt from "big-integer";
 import { WalletProtobufSerializer } from "./WalletProtobufSerializer";
 import { ECDSASignature } from "../crypto/ECDSASignature";
 import { secp256k1 } from "@noble/curves/secp256k1";
+import { SigHash } from "../core/SigHash";
 
 export class Wallet extends WalletBase {
   private static readonly log = console; // Replace with a logger if needed
@@ -644,15 +646,15 @@ export class Wallet extends WalletBase {
       const value = output.getValue();
       totalInput = totalInput.add(value);
       // Create TransactionOutPoint and use the correct TransactionInput constructor
-      const outPoint = new TransactionOutPoint(
-        this.params,
-        output.getIndex(),
-        output.getBlockHash(),
-        output.getTxHash()
-      );
+        const outPoint = TransactionOutPoint.fromTransactionOutPoint4(
+          this.params,
+          output.getIndex(),
+          output.getBlockHash() ?? Sha256Hash.ZERO_HASH,
+          output.getTxHash() ?? Sha256Hash.ZERO_HASH
+        );
       // Assuming output has a getScript() method that returns a Script object
       const scriptBytes = Buffer.from(output.getScript().getProgram());
-      const input = new TransactionInput(
+      const input = TransactionInput.fromOutpoint5(
         this.params,
         tx,
         scriptBytes,
@@ -672,7 +674,7 @@ export class Wallet extends WalletBase {
 
     // Create outputs
     const outputs = [
-      new TransactionOutput(this.params, tx, amount, destAddr),
+      TransactionOutput.fromAddress(this.params, tx, amount, destAddr),
     ];
 
     // Add change output if needed
@@ -685,7 +687,7 @@ export class Wallet extends WalletBase {
       const pubKeyHashBuffer = Buffer.from(pubKeyHash);
       const changeAddr = Address.fromP2PKH(this.params, pubKeyHashBuffer);
       outputs.push(
-        new TransactionOutput(this.params, tx, change, changeAddr)
+        new TransactionOutput(this.params, tx, change, changeAddr.getHash160())
       );
     }
 
@@ -695,7 +697,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(new MemoInfo(memo));
+    tx.setMemo(memo);
 
     return tx;
   }
@@ -744,8 +746,8 @@ export class Wallet extends WalletBase {
     const block = await (this as any).payTransaction([tx]);
     // Post the block to the subtangle server
     const url = subtangleUrl + (ReqCmd.saveBlock || "/saveBlock");
-    const blockBytes = block.bitcoinSerializeCopy 
-      ? block.bitcoinSerializeCopy()
+    const blockBytes = block.bitcoinSerialize 
+      ? block.bitcoinSerialize()
       : Buffer.from([]);
       
     // Check if blockBytes is empty and add debugging
@@ -883,15 +885,15 @@ export class Wallet extends WalletBase {
       if (!value) continue;
       totalInput = totalInput.add(value);
       // Create TransactionOutPoint and use the correct TransactionInput constructor
-      const outPoint = new TransactionOutPoint(
-        this.params,
-        utxo.getIndex(),
-        utxo.getBlockHash(),
-        utxo.getTxHash()
-      );
+        const outPoint = TransactionOutPoint.fromTransactionOutPoint4(
+          this.params,
+          utxo.getIndex(),
+          utxo.getBlockHash() ?? Sha256Hash.ZERO_HASH,
+          utxo.getTxHash()
+        );
       // Assuming utxo has a getScript() method that returns a Script object
       const scriptBytes = Buffer.from(utxo.getScript().getProgram());
-      const input = new TransactionInput(
+      const input =   TransactionInput.fromOutpoint5(
         this.params,
         tx,
         scriptBytes,
@@ -906,7 +908,7 @@ export class Wallet extends WalletBase {
     }
     // Outputs: main destination
     const outputs = [
-      new TransactionOutput(this.params, tx, amount, destAddr),
+        new TransactionOutput(this.params, tx, amount, destAddr.getHash160()),
     ];
     // Change output if needed
     const change = totalInput.subtract(amount);
@@ -919,7 +921,7 @@ export class Wallet extends WalletBase {
         Buffer.from(changeKey.getPubKeyHash())
       ); // Used imported Address
       outputs.push(
-        new TransactionOutput(this.params, tx, change, changeAddr)
+          TransactionOutput.fromAddress(this.params, tx, change, changeAddr)
       );
     }
 
@@ -929,7 +931,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(new MemoInfo(memoInfo.toString())); // Set memo
+    tx.setMemo(memoInfo.toString()); // Set memo
 
     // Optionally sign the transaction here if needed
     // ...
@@ -1195,13 +1197,12 @@ export class Wallet extends WalletBase {
   async adjustSolveAndSign(block: Block): Promise<Block> {
     try {
      
-         block.solveWithoutTarget();  
       // Serialize the block and check if it's empty
-      const blockBytes = block.bitcoinSerializeCopy();
+      const blockBytes = block.bitcoinSerialize();
         
       await OkHttp3Util.post(
         this.getServerURL() + (ReqCmd.signToken || "/signToken"),
-        blockBytes
+       Buffer.from( blockBytes)
       );
       return block;
     } catch (e: any) {
@@ -1345,8 +1346,8 @@ export class Wallet extends WalletBase {
    */
   async solveAndPost(block: Block): Promise<Block> {
    
-      if (typeof block.solveWithoutTarget === "function") {
-        const result = block.solveWithoutTarget();
+      if (typeof block.solveDefault === "function") {
+        const result = block.solveDefault();
         if (
           typeof result !== "undefined" &&
           typeof (result as any).then === "function"
@@ -1355,9 +1356,9 @@ export class Wallet extends WalletBase {
         }
       }
     // Serialize the block
-    let blockBytes = block.bitcoinSerializeCopy();   
+    let blockBytes = block.bitcoinSerialize();   
     const tbbin = this.params.getDefaultSerializer().makeBlock(
-   blockBytes
+    Buffer.from(blockBytes)
     );
       console.log("Original block:", block.toString());
  
@@ -1383,7 +1384,7 @@ export class Wallet extends WalletBase {
     }
     // Post to the server
     const url = this.getServerURL() + (ReqCmd.saveBlock || "/saveBlock");
-    const response = await OkHttp3Util.post(url, blockBytes);
+    const response = await OkHttp3Util.post(url, Buffer.from( blockBytes));
     if (response && this.params?.getDefaultSerializer) {
       return this.params
         .getDefaultSerializer()
@@ -1411,8 +1412,8 @@ export class Wallet extends WalletBase {
   async submitSignedTransaction(signedTx: Transaction): Promise<any> {
     const url = this.getServerURL() + "/submitSignedTx";
     let txBytes: Buffer = Buffer.from([]);
-    if (signedTx.bitcoinSerializeCopy) {
-      const serialized = signedTx.bitcoinSerializeCopy();
+    if (signedTx.bitcoinSerialize) {
+      const serialized = signedTx.bitcoinSerialize();
       // Check if serialized data is empty
       if (serialized.length === 0) {
         console.warn("Transaction serialization resulted in empty byte array in submitSignedTransaction");
@@ -1504,8 +1505,8 @@ export class Wallet extends WalletBase {
    */
   estimateFee(tx: Transaction, feeRatePerByte: bigint): bigint {
     let txSize = 0;
-    if (tx.bitcoinSerializeCopy) {
-      const serialized = tx.bitcoinSerializeCopy();
+    if (tx.bitcoinSerialize) {
+      const serialized = tx.bitcoinSerialize();
       txSize = serialized.length;
     }
     return BigInt(txSize) * feeRatePerByte;
@@ -1606,13 +1607,13 @@ export class Wallet extends WalletBase {
 
         // Create TransactionInput using getHash() instead of getOutPointHash()
 
-        const outpoint =   TransactionOutPoint.fromOutput(
+        const outpoint = TransactionOutPoint.fromOutput3(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput
         );
         tx.addInput(
-          new TransactionInput(
+          TransactionInput.fromOutpoint5(
             this.params,
             tx,
             Buffer.from(spendableOutput.getUTXO().getScript().getProgram()),
@@ -1732,13 +1733,13 @@ export class Wallet extends WalletBase {
         myCoin = spendableOutput.getValue().add(myCoin);
 
         // Create TransactionInput using spendableOutput
-        const outpoint =   TransactionOutPoint.fromOutput(
+        const outpoint = TransactionOutPoint.fromOutput3(
           this.params,
           spendableOutput.getUTXO().getBlockHash(),
           spendableOutput
         );
         tx.addInput(
-          new TransactionInput(
+            TransactionInput.fromOutpoint5(
             this.params,
             tx,
             Buffer.from(spendableOutput.getUTXO().getScript().getProgram()),
@@ -1972,17 +1973,17 @@ export class Wallet extends WalletBase {
 
       totalInputAmount += value.getValue();
       // Create TransactionOutPoint and use the correct TransactionInput constructor
-      const outpoint = new TransactionOutPoint(
+      const outpoint = TransactionOutPoint.fromTransactionOutPoint4(
         this.params,
         utxo.getIndex(),
-        utxo.getBlockHash(),
-        utxo.getTxHash()
+        utxo.getBlockHash() ?? Sha256Hash.ZERO_HASH,
+        utxo.getTxHash() ?? Sha256Hash.ZERO_HASH
       );
 
       // Assuming utxo has a getScript() method that returns a Script object
       const scriptBytes = utxo.getScript().getProgram();
       inputs.push(
-        new TransactionInput(
+          TransactionInput.fromOutpoint5(
           this.params,
           tx,
           Buffer.from(
@@ -2016,7 +2017,7 @@ export class Wallet extends WalletBase {
     for (const output of outputs) {
       tx.addOutput(output);
     }
-    tx.setMemo(new MemoInfo(memo)); // Set memo
+    tx.setMemo(memo); // Set memo
 
     // Handle change
     const changeAmount = totalInputAmount - totalOutputAmount;
@@ -2032,7 +2033,7 @@ export class Wallet extends WalletBase {
         Buffer.from(changeKey.getPubKeyHash())
       );
       tx.addOutput(
-        new TransactionOutput(
+          TransactionOutput.fromAddress(
           this.params,
           tx,
           new Coin(changeAmount, tokenid),
@@ -2056,7 +2057,7 @@ export class Wallet extends WalletBase {
       const sighash = tx.hashForSignature(
         i,
         scriptProgram,
-        Transaction.SigHash.ALL
+         SigHash.ALL
       );
       if (!sighash) {
         throw new Error(`Unable to create sighash for input ${i}`);
@@ -2072,7 +2073,7 @@ export class Wallet extends WalletBase {
         new TransactionSignature(
           bigInt(signature.r.toString()),
           bigInt(signature.s.toString()),
-          Transaction.SigHash.ALL
+          1 // SigHash.ALL
         )
       );
       input.setScriptSig(inputScript);

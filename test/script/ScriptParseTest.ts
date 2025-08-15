@@ -1,5 +1,6 @@
 import { Script } from '../../src/net/bigtangle/script/Script';
 import { ScriptException } from '../../src/net/bigtangle/exception/ScriptException';
+import { describe, test, expect } from 'vitest';
 
 describe('ScriptParseTest', () => {
     test('testParseWithInsufficientDataForPushData1', () => {

@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import bigInt, { BigInteger } from 'big-integer';
 

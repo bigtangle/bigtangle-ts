@@ -7,6 +7,7 @@ import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { BlockMCMC } from '../../src/net/bigtangle/core/BlockMCMC';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, test } from 'vitest';
 
 describe('JsonMapperTest', () => {
     test('testJsonMapperByteList', () => {

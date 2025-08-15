@@ -5,6 +5,7 @@ import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
 import bigInt from 'big-integer';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('KeyChainGroupTest', () => {
     const LOOKAHEAD_SIZE = 5;

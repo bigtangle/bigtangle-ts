@@ -71,6 +71,10 @@ export abstract class Message {
 
     protected params: NetworkParameters | null = null;
 
+    public getLength(): number {
+        return this.length;
+    }
+
 
     public constructor(params: NetworkParameters) {
         this.params = params;
@@ -145,16 +149,43 @@ export abstract class Message {
     }
 
     /**
-     * Returns a copy of the array returned by {@link Message#unsafeBitcoinSerialize()}, which is safe to mutate.
-     * If you need extra performance and can guarantee you won't write to the array, you can use the unsafe version.
+     * Serialize this message to a byte array that conforms to the bitcoin wire protocol.
+     * <br/>
+     * This method may return the original byte array used to construct this message if the
+     * following conditions are met:
+     * <ol>
+     * <li>1) The message was parsed from a byte array with parseRetain = true</li>
+     * <li>2) The message has not been modified</li>
+     * <li>3) The array had an offset of 0 and no surplus bytes</li>
+     * </ol>
      *
-     * @return a freshly allocated serialized byte array
+     * If condition 3 is not met then an copy of the relevant portion of the array will be returned.
+     * Otherwise a full serialize will occur. For this reason you should only use this API if you can guarantee you
+     * will treat the resulting array as read only.
+     *
+     * @return a byte array owned by this object, do NOT mutate it.
      */
-    public bitcoinSerialize(): Uint8Array {
-        const bytes = this.unsafeBitcoinSerialize();
-        const copy = new Uint8Array(bytes.length);
-        copy.set(bytes);
-        return copy;
+    public bitcoinSerialize(): Uint8Array;
+    public bitcoinSerialize(stream: OutputStream): void;
+    public bitcoinSerialize(stream?: OutputStream): Uint8Array | void {
+        if (stream) {
+            // Serialize this message to the provided OutputStream using the bitcoin wire format.
+            // 1st check for cached bytes.
+            if (this.payload !== null && this.length !== Message.UNKNOWN_LENGTH) {
+                const buffer = Buffer.from(this.payload);
+                stream.writeBytes(buffer, this.offset, this.length);
+                return;
+            }
+
+            this.bitcoinSerializeToStream(stream);
+        } else {
+            // Returns a copy of the array returned by {@link Message#unsafeBitcoinSerialize()}, which is safe to mutate.
+            // If you need extra performance and can guarantee you won't write to the array, you can use the unsafe version.
+            const bytes = this.unsafeBitcoinSerialize();
+            const copy = new Uint8Array(bytes.length);
+            copy.set(bytes);
+            return copy;
+        }
     }
 
     /**
@@ -218,23 +249,6 @@ export abstract class Message {
         const buf = stream.toByteArray();
         this.length = buf.length;
         return buf;
-    }
-
-    /**
-     * Serialize this message to the provided OutputStream using the bitcoin wire format.
-     *
-     * @param stream
-     * @throws IOException
-     */
-    public bitcoinSerialize(stream: OutputStream): void {
-        // 1st check for cached bytes.
-        if (this.payload !== null && this.length !== Message.UNKNOWN_LENGTH) {
-            const buffer = Buffer.from(this.payload);
-            stream.writeBytes(buffer, this.offset, this.length);
-            return;
-        }
-
-        this.bitcoinSerializeToStream(stream);
     }
 
     /**
@@ -316,7 +330,7 @@ export abstract class Message {
             }
             const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
             this.cursor += offset + varint.getOriginalSizeInBytes();
-            return varint.value;
+            return varint.value.toJSNumber();
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
                 throw new ProtocolException(e.message || "Array index out of bounds");

@@ -30,7 +30,7 @@ export class UtilsTest {
         mineraddress: Buffer,
     ): Block {
         // Use a static factory method to create the Block instance
-        const b = new Block(prevBlock.getParams()!, version);
+        const b =   Block.setBlock2(prevBlock.getParams()!, version);
 
         b.setMinerAddress(mineraddress);
         b.setPrevBlockHash(prevBlock.getHash());

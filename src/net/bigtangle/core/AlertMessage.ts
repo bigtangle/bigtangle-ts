@@ -27,8 +27,8 @@ const MAX_SET_SIZE = 100;
  * Instances of this class are not safe for use by multiple threads.
  */
 export class AlertMessage extends Message {
-    private content!: Buffer;
-    private signature!: Buffer;
+    private content!: Uint8Array;
+    private signature!: Uint8Array;
 
     // See the getters for documentation of what each field means.
     private version: number = 1;
@@ -43,10 +43,10 @@ export class AlertMessage extends Message {
     private statusBar!: string;
     private reserved!: string;
 
-    constructor(params: NetworkParameters, payloadBytes: Buffer) {
-        super(params, payloadBytes, 0, params.getProtocolVersionNum(ProtocolVersion.CURRENT), params.getDefaultSerializer(), payloadBytes.length);
-        // Parse the message after construction
-        this.parse();
+    constructor(params: NetworkParameters, payloadBytes: Uint8Array) {
+        super(params);
+        // Set the values using the proper method
+        this.setValues5(params, payloadBytes, 0, params.getDefaultSerializer(), payloadBytes.length);
     }
 
     public toString(): string {
@@ -102,7 +102,7 @@ export class AlertMessage extends Message {
      * doesn't verify, because that would allow arbitrary attackers to spam your users.
      */
     public isSignatureValid(): boolean {
-        const hash = Sha256Hash.hashTwice(this.content);
+        const hash = Sha256Hash.hashTwice(Buffer.from(this.content));
         // TODO: Implement proper signature verification
         // This is a placeholder since we don't have ECDSASignature implemented
         return true;
@@ -241,8 +241,8 @@ export class AlertMessage extends Message {
     // Implementation of abstract method from Message class
     public bitcoinSerializeToStream(stream: any): void {
         // Serialize the content and signature as byte arrays (with length prefix)
-        this.writeByteArrayToStream(stream, this.content);
-        this.writeByteArrayToStream(stream, this.signature);
+        this.writeByteArrayToStream(stream, Buffer.from(this.content));
+        this.writeByteArrayToStream(stream, Buffer.from(this.signature));
 
         // Now serialize the embedded structure (alert fields)
         // The embedded structure is serialized as:
@@ -274,9 +274,9 @@ export class AlertMessage extends Message {
     }
 
     // Helper methods for serialization
-    private writeByteArrayToStream(stream: any, arr: Buffer): void {
+    private writeByteArrayToStream(stream: any, arr: Uint8Array): void {
         this.writeVarIntToStream(stream, arr.length);
-        stream.write(arr);
+        stream.write(Buffer.from(arr));
     }
     private writeVarIntToStream(stream: any, value: number): void {
         const VarInt = require('./VarInt').VarInt;

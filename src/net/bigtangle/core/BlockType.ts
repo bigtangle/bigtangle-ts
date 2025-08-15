@@ -23,6 +23,44 @@ export interface BlockTypeConfig {
     requiresCalculation: boolean;
 }
 
+// Add methods to the enum
+export namespace BlockType {
+    export function values(): BlockType[] {
+        return [
+            BlockType.BLOCKTYPE_INITIAL,
+            BlockType.BLOCKTYPE_TRANSFER,
+            BlockType.BLOCKTYPE_REWARD,
+            BlockType.BLOCKTYPE_TOKEN_CREATION,
+            BlockType.BLOCKTYPE_USERDATA,
+            BlockType.BLOCKTYPE_CONTRACT_EVENT,
+            BlockType.BLOCKTYPE_GOVERNANCE,
+            BlockType.BLOCKTYPE_FILE,
+            BlockType.BLOCKTYPE_CONTRACT_EXECUTE,
+            BlockType.BLOCKTYPE_CROSSTANGLE,
+            BlockType.BLOCKTYPE_ORDER_OPEN,
+            BlockType.BLOCKTYPE_ORDER_CANCEL,
+            BlockType.BLOCKTYPE_ORDER_EXECUTE,
+            BlockType.BLOCKTYPE_CONTRACTEVENT_CANCEL
+        ];
+    }
+
+    export function ordinal(type: BlockType): number {
+        return type;
+    }
+
+    export function getMaxBlockSize(type: BlockType): number {
+        return getBlockTypeConfig(type).maxSize;
+    }
+
+    export function allowCoinbaseTransaction(type: BlockType): boolean {
+        return getBlockTypeConfig(type).allowCoinbaseTransaction;
+    }
+
+    export function requiresCalculation(type: BlockType): boolean {
+        return getBlockTypeConfig(type).requiresCalculation;
+    }
+}
+
 function getBlockTypeConfig(type: BlockType): BlockTypeConfig {
     switch (type) {
         case BlockType.BLOCKTYPE_INITIAL:

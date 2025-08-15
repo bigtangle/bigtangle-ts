@@ -68,14 +68,14 @@ export class BloomFilter extends Message {
         if (firstByte < 0xfd) {
             dataLength = firstByte;
         } else if (firstByte === 0xfd) {
-            dataLength = this.payload.readUInt16LE(localOffset);
+            dataLength = Buffer.from(this.payload).readUInt16LE(localOffset);
             localOffset += 2;
         } else if (firstByte === 0xfe) {
-            dataLength = this.payload.readUInt32LE(localOffset);
+            dataLength = Buffer.from(this.payload).readUInt32LE(localOffset);
             localOffset += 4;
         } else {
-            const low = this.payload.readUInt32LE(localOffset);
-            const high = this.payload.readUInt32LE(localOffset + 4);
+            const low = Buffer.from(this.payload).readUInt32LE(localOffset);
+            const high = Buffer.from(this.payload).readUInt32LE(localOffset + 4);
             // Handle 64-bit integer correctly using JavaScript's Number type
             // This works for values up to Number.MAX_SAFE_INTEGER
             // Use a safer approach to avoid TypeScript errors
@@ -100,7 +100,7 @@ export class BloomFilter extends Message {
         localOffset += dataLength;
         
         // Read hash functions (uint32)
-        this.hashFuncs = this.payload.readUInt32LE(localOffset);
+        this.hashFuncs = Buffer.from(this.payload).readUInt32LE(localOffset);
         localOffset += 4;
         
         if (this.hashFuncs > BloomFilter.MAX_HASH_FUNCS) {
@@ -108,7 +108,7 @@ export class BloomFilter extends Message {
         }
         
         // Read nTweak (uint32)
-        this.nTweak = this.payload.readUInt32LE(localOffset);
+        this.nTweak = Buffer.from(this.payload).readUInt32LE(localOffset);
         localOffset += 4;
         
         // Read flags (byte)

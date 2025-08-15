@@ -5,6 +5,7 @@ import { Script } from '../script/Script';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 // Placeholder
 import { DeterministicKey } from '../crypto/DeterministicKey';
+import { SigHash } from '../core/SigHash';
 
 /**
  * <p>{@link TransactionSigner} implementation for signing inputs using keys from provided {@link net.bigtangle.wallet.KeyBag}.</p>
@@ -72,7 +73,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
 
             const script = redeemData.redeemScript.getProgram();
             try {
-                const sighash = tx.hashForSignature(i, script, Transaction.SigHash.ALL);
+                const sighash = tx.hashForSignature(i, script, SigHash.ALL);
                 if (sighash === null) {
                     console.warn(`Unable to create sighash for input ${i}`);
                     continue;

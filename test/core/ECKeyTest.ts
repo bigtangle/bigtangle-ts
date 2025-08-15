@@ -9,6 +9,7 @@ import { KeyCrypterScrypt } from "../../src/net/bigtangle/crypto/KeyCrypterScryp
 import { KeyCrypter } from "../../src/net/bigtangle/crypto/KeyCrypter";
 import bigInt from "big-integer";
 import { TestParams } from "net/bigtangle/params/TestParams";
+import { describe, beforeEach, test, expect } from "vitest";
 
 describe("ECKeyTest", () => {
   const PASSWORD1 = "my hovercraft has eels";

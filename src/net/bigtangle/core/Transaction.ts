@@ -33,6 +33,8 @@ import { Script } from '../script/Script';
 import { TransactionBag } from './TransactionBag';
 import { VerificationException } from '../exception/VerificationException';
 import { ScriptException } from '../exception/ScriptException';
+import { Purpose } from './Purpose';
+import { SigHash } from './SigHash';
 
 /**
  * <p>
@@ -60,7 +62,7 @@ export class Transaction extends ChildMessage {
      * If feePerKb is lower than this, Bitcoin Core will treat it as if there were
      * no fee.
      */
-    public static readonly REFERENCE_DEFAULT_MIN_TX_FEE: Coin = Coin.valueOf(5000, new Uint8Array(32)); // 0.05
+    public static readonly REFERENCE_DEFAULT_MIN_TX_FEE: Coin = Coin.valueOf(5000n, Buffer.alloc(32)); // 0.05
     // mBTC
 
     // mBTC
@@ -70,7 +72,7 @@ export class Transaction extends ChildMessage {
      * will most likely be rejected by the network. This is calculated by assuming a
      * standard output will be 34 bytes, and then using the formula used in .
      */
-    public static readonly MIN_NONDUST_OUTPUT: Coin = Coin.valueOf(2730, new Uint8Array(32)); // satoshis
+    public static readonly MIN_NONDUST_OUTPUT: Coin = Coin.valueOf(2730n, Buffer.alloc(32)); // satoshis
 
     // These are bitcoin serialized.
     private version: number = 1;
@@ -81,33 +83,6 @@ export class Transaction extends ChildMessage {
 
     // This is an in memory helper only.
     private hash: Sha256Hash | null = null;
-
-    /**
-     * This enum describes the underlying reason the transaction was created. It's
-     * useful for rendering wallet GUIs more appropriately.
-     */
-    public enum Purpose {
-        /** Used when the purpose of a transaction is genuinely unknown. */
-        UNKNOWN,
-        /** Transaction created to satisfy a user payment request. */
-        USER_PAYMENT,
-        /**
-         * Transaction automatically created and broadcast in order to reallocate money
-         * from old to new keys.
-         */
-        KEY_ROTATION,
-        /** Transaction that uses up pledges to an assurance contract */
-        ASSURANCE_CONTRACT_CLAIM,
-        /** Transaction that makes a pledge to an assurance contract. */
-        ASSURANCE_CONTRACT_PLEDGE,
-        /**
-         * Send-to-self transaction that exists just to create an output of the right
-         * size we can pledge.
-         */
-        ASSURANCE_CONTRACT_STUB,
-        /** Raise fee, e.g. child-pays-for-parent. */
-        RAISE_FEE
-    }
 
     private purpose: Purpose = Purpose.UNKNOWN;
 
@@ -132,6 +107,27 @@ export class Transaction extends ChildMessage {
         this.length = 8; // 8 for std fields
     }
 
+    public static fromTransaction6(params: NetworkParameters, payload: Uint8Array, offset: number, parent: Block | null, serializer: any, length: number): Transaction {
+        const tx = new Transaction(params);
+        // Call the setValues method to initialize from payload
+        tx.setValues5(params, payload, offset, serializer, length);
+        // Set the parent if provided
+        if (parent) {
+            tx.setParent(parent);
+        }
+        return tx;
+    }
+
+    public getOptimalEncodingMessageSize(): number {
+        // TODO: Implement this method properly
+        return this.length;
+    }
+
+    public getSigOpCount(): number {
+        // TODO: Implement this method properly
+        return 0;
+    }
+
     /**
      * Returns the transaction hash as you see them in the block explorer.
      */
@@ -142,6 +138,21 @@ export class Transaction extends ChildMessage {
             this.hash = Sha256Hash.ZERO_HASH; // Placeholder
         }
         return this.hash;
+    }
+
+    /**
+     * Calculates the hash for the signature.
+     */
+    public hashForSignature(inputIndex: number, connectedScript: Uint8Array, sighashFlags: number): Sha256Hash {
+        // TODO: Implement this method properly
+        return Sha256Hash.ZERO_HASH; // Placeholder
+    }
+
+    /**
+     * Returns a copy of the transaction with all the inputs and outputs.
+     */
+    public bitcoinSerializeCopy(): Uint8Array {
+        return this.unsafeBitcoinSerialize();
     }
 
     /**
@@ -199,37 +210,6 @@ export class Transaction extends ChildMessage {
     }
 
     /**
-     * These constants are a part of a scriptSig signature on the inputs. They
-     * define the details of how a transaction can be redeemed, specifically, they
-     * control how the hash of the transaction is calculated.
-     */
-    public enum SigHash {
-        ALL = 1,
-        NONE = 2,
-        SINGLE = 3,
-        ANYONECANPAY = 0x80, // Caution: Using this
-        // type in isolation is
-        // non-standard. Treated
-        // similar to
-        // ANYONECANPAY_ALL.
-        ANYONECANPAY_ALL = 0x81,
-        ANYONECANPAY_NONE = 0x82,
-        ANYONECANPAY_SINGLE = 0x83,
-        UNSET = 0 // Caution:
-        // Using
-        // this
-        // type
-        // in
-        // isolation
-        // is
-        // non-standard.
-        // Treated
-        // similar
-        // to
-        // ALL.
-    }
-
-    /**
      * @deprecated Instead use SigHash.ANYONECANPAY or
      *             SigHash.ANYONECANPAY_ALL as appropriate.
      */
@@ -265,11 +245,25 @@ export class Transaction extends ChildMessage {
      *
      * @return the newly created input.
      */
-    public addInput(blockHash: Sha256Hash, from: TransactionOutput): TransactionInput {
-        // TODO: Implement TransactionInput.fromTransactionInput4
-        const input = new TransactionInput(this.params); // Placeholder
-        this.addInputDirect(input);
-        return input;
+    public addInput(blockHash: Sha256Hash, from: TransactionOutput): TransactionInput;
+    public addInput(input: TransactionInput): TransactionInput;
+    public addInput(...args: any[]): TransactionInput {
+        if (args.length === 1 && args[0] instanceof TransactionInput) {
+            // Single argument: TransactionInput
+            const input = args[0];
+            this.addInputDirect(input);
+            return input;
+        } else if (args.length === 2 && args[0] instanceof Sha256Hash && args[1] instanceof TransactionOutput) {
+            // Two arguments: Sha256Hash and TransactionOutput
+            const blockHash = args[0];
+            const from = args[1];
+            // TODO: Implement TransactionInput.fromTransactionInput4
+            const input = new TransactionInput(this.params!); // Placeholder
+            this.addInputDirect(input);
+            return input;
+        } else {
+            throw new Error("Invalid arguments for addInput method");
+        }
     }
 
     /**
@@ -319,7 +313,7 @@ export class Transaction extends ChildMessage {
      */
     public addOutputByAddress(value: Coin, address: Address): TransactionOutput {
         // TODO: Implement TransactionOutput.fromAddress
-        const to = new TransactionOutput(this.params, this, value, new Uint8Array(0)); // Placeholder
+        const to = new TransactionOutput(this.params!, this, value, Buffer.alloc(0)); // Placeholder
         return this.addOutput(to);
     }
 
@@ -329,7 +323,7 @@ export class Transaction extends ChildMessage {
      */
     public addOutputByECKey(value: Coin, pubkey: ECKey): TransactionOutput {
         // TODO: Implement TransactionOutput.fromCoinKey
-        const to = new TransactionOutput(this.params, this, value, new Uint8Array(0)); // Placeholder
+        const to = new TransactionOutput(this.params!, this, value, Buffer.alloc(0)); // Placeholder
         return this.addOutput(to);
     }
 
@@ -339,7 +333,7 @@ export class Transaction extends ChildMessage {
      * you're doing unusual things.
      */
     public addOutputByScript(value: Coin, script: Script): TransactionOutput {
-        const to = new TransactionOutput(this.params, this, value, script.getProgram());
+        const to = new TransactionOutput(this.params!, this, value, script.getProgram());
         return this.addOutput(to);
     }
 
@@ -391,12 +385,12 @@ export class Transaction extends ChildMessage {
     }
 
     /** Returns an unmodifiable view of all inputs. */
-    public getInputs(): readonly TransactionInput[] {
+    public getInputs(): TransactionInput[] {
         return this.inputs;
     }
 
     /** Returns an unmodifiable view of all outputs. */
-    public getOutputs(): readonly TransactionOutput[] {
+    public getOutputs(): TransactionOutput[] {
         return this.outputs;
     }
 

@@ -1,3 +1,4 @@
+import { describe, test } from "vitest";
 
 describe('ECKeyEncryptTest', () => {
     test.skip('importECKeyDecrypt', () => {

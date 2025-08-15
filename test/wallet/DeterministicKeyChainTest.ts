@@ -6,6 +6,7 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { DeterministicSeed } from '../../src/net/bigtangle/wallet/DeterministicSeed';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('DeterministicKeyChainTest', () => {
     let chain: DeterministicKeyChain;

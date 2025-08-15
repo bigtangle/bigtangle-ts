@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import { HDUtils } from '../../src/net/bigtangle/crypto/HDUtils';
 import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, test, expect } from 'vitest';
 
 describe('HDUtilsTest', () => {
     test('testHmac', () => {

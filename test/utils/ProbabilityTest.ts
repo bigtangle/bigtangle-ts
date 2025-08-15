@@ -1,4 +1,5 @@
 
+import { describe, test, expect } from 'vitest';
 import { ProbabilityBlock } from '../../src/net/bigtangle/utils/ProbabilityBlock';
 
 describe('ProbabilityTest', () => {

@@ -8,6 +8,7 @@ import {
     OP_PUSHDATA2,
     OP_PUSHDATA4,
 } from '../../src/net/bigtangle/script/ScriptOpCodes';
+import { describe, test, expect } from 'vitest';
 
 describe('ScriptChunkTest', () => {
     test('testShortestPossibleDataPush', () => {

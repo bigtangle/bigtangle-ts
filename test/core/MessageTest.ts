@@ -4,6 +4,7 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Message } from '../../src/net/bigtangle/core/Message';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
 import bigInt from 'big-integer';
+import { describe, test, expect } from 'vitest';
 
 describe('MessageTest', () => {
     // If readStr() is vulnerable this causes OutOfMemory

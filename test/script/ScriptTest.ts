@@ -12,6 +12,7 @@ import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { OP_0 } from '../../src/net/bigtangle/script/ScriptOpCodes';
 import bigInt from 'big-integer';
+import { describe, test, expect } from 'vitest';
 
 describe('ScriptTest', () => {
     const sigProg =
@@ -223,8 +224,8 @@ describe('ScriptTest', () => {
         if (txHash === null) {
             throw new Error('Failed to create transaction hash from valid hash bytes');
         }
-        const outpoint = new TransactionOutPoint(PARAMS, 0, blockHash, txHash);
-        tx.addInput(  TransactionInput.fromOutpoint(PARAMS, tx, Buffer.from([]), outpoint));
+        const outpoint =   TransactionOutPoint.fromTransactionOutPoint4(PARAMS, 0, blockHash, txHash);
+        tx.addInput(  TransactionInput.fromOutpoint4(PARAMS, tx, Buffer.from([]), outpoint));
         const script = new ScriptBuilder().smallNum(0).build();
 
         const stack: Buffer[] = [];

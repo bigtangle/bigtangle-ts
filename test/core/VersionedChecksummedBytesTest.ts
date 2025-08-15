@@ -2,6 +2,7 @@ import { MainNetParams } from "../../src/net/bigtangle/params/MainNetParams";
 import { VersionedChecksummedBytes } from "../../src/net/bigtangle/core/VersionedChecksummedBytes";
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams";
+import { describe, test, expect } from "vitest";
 describe("VersionedChecksummedBytesTest", () => {
   const testParams = TestParams.get();
   const mainParams = MainNetParams.get();

@@ -39,6 +39,7 @@ import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { UUIDUtil } from "../../src/net/bigtangle/utils/UUIDUtil";
 import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
+import { SigHash } from "net/bigtangle/core/SigHash";
 
 test("dummy test", () => {});
 export abstract class RemoteTest {
@@ -408,7 +409,7 @@ export abstract class RemoteTest {
       multiSignBies = new Array<MultiSignBy>();
     } else {
       const multiSignByRequest = this.objectMapper.parse(
-        transaction.getDataSignature()!.toString("utf8"),
+        transaction.getDataSignature()!.toString( ),
         { mainCreator: () => [MultiSignByRequest] }
       ) as MultiSignByRequest;
       multiSignBies = multiSignByRequest.getMultiSignBies()!;
@@ -433,7 +434,7 @@ export abstract class RemoteTest {
     );
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.signToken,
-      block0.bitcoinSerializeCopy()
+      Buffer.from(block0.bitcoinSerialize())
     );
     return block0;
   }
@@ -492,7 +493,7 @@ export abstract class RemoteTest {
     // save block
     const resp = await OkHttp3Util.post(
       this.contextRoot + ReqCmd.adjustHeight,
-      block.bitcoinSerializeCopy()
+      Buffer.from(block.bitcoinSerialize())
     );
 
     const result = this.objectMapper.parse(resp);
@@ -549,7 +550,7 @@ export abstract class RemoteTest {
     const input =   TransactionInput.fromScriptBytes(
       this.networkParameters,
       tx,
-      outPoint.bitcoinSerializeCopy()
+      outPoint.bitcoinSerialize()
     );
     tx.addInput(input);
 
@@ -557,7 +558,7 @@ export abstract class RemoteTest {
     const sighash = tx.hashForSignature(
       0,
       spendableOutput.getScriptBytes(),
-      Transaction.SigHash.ALL
+       SigHash.ALL
     );
     if (!sighash) {
       throw new Error("Unable to create sighash for transaction");
@@ -567,7 +568,7 @@ export abstract class RemoteTest {
       new TransactionSignature(
         bigInt(signature.r.toString()),
         bigInt(signature.s.toString()),
-        Transaction.SigHash.ALL
+         SigHash.ALL
       )
     );
     input.setScriptSig(inputScript);
@@ -975,7 +976,7 @@ export abstract class RemoteTest {
 
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.signToken,
-      block.bitcoinSerializeCopy()
+      Buffer.from(block.bitcoinSerialize())
     );
 
     const ecKeys = new Array<ECKey>();
@@ -1013,7 +1014,7 @@ export abstract class RemoteTest {
         multiSignBies = new Array<MultiSignBy>();
       } else {
         const multiSignByRequest = this.objectMapper.parse(
-          transaction.getDataSignature()!.toString("utf8"),
+          transaction.getDataSignature()!.toString( ),
           { mainCreator: () => [MultiSignByRequest] }
         ) as MultiSignByRequest;
         multiSignBies = multiSignByRequest.getMultiSignBies()!;
@@ -1038,7 +1039,7 @@ export abstract class RemoteTest {
 
       await OkHttp3Util.post(
         this.contextRoot + ReqCmd.signToken,
-        block0.bitcoinSerializeCopy()
+        Buffer.from(block0.bitcoinSerialize())
       );
     }
   }
@@ -1132,7 +1133,7 @@ export abstract class RemoteTest {
     );
     await OkHttp3Util.post(
       this.contextRoot + ReqCmd.signToken,
-      block.bitcoinSerializeCopy()
+      Buffer.from(block.bitcoinSerialize())
     );
 
     const permissionedAddressesResponse =

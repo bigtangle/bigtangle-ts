@@ -32,7 +32,7 @@ describe("RemoteBinaryTests", () => {
     // Post to the server
     const url = tests.contextRoot + (ReqCmd.saveBlock || "/saveBlock");
     await expect(
-      OkHttp3Util.post(url, block.bitcoinSerializeCopy())
+      OkHttp3Util.post(url, Buffer.from(block.bitcoinSerialize()))
     ).rejects.toThrow(
       "net.bigtangle.exception.VerificationException$UnsolidException: Not solid. Server disallows unsolid blocks."
     );

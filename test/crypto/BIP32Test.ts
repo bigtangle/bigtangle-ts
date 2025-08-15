@@ -5,6 +5,7 @@ import { ChildNumber } from '../../src/net/bigtangle/crypto/ChildNumber';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Base58 } from '../../src/net/bigtangle/utils/Base58';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, expect, test } from 'vitest';
 
 class HDWTestVector {
     public seed: string;

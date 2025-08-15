@@ -7,6 +7,7 @@ import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScryp
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
+import { describe, test, expect } from 'vitest';
 
 describe('ChildKeyDerivationTest', () => {
     const HDW_CHAIN_EXTERNAL = 0;

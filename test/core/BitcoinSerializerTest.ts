@@ -2,6 +2,7 @@
 import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { BitcoinPacketHeader } from '../../src/net/bigtangle/core/BitcoinSerializer';
+import { describe, test, expect } from 'vitest';
 
 describe('BitcoinSerializerTest', () => {
     const ADDRESS_MESSAGE_BYTES = Buffer.from(

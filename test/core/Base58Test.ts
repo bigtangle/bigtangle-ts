@@ -2,6 +2,7 @@
 import { Buffer } from 'buffer';
 import { Base58 } from '../../src/net/bigtangle/utils/Base58';
 import { AddressFormatException } from '../../src/net/bigtangle/exception/AddressFormatException';
+import { describe, test, expect } from 'vitest';
 
 describe('Base58Test', () => {
     test('testEncode', () => {

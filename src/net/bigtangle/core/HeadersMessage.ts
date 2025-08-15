@@ -46,7 +46,7 @@ export class HeadersMessage extends Message {
             throw new ProtocolException("Payload is null");
         }
         let cursor = 0;
-        const varInt = VarInt.fromBuffer(this.payload, cursor);
+        const varInt = VarInt.fromBuffer(Buffer.from(this.payload), cursor);
         const numHeaders = varInt.value.toJSNumber();
         cursor += varInt.getOriginalSizeInBytes();
 
@@ -60,7 +60,7 @@ export class HeadersMessage extends Message {
         for (let i = 0; i < numHeaders; ++i) {
             // Extract the block header data from the payload starting at cursor position
             const blockHeaderData = this.payload.subarray(cursor);
-            const newBlockHeader = serializer.makeBlock(blockHeaderData);
+            const newBlockHeader = serializer.makeBlock(Buffer.from(blockHeaderData));
     
             cursor += newBlockHeader.getMessageSize(); // Assuming getMessageSize returns optimalEncodingMessageSize
             this.blockHeaders.push(newBlockHeader);

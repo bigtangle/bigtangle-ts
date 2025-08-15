@@ -199,6 +199,12 @@ export class Block extends Message {
         this.optimalEncodingMessageSize += VarInt.sizeOf(numTransactions);
         this.transactions = [];
         for (let i = 0; i < numTransactions; i++) {
+            if (this.params === null) {
+                throw new Error("Network parameters are null");
+            }
+            if (this.payload === null) {
+                throw new Error("Payload is null");
+            }
             const tx = Transaction.fromTransaction6(this.params, this.payload, this.cursor, this, this.serializer, Message.UNKNOWN_LENGTH);
             // Label the transaction as coming from the P2P network, so code
             // that cares where we first saw it knows.
@@ -258,7 +264,7 @@ export class Block extends Message {
         Utils.int64ToByteStreamLE(BigInt(this.lastMiningRewardBlock), stream);
         Utils.uint32ToByteStreamLE(this.nonce, stream);
         stream.write(this.minerAddress);
-        Utils.uint32ToByteStreamLE(this.blockType.ordinal(), stream);
+        Utils.uint32ToByteStreamLE(BlockType.ordinal(this.blockType), stream);
         Utils.int64ToByteStreamLE(BigInt(this.height), stream);
     }
 
@@ -340,7 +346,7 @@ export class Block extends Message {
         let len = VarInt.sizeOf(this.transactions.length);
         for (const tx of this.transactions) {
             // 255 is just a guess at an average tx length
-            len += tx.length === Message.UNKNOWN_LENGTH ? 255 : tx.length;
+            len += tx.getLength() === Message.UNKNOWN_LENGTH ? 255 : tx.getLength();
         }
         return len;
     }
@@ -434,6 +440,9 @@ export class Block extends Message {
 
     /** Returns a copy of the block */
     public cloneAsHeader(): Block {
+        if (this.params === null) {
+            throw new Error("Network parameters are null");
+        }
         const block = Block.setBlock2(this.params, NetworkParameters.BLOCK_VERSION_GENESIS);
         this.copyBitcoinHeaderTo(block);
         return block;
@@ -472,8 +481,12 @@ export class Block extends Message {
         s += "   merkle: " + this.getMerkleRoot() + "\n";
         s += "   difficulty target (nBits):    " + this.difficultyTarget + "\n";
         s += "   nonce: " + this.nonce + "\n";
-        if (this.minerAddress !== null)
-            s += "   mineraddress: " + new Address(this.params, Buffer.from(this.minerAddress)) + "\n";
+        if (this.minerAddress !== null) {
+            if (this.params === null) {
+                throw new Error("Network parameters are null");
+            }
+            s += "   mineraddress: " + new Address(this.params, this.params.getAddressHeader(), Buffer.from(this.minerAddress)) + "\n";
+        }
 
         s += "   blocktype: " + this.blockType + "\n";
         if (this.transactions !== null && this.transactions.length > 0) {
@@ -484,8 +497,8 @@ export class Block extends Message {
         }
         if (this.blockType === BlockType.BLOCKTYPE_REWARD) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0) {
-                    const rewardInfo = new RewardInfo().parse(this.transactions[0].getData());
+                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                    const rewardInfo = new RewardInfo().parse(this.transactions[0].getData()!);
                     s += rewardInfo.toString();
                 }
             } catch (e) {
@@ -494,32 +507,40 @@ export class Block extends Message {
         }
         if (this.blockType === BlockType.BLOCKTYPE_ORDER_OPEN) {
             try {
-                const info = new OrderOpenInfo().parse(this.transactions![0].getData());
-                s += info.toString();
+                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                    const info = new OrderOpenInfo().parse(this.transactions[0].getData()!);
+                    s += info.toString();
+                }
             } catch (e) {
                 // ignore throw new RuntimeException(e);
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_TOKEN_CREATION) {
             try {
-                const info = new TokenInfo().parse(this.transactions![0].getData());
-                s += info.toString();
+                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                    const info = new TokenInfo().parse(this.transactions[0].getData()!);
+                    s += info.toString();
+                }
             } catch (e) {
                 // ignore throw new RuntimeException(e);
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_CONTRACT_EXECUTE) {
             try {
-                const info = new ContractExecutionResult().parse(this.transactions![0].getData());
-                s += info.toString();
+                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                    const info = new ContractExecutionResult().parse(this.transactions[0].getData()!);
+                    s += info.toString();
+                }
             } catch (e) {
                 // ignore throw new RuntimeException(e);
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_ORDER_EXECUTE) {
             try {
-                const info = new OrderExecutionResult().parse(this.transactions![0].getData());
-                s += info.toString();
+                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                    const info = new OrderExecutionResult().parse(this.transactions[0].getData()!);
+                    s += info.toString();
+                }
             } catch (e) {
                 // ignore throw new RuntimeException(e);
             }
@@ -568,6 +589,9 @@ export class Block extends Message {
      */
     public getDifficultyTargetAsInteger(): bigint {
         const target = Utils.decodeCompactBits(this.difficultyTarget);
+        if (this.params === null) {
+            throw new Error("Network parameters are null");
+        }
         if (target < 0 || target > this.params.getMaxTarget())
             throw new VerificationException("Difficulty target out of bounds");
         return target;
@@ -646,7 +670,10 @@ export class Block extends Message {
         const tree = this.buildMerkleTree();
         if (tree.length === 0)
             return Sha256Hash.ZERO_HASH;
-        return Sha256Hash.wrap(tree[tree.length - 1]);
+        if (tree.length === 0) {
+            return Sha256Hash.ZERO_HASH;
+        }
+        return Sha256Hash.wrap(Buffer.from(tree[tree.length - 1]));
     }
 
     private buildMerkleTree(): Uint8Array[] {
@@ -770,7 +797,7 @@ export class Block extends Message {
     }
 
     private getMaxBlockSize(): number {
-        return this.blockType.getMaxBlockSize();
+        return BlockType.getMaxBlockSize(this.blockType);
     }
 
     /**
@@ -825,7 +852,7 @@ export class Block extends Message {
         t.setParent(this);
         // cui
         this.transactions.push(t);
-        this.adjustLength(this.transactions.length, t.length);
+        this.adjustLength(this.transactions.length, t.getLength());
         // Force a recalculation next time the values are needed.
         this.merkleRoot = null as any; // This will be recalculated when needed
         this.hash = null;
@@ -924,13 +951,17 @@ export class Block extends Message {
         this.unCacheTransactions();
         this.transactions = [];
 
+        if (this.params === null) {
+            throw new Error("Network parameters are null");
+        }
+        
         const coinbase = new Transaction(this.params);
         if (tokenInfo !== null) {
             coinbase.setDataClassName(DataClassName.TOKEN);
             const buf = tokenInfo.toByteArray();
             coinbase.setData(buf);
         }
-        coinbase.setMemo(memoInfo);
+        coinbase.setMemo(memoInfo ? memoInfo.toString() : null);
         // coinbase.tokenid = value.tokenid;
         const inputBuilder = new ScriptBuilder();
 
@@ -949,7 +980,7 @@ export class Block extends Message {
             coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
                 ScriptBuilder.createOutputScript(ECKey.fromPublicOnly(pubKeyTo)).getProgram()));
         } else {
-            if (tokenInfo.getToken() === null || tokenInfo.getToken().getSignnumber() === 0) {
+            if (tokenInfo.getToken() === null || tokenInfo.getToken()!.getSignnumber() === 0) {
                 coinbase.addOutput(new TransactionOutput(this.params, coinbase, value,
                     ScriptBuilder.createOutputScript(ECKey.fromPublicOnly(pubKeyTo)).getProgram()));
             } else {
@@ -959,7 +990,7 @@ export class Block extends Message {
                         ScriptBuilder.createOutputScript(ECKey.fromPublicOnly(pubKeyTo)).getProgram()));
                 } else {
                     const n = tokenInfo.getMultiSignAddresses().length;
-                    const scriptPubKey = ScriptBuilder.createMultiSigOutputScript(n, tokenInfo.getMultiSignAddresses().map(addr => ECKey.fromPublicOnly(Buffer.from(addr.getPubKeyHex(), 'hex'))));
+                    const scriptPubKey = ScriptBuilder.createMultiSigOutputScript(n, tokenInfo.getMultiSignAddresses().map(addr => ECKey.fromPublicOnly(Buffer.from(addr.getPubKeyHex() || '', 'hex'))));
                     coinbase.addOutput(new TransactionOutput(this.params, coinbase, value, scriptPubKey.getProgram()));
                 }
             }
@@ -968,12 +999,13 @@ export class Block extends Message {
             this.transactions.push(coinbase);
         }
         coinbase.setParent(this);
-        coinbase.length = coinbase.unsafeBitcoinSerialize().length;
-        this.adjustLength(this.transactions ? this.transactions.length : 0, coinbase.length);
+        // coinbase.length is protected, so we can't set it directly
+        // The length will be calculated when needed
+        this.adjustLength(this.transactions ? this.transactions.length : 0, coinbase.getLength());
     }
 
     public allowCoinbaseTransaction(): boolean {
-        return this.blockType.allowCoinbaseTransaction();
+        return BlockType.allowCoinbaseTransaction(this.blockType);
     }
 
     /**

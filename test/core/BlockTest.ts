@@ -5,78 +5,9 @@ import { Transaction } from "../../src/net/bigtangle/core/Transaction";
 import { UtilsTest } from "./UtilBase";
 import { TestParams } from "net/bigtangle/params/TestParams";
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
+import { describe, test, expect } from "vitest";
 
-// Helper method to convert transactions to the expected JSON format
-function convertTransactionsToJson(transactions: Transaction[]): string {
-  const txArray: any[] = [];
-  
-  for (const tx of transactions) {
-    const txObj: any = {
-      txid: tx.getHashAsString(),
-      inputs: [],
-      outputs: []
-    };
-    
-    // Process inputs
-    for (const input of tx.getInputs()) {
-      const inputObj: any = {
-        script: input.getScriptSig().toString(),
-        outpoint: {
-          hash: input.getOutpoint().getBlockHash()?.toString() || '0000000000000000000000000000000000000000000000000000000000000000',
-          index: input.getOutpoint().getIndex(),
-          txid: input.getOutpoint().getTxHash()?.toString() || '0000000000000000000000000000000000000000000000000000000000000000'
-        }
-      };
-      txObj.inputs.push(inputObj);
-    }
-    
-    // Process outputs
-    for (const output of tx.getOutputs()) {
-      const outputObj: any = {
-        script: output.getScriptPubKey().toString(),
-        value: output.getValue().getValue().toString(),
-        currency: "bc" // Assuming "bc" as the default currency
-      };
-      txObj.outputs.push(outputObj);
-    }
-    
-    txArray.push(txObj);
-  }
-  
-  // Process memo if it exists
-  let memoObj: any = null;
-  if (transactions.length > 0) {
-    const firstTx = transactions[0];
-    const memo = firstTx.getMemo();
-    if (memo) {
-      try {
-        const memoInfo = JSON.parse(memo);
-        memoObj = memoInfo;
-      } catch (e) {
-        // If parsing fails, create a simple memo object
-        memoObj = {
-          kv: [
-            {
-              key: "memo",
-              value: memo
-            }
-          ]
-        };
-      }
-    }
-  }
-  
-  const result: any = {
-    transactions: txArray
-  };
-  
-  if (memoObj) {
-    result.memo = memoObj;
-  }
-  
-  // Format as a JSON string with proper indentation to match the expected format
-  return formatJsonForTest(result);
-}
+ 
 
 // Helper method to format JSON to match the expected format in the test
 function formatJsonForTest(obj: any): string {
@@ -191,7 +122,7 @@ describe("BlockTest", () => {
 
     const originalHash = tb.getHash();
     const tbbin = PARAMS.getDefaultSerializer().makeBlock(
-       tb.bitcoinSerializeCopy() 
+     Buffer.from(  tb.bitcoinSerialize()) 
     );
     console.log("Test Block recovered :", tbbin.toString());
     expect(tbbin.getHash().equals(originalHash)).toBe(true);
@@ -215,8 +146,8 @@ describe("BlockTest", () => {
      expect(blockde.getBlockType()).toBe(1); // BLOCKTYPE_TRANSFER
      
      // Verify the block can be serialized and deserialized correctly
-     const blockbyte = blockde.bitcoinSerializeCopy();
-     const reparsedBlock = serializer.makeBlock(blockbyte);
+     const blockbyte = blockde.bitcoinSerialize();
+     const reparsedBlock = serializer.makeBlock(Buffer.from(blockbyte));
      
       const blockJava =   "hash: 010aa752eb83ce682765dd3e0fbd8a05b393057769e21b0c50ca41dec4ca30a5\nversion: 1   time: 1754256489 (2025-08-03T21:28:09Z)\nheight: 6\nchain length: 2\nprevious: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nbranch: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nmerkle: 14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\ndifficulty target (nBits):    536954798\nnonce: 39988229\nmineraddress: 14zyhLV1FWsdjj7WCP9EomckQ8GHudL8bY\nblocktype: BLOCKTYPE_TRANSFER\n1 transaction(s):\n14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\n   in   PUSHDATA(72)[3045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01]\n        outpoint:008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb : ad1665697e83496891c8921bde5c60f88d9e16149e931336f26bf87df49e3035 : 1\n   out  DUP HASH160 PUSHDATA(20)[51d65cb4f2e64551c447cd41635dd9214bbaf19d] EQUALVERIFY CHECKSIG\n[1000000:bc]\n   out  PUSHDATA(33)[02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975] CHECKSIG\n[99999999996997000:bc]\nmemo {\n  \"kv\" : [ {\n    \"key\" : \"memo\",\n    \"value\" : \"payList\"\n  } ]\n}";
 
@@ -271,7 +202,7 @@ describe("BlockTest", () => {
     const block = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
     const header = block.cloneAsHeader();
     const reparsed = PARAMS.getDefaultSerializer().makeBlock(
-      header.bitcoinSerializeCopy()
+      Buffer.from(header.bitcoinSerialize())
     );
     expect(reparsed.equals(header)).toBe(true);
   });
@@ -288,7 +219,7 @@ describe("BlockTest", () => {
     const block1 = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
     
     // Serialize it back
-    const serializedBlock = Buffer.from(block1.bitcoinSerializeCopy());
+    const serializedBlock = Buffer.from(block1.bitcoinSerialize());
     
     // They should be identical
     expect(Buffer.compare(blockBytes, serializedBlock)).toBe(0);

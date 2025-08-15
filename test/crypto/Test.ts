@@ -1,6 +1,7 @@
 
 import { Buffer } from 'buffer';
 import * as crypto from 'crypto';
+import { describe, test, expect } from 'vitest';
 
 describe('Test', () => {
     const ALGORITHM = 'RSA-KEM';
