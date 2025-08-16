@@ -170,6 +170,16 @@ export class Block extends Message {
      */
     public static setBlock5(params: NetworkParameters, payloadBytes: Uint8Array, offset: number,
         serializer: MessageSerializer<NetworkParameters>, length: number): Block {
+        // Log the first few bytes of the payload for debugging
+        if (payloadBytes && payloadBytes.length > 0) {
+            let bytesStr = "";
+            const end = Math.min(payloadBytes.length, 20);
+            for (let i = 0; i < end; i++) {
+                bytesStr += payloadBytes[i].toString(16).padStart(2, '0') + " ";
+            }
+            console.log(`Block.setBlock5: payloadBytes[0..${end-1}]=${bytesStr}`);
+            console.log(`Block.setBlock5: payloadBytes.length=${payloadBytes.length}`);
+        }
         const a = new Block(params);
         a.setValues5(params, payloadBytes, offset, serializer, length);
         return a;
@@ -188,56 +198,77 @@ export class Block extends Message {
      */
     protected parseTransactions(transactionsOffset: number): void {
         this.cursor = transactionsOffset;
-        this.optimalEncodingMessageSize = NetworkParameters.HEADER_SIZE;
-        if (this.payload && this.payload.length === this.cursor) {
-            // This message is just a header, it has no transactions.
+        this.optimalEncodingMessageSize = this.getHeaderSize();
+    
+        if (!this.payload || this.payload.length <= this.cursor) {
             this.transactionBytesValid = false;
             return;
         }
+    
+        try {
+            const numTransactions = this.readVarInt();
+            this.optimalEncodingMessageSize += new VarInt(numTransactions).encode().length;
+            this.transactions = [];
+    
+            for (let i = 0; i < numTransactions; i++) {
+                if (this.params === null) throw new Error("Network parameters are null");
+                if (this.payload === null) throw new Error("Payload is null");
+                if (this.serializer === null) throw new Error("Serializer is null");
 
-        const numTransactions = this.readVarInt();
-        this.optimalEncodingMessageSize += VarInt.sizeOf(numTransactions);
-        this.transactions = [];
-        for (let i = 0; i < numTransactions; i++) {
-            if (this.params === null) {
-                throw new Error("Network parameters are null");
-            }
-            if (this.payload === null) {
-                throw new Error("Payload is null");
-            }
-            const tx = Transaction.fromTransaction6(this.params, this.payload, this.cursor, this, this.serializer, Message.UNKNOWN_LENGTH);
-            // Label the transaction as coming from the P2P network, so code
-            // that cares where we first saw it knows.
-            // tx.getConfidence().setSource(TransactionConfidence.Source.NETWORK);
-            if (this.transactions) {
+                const tx = Transaction.fromTransaction6(this.params, this.payload, this.cursor, this, this.serializer, Message.UNKNOWN_LENGTH);
                 this.transactions.push(tx);
+    
+                this.cursor += tx.getMessageSize();
+                this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
             }
-            this.cursor += tx.getMessageSize();
-            this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
+    
+            this.transactionBytesValid = this.serializer !== null && this.serializer.isParseRetainMode();
+        } catch (e) {
+            console.error("Error parsing transactions:", e);
+            this.transactionBytesValid = false;
         }
-        this.transactionBytesValid = this.serializer !== null && this.serializer.isParseRetainMode();
     }
 
     protected parse(): void {
         // header
         this.cursor = this.offset;
-        this.version = this.readUint32();
-        this.prevBlockHash = this.readHash();
-        this.prevBranchBlockHash = this.readHash();
-        this.merkleRoot = this.readHash();
-        this.time = Number(this.readInt64());
-        this.difficultyTarget = Number(this.readInt64());
-        this.lastMiningRewardBlock = Number(this.readInt64());
-        this.nonce = this.readUint32();
-        this.minerAddress = this.readBytes(20);
-        this.blockType = BlockType.values()[this.readUint32()];
-        this.height = Number(this.readInt64());
-        this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(this.payload!.subarray(this.offset, this.cursor - this.offset))));
+        const headerSize = this.getHeaderSize();
+    
+        if (this.payload && this.payload.length >= this.offset + headerSize) {
+            this.version = this.readUint32();
+            this.prevBlockHash = this.readHash();
+            this.prevBranchBlockHash = this.readHash();
+            this.merkleRoot = this.readHash();
+            this.time = this.readUint32();
+            this.difficultyTarget = this.readUint32();
+            this.lastMiningRewardBlock = Number(this.readInt64());
+            this.nonce = this.readUint32();
+            this.minerAddress = this.readBytes(20);
+            this.blockType = BlockType.values()[this.readUint32()];
+            this.height = Number(this.readInt64());
+    
+            this.hash = Sha256Hash.wrapReversed(
+                Sha256Hash.hashTwice(
+                    Buffer.from(this.payload.subarray(this.offset, this.cursor))
+                )
+            );
+        } else {
+            console.warn(`Not enough bytes for block header: offset=${this.offset}, buffer length=${this.payload?.length}, required=${headerSize}`);
+            // Even if the header is incomplete, we might be able to parse transactions
+        }
+    
         this.headerBytesValid = this.serializer !== null && this.serializer.isParseRetainMode();
+    
         // transactions
         this.parseTransactions(this.cursor);
         this.length = this.cursor - this.offset;
     }
+    
+    private getHeaderSize(): number {
+        // In the future, this might depend on the block version
+        return 168;
+    }
+    
 
     public getOptimalEncodingMessageSize(): number {
         if (this.optimalEncodingMessageSize !== 0)
@@ -259,8 +290,8 @@ export class Block extends Message {
         stream.write(this.prevBlockHash.getReversedBytes());
         stream.write(this.prevBranchBlockHash.getReversedBytes());
         stream.write(this.getMerkleRoot().getReversedBytes());
-        Utils.int64ToByteStreamLE(BigInt(this.time), stream);
-        Utils.int64ToByteStreamLE(BigInt(this.difficultyTarget), stream);
+        Utils.uint32ToByteStreamLE(this.time, stream);
+        Utils.uint32ToByteStreamLE(this.difficultyTarget, stream);
         Utils.int64ToByteStreamLE(BigInt(this.lastMiningRewardBlock), stream);
         Utils.uint32ToByteStreamLE(this.nonce, stream);
         stream.write(this.minerAddress);
@@ -296,22 +327,19 @@ export class Block extends Message {
      * transactions
      */
     public bitcoinSerialize(): Uint8Array {
-        // we have completely cached byte array.
-        if (this.headerBytesValid && this.transactionBytesValid) {
-            if (this.payload) {
-                if (this.length === this.payload.length) {
-                    return this.payload;
-                } else {
-                    // byte array is offset so copy out the correct range.
-                    const buf = new Uint8Array(this.length);
-                    buf.set(this.payload.subarray(this.offset, this.offset + this.length));
-                    return buf;
-                }
+        // Check if we have valid cached bytes for both header and transactions
+        if (this.headerBytesValid && this.transactionBytesValid && this.payload !== null) {
+            // Bytes should never be null if both flags are true
+            if (this.length === this.payload.length) {
+                return this.payload;
+            } else {
+                // byte array is offset so copy out the correct range
+                const buf = new Uint8Array(this.length);
+                buf.set(this.payload.subarray(this.offset, this.offset + this.length));
+                return buf;
             }
         }
-
-        // At least one of the two cacheable components is invalid
-        // so fall back to stream write since we can't be sure of the length.
+        
         const stream = new UnsafeByteArrayOutputStream(
             this.length === Message.UNKNOWN_LENGTH ? NetworkParameters.HEADER_SIZE + this.guessTransactionsLength() : this.length);
         try {
@@ -1032,17 +1060,14 @@ export class Block extends Message {
         return this.blockType;
     }
 
-    public setBlockType(blocktype: number): void;
-    public setBlockType(blocktype: BlockType): void;
     public setBlockType(blocktype: number | BlockType): void {
+        this.unCacheHeader();
         if (typeof blocktype === 'number') {
             this.blockType = BlockType.values()[blocktype];
-            this.setBlockType(this.blockType);
         } else {
-            this.unCacheHeader();
             this.blockType = blocktype;
-            this.hash = null;
         }
+        this.hash = null;
     }
 
     public getDifficultyTarget(): number {

@@ -44,7 +44,7 @@ import { Buffer } from 'buffer';
  */
 export class TransactionOutPoint extends ChildMessage {
 
-    static readonly MESSAGE_LENGTH: number = 4 + 32 + 32;
+    static readonly MESSAGE_LENGTH: number = 32 + 32 + 4;
 
     /** Hash of the block to which we refer. */
     private blockHash: Sha256Hash;
@@ -64,6 +64,7 @@ export class TransactionOutPoint extends ChildMessage {
         super(params);
         this.blockHash = Sha256Hash.ZERO_HASH;
         this.txHash = Sha256Hash.ZERO_HASH;
+        this.length = TransactionOutPoint.MESSAGE_LENGTH;
     }
 
     public static fromTx4(params: NetworkParameters, index: number, blockHash: Sha256Hash | null,
@@ -114,17 +115,31 @@ export class TransactionOutPoint extends ChildMessage {
     }
 
     protected parse(): void {
+        // Set the length first to avoid the "Length field has not been set" error
         this.length = TransactionOutPoint.MESSAGE_LENGTH;
+        
+        // Check if we have a payload to parse
+        if (!this.payload) {
+            throw new Error("No payload to parse");
+        }
+        
+        // Check if we have enough bytes to read the blockHash (32 bytes)
+        if (this.cursor + 32 > this.payload.length) {
+            throw new Error(`Not enough bytes to read blockHash: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
         this.blockHash = this.readHash();
+        
+        // Check if we have enough bytes to read the txHash (32 bytes)
+        if (this.cursor + 32 > this.payload.length) {
+            throw new Error(`Not enough bytes to read txHash: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
         this.txHash = this.readHash();
+        
+        // Check if we have enough bytes to read the index (4 bytes)
+        if (this.cursor + 4 > this.payload.length) {
+            throw new Error(`Not enough bytes to read index: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
         this.index = this.readUint32();
-        // length += 4;
-        // if (this.readUint32() == 1) {
-        // this.connectedOutput = new TransactionOutput(params, (Transaction)
-        // this.parent, payload, cursor);
-        // cursor += this.connectedOutput.getMessageSize();
-        // length += this.connectedOutput.getMessageSize();
-        // }
     }
 
     public bitcoinSerializeToStream(stream: any): void {
@@ -277,7 +292,7 @@ export class TransactionOutPoint extends ChildMessage {
      */
     public isCoinBase(): boolean {
         return this.getBlockHash().equals(Sha256Hash.ZERO_HASH) && this.getTxHash().equals(Sha256Hash.ZERO_HASH)
-            && (this.getIndex() & 0xFFFFFFFF) === 0xFFFFFFFF;
+            && this.getIndex() === 0xFFFFFFFF;
     }
 
     public equals(o: any): boolean {
@@ -291,5 +306,19 @@ export class TransactionOutPoint extends ChildMessage {
 
     public hashCode(): number {
         return this.getIndex() * 31 + this.getHash().hashCode();
+    }
+
+    /**
+     * Creates a copy of this TransactionOutPoint.
+     */
+    public copy(): TransactionOutPoint {
+        const copy = new TransactionOutPoint(this.params!);
+        copy.blockHash = this.blockHash;
+        copy.txHash = this.txHash;
+        copy.index = this.index;
+        copy.fromTx = this.fromTx;
+        copy.connectedOutput = this.connectedOutput;
+        copy.length = this.length;
+        return copy;
     }
 }

@@ -76,56 +76,26 @@ export class TransactionInput extends ChildMessage {
     // and if the transaction is not
     // coinbase.
     private scriptSig: Script | null = null;
-    /**
-     * Value of the output connected to the input, if known. This field does not
-     * participate in equals()/hashCode().
-     */
-    private value: Coin | null = null;
-
-    /**
-     * Creates an input that connects to nothing - used only in creation of coinbase
-     * transactions.
-     */
-    public static fromScriptBytes(params: NetworkParameters, parentTransaction: Transaction | null,
-        scriptBytes: Uint8Array): TransactionInput {
-        return TransactionInput.fromOutpoint4(params, parentTransaction, scriptBytes,
-            TransactionOutPoint.fromTx4(params, TransactionInput.UNCONNECTED, null, null));
-    }
-
-    public static fromOutpoint4(params: NetworkParameters, parentTransaction: Transaction | null,
-        scriptBytes: Uint8Array, outpoint: TransactionOutPoint): TransactionInput {
-        return TransactionInput.fromOutpoint5(params, parentTransaction, scriptBytes, outpoint, null);
-    }
-
-    public static fromOutpoint5(params: NetworkParameters, parentTransaction: Transaction | null,
-        scriptBytes: Uint8Array, outpoint: TransactionOutPoint, value: Coin | null): TransactionInput {
+    protected value: Coin | null = null;
+    
+    public static fromCoinBase(params: NetworkParameters, parentTransaction: Transaction, output: TransactionOutput): TransactionInput {
         const a = new TransactionInput(params);
-        a.scriptBytes = scriptBytes;
-        a.outpoint = outpoint;
-        a.sequence = TransactionInput.NO_SEQUENCE;
-        a.value = value;
-        a.setParent(parentTransaction);
-        a.length = 40 + (scriptBytes === null ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
-        return a;
-    }
-
-    /**
-     * Creates an UNSIGNED input that links to the given output
-     */
-    public static fromTransactionInput4(params: NetworkParameters, parentTransaction: Transaction,
-        output: TransactionOutput, blockHash: Sha256Hash): TransactionInput {
-        const a = new TransactionInput(params);
-        const outputIndex = output.getIndex();
-        if (output.getParentTransaction() !== null) {
-            a.outpoint = TransactionOutPoint.fromTx4(params, outputIndex, blockHash, output.getParentTransaction());
-        } else {
-            a.outpoint = TransactionOutPoint.fromOutput3(params, blockHash, output);
-        }
         a.scriptBytes = TransactionInput.EMPTY_ARRAY;
         a.sequence = TransactionInput.NO_SEQUENCE;
         a.setParent(parentTransaction);
         a.value = output.getValue();
         a.length = 41;
+        return a;
+    }
+
+    public static fromScriptBytes(params: NetworkParameters, parentTransaction: Transaction, scriptBytes: Uint8Array): TransactionInput {
+        const a = new TransactionInput(params);
+        a.scriptBytes = scriptBytes;
+        a.sequence = TransactionInput.NO_SEQUENCE;
+        a.setParent(parentTransaction);
+        a.value = null;
+        // Estimate length: outpoint (36) + script length + sequence (4) + varint for script length
+        a.length = 36 + VarInt.sizeOf(scriptBytes.length) + scriptBytes.length + 4;
         return a;
     }
 
@@ -155,30 +125,13 @@ export class TransactionInput extends ChildMessage {
     }
 
     protected parse(): void {
-        this.outpoint = TransactionOutPoint.fromTransactionOutPoint5(this.params!, this.payload!, this.cursor, this, this.serializer!);
-        this.cursor += this.outpoint.getMessageSize();
+        this.outpoint = TransactionOutPoint.fromTransactionOutPoint5(this.params!, this.payload!, this.cursor, this.parent, this.serializer!);
+        this.cursor += TransactionOutPoint.MESSAGE_LENGTH;
+        
         const scriptLen = this.readVarInt();
         this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
         this.sequence = this.readUint32();
-        // TODO: Fix this part
-        // if (this.readUint32() === 1) {
-        //     this.outpoint.connectedOutput = new TransactionOutput(this.params!, this.parent as Transaction,
-        //         this.payload!, this.cursor, this.serializer!);
-        //     this.cursor += this.outpoint.connectedOutput.getMessageSize();
-        // }
-    }
-
-    protected bitcoinSerializeToStream(stream: any): void {
-        this.outpoint.bitcoinSerialize(stream);
-        stream.write(new VarInt(this.scriptBytes.length).encode());
-        stream.write(this.scriptBytes);
-        Utils.uint32ToByteStreamLE(this.sequence, stream);
-        Utils.uint32ToByteStreamLE(this.outpoint.connectedOutput !== null ? 1 : 0, stream);
-        // TODO: Fix this part
-        // if (this.outpoint.connectedOutput !== null) {
-        //     this.outpoint.connectedOutput.bitcoinSerializeToStream(stream);
-        // }
     }
 
     /**
@@ -204,31 +157,14 @@ export class TransactionInput extends ChildMessage {
         return this.scriptSig;
     }
 
-    /**
-     * Set the given program as the scriptSig that is supposed to satisfy the
-     * connected output script.
-     */
-    public setScriptSig(scriptSig: Script): void {
-        this.scriptSig = scriptSig;
-        // TODO: This should all be cleaned up so we have a consistent internal
-        // representation.
-        this.setScriptBytes(scriptSig.getProgram());
+    protected bitcoinSerializeToStream(stream: any): void {
+        this.outpoint.bitcoinSerialize(stream);
+        stream.write(new VarInt(this.scriptBytes.length).encode());
+        stream.write(this.scriptBytes);
+        Utils.uint32ToByteStreamLE(this.sequence, stream);
     }
 
-    /**
-     * Convenience method that returns the from address of this input by parsing the
-     * scriptSig. The concept of a "from address" is not well defined in Bitcoin and
-     * you should not assume that senders of a transaction can actually receive
-     * coins on the same address they used to sign (e.g. this is not true for shared
-     * wallets).
-     */
-    public getFromAddress(): string {
-        if (this.isCoinBase()) {
-            throw new ScriptException(
-                "This is a coinbase transaction which generates new coins. It does not have a from address.");
-        }
-        return this.getScriptSig().getFromAddress(this.params!).toString();
-    }
+
 
     /**
      * Sequence numbers allow participants in a multi-party transaction signing

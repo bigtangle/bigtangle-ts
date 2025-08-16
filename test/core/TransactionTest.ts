@@ -36,7 +36,7 @@ describe('TransactionTest', () => {
                 PARAMS, 
                 tx, 
                 input.getScriptBytes(), 
-                input.getOutpoint()
+                input.getOutpoint().copy()
             );
             tx.addInput(newInput);
             tx.verify();

@@ -35,6 +35,8 @@ import { VerificationException } from '../exception/VerificationException';
 import { ScriptException } from '../exception/ScriptException';
 import { Purpose } from './Purpose';
 import { SigHash } from './SigHash';
+import { Utils } from './Utils';
+import { VarInt } from './VarInt';
 
 /**
  * <p>
@@ -58,21 +60,31 @@ export class Transaction extends ChildMessage {
     public static readonly LOCKTIME_THRESHOLD: number = 500000000; // Tue Nov 5
     // 00:53:20 1985 UTC
 
+    private static _REFERENCE_DEFAULT_MIN_TX_FEE: Coin | null = null;
+    private static _MIN_NONDUST_OUTPUT: Coin | null = null;
+
     /**
      * If feePerKb is lower than this, Bitcoin Core will treat it as if there were
      * no fee.
      */
-    public static readonly REFERENCE_DEFAULT_MIN_TX_FEE: Coin = Coin.valueOf(5000n, Buffer.alloc(32)); // 0.05
-    // mBTC
-
-    // mBTC
+    public static get REFERENCE_DEFAULT_MIN_TX_FEE(): Coin {
+        if (this._REFERENCE_DEFAULT_MIN_TX_FEE === null) {
+            this._REFERENCE_DEFAULT_MIN_TX_FEE = Coin.valueOf(5000n, Buffer.from("6263", "hex")); // 0.05
+        }
+        return this._REFERENCE_DEFAULT_MIN_TX_FEE;
+    }
 
     /**
      * Any standard (ie pay-to-address) output smaller than this value (in satoshis)
      * will most likely be rejected by the network. This is calculated by assuming a
      * standard output will be 34 bytes, and then using the formula used in .
      */
-    public static readonly MIN_NONDUST_OUTPUT: Coin = Coin.valueOf(2730n, Buffer.alloc(32)); // satoshis
+    public static get MIN_NONDUST_OUTPUT(): Coin {
+        if (this._MIN_NONDUST_OUTPUT === null) {
+            this._MIN_NONDUST_OUTPUT = Coin.valueOf(2730n, Buffer.from("6263", "hex")); // satoshis
+        }
+        return this._MIN_NONDUST_OUTPUT;
+    }
 
     // These are bitcoin serialized.
     private version: number = 1;
@@ -501,14 +513,125 @@ export class Transaction extends ChildMessage {
      *
      */
     public verify(): void {
-        // TODO: Implement verification logic
+        // Check for duplicate outpoints
+        const outpoints = new Set<string>();
+        for (const input of this.inputs) {
+            const outpointKey = input.getOutpoint().toString();
+            if (outpoints.has(outpointKey)) {
+                throw new VerificationException("Duplicated outpoint");
+            }
+            outpoints.add(outpointKey);
+        }
+
+        // Check for coinbase input in non-coinbase transaction
+        if (this.inputs.length > 0 && !this.isCoinBase()) {
+            for (const input of this.inputs) {
+                if (input.isCoinBase()) {
+                    throw new VerificationException("Unexpected coinbase input");
+                }
+            }
+        }
+
+        // Check coinbase script size
+        if (this.isCoinBase()) {
+            const scriptBytes = this.inputs[0].getScriptBytes();
+            if (scriptBytes.length < 2 || scriptBytes.length > 100) {
+                throw new VerificationException("Coinbase script size out of range");
+            }
+        }
     }
 
     protected parse(): void {
-        // TODO: Implement parsing logic
+        // Check if we have a payload to parse
+        if (!this.payload) {
+            throw new Error("No payload to parse");
+        }
+        
+        console.log(`Transaction.parse: Starting parse at offset ${this.offset}, cursor ${this.cursor}, payload length ${this.payload.length}`);
+        
+        // Check if we have enough bytes to read the version
+        if (this.cursor + 4 > this.payload.length) {
+            throw new Error(`Not enough bytes to read version: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
+        this.version = this.readUint32();
+        console.log(`Transaction.parse: Read version ${this.version}, cursor now ${this.cursor}`);
+        
+        // Check if we have enough bytes to read the number of inputs
+        // We need at least 1 byte for the VarInt, but it could be more
+        if (this.cursor >= this.payload.length) {
+            throw new Error(`Not enough bytes to read number of inputs: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
+        const numInputs = this.readVarInt();
+        console.log(`Transaction.parse: Number of inputs: ${numInputs}, cursor now ${this.cursor}`);
+        this.inputs = [];
+        for (let i = 0; i < numInputs; i++) {
+            if (this.params === null) {
+                throw new Error("Network parameters are null");
+            }
+            if (this.payload === null) {
+                throw new Error("Payload is null");
+            }
+            console.log(`Transaction.parse: Parsing input ${i} at cursor ${this.cursor}`);
+            const input = TransactionInput.fromTransactionInput5(
+                this.params, 
+                this, 
+                this.payload, 
+                this.cursor, 
+                this.serializer!
+            );
+            this.inputs.push(input);
+            // Update the cursor based on the input's message size
+            this.cursor += input.getMessageSize();
+            console.log(`Transaction.parse: Parsed input ${i}, cursor now ${this.cursor}`);
+        }
+        
+        // Check if we have enough bytes to read the number of outputs
+        if (this.cursor >= this.payload.length) {
+            throw new Error(`Not enough bytes to read number of outputs: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
+        const numOutputs = this.readVarInt();
+        console.log(`Transaction.parse: Number of outputs: ${numOutputs}, cursor now ${this.cursor}`);
+        this.outputs = [];
+        for (let i = 0; i < numOutputs; i++) {
+            if (this.params === null) {
+                throw new Error("Network parameters are null");
+            }
+            if (this.payload === null) {
+                throw new Error("Payload is null");
+            }
+            console.log(`Transaction.parse: Parsing output ${i} at cursor ${this.cursor}`);
+            const output = TransactionOutput.fromTransactionOutput(
+                this.params, 
+                this, 
+                this.payload, 
+                this.cursor, 
+                this.serializer!
+            );
+            this.outputs.push(output);
+            // The cursor has already been updated by the output's parse() method
+            console.log(`Transaction.parse: Parsed output ${i}, cursor now ${this.cursor}`);
+        }
+        
+        // Check if we have enough bytes to read the lockTime
+        if (this.cursor + 4 > this.payload.length) {
+            throw new Error(`Not enough bytes to read lockTime: offset=${this.cursor}, buffer length=${this.payload.length}`);
+        }
+        this.lockTime = this.readUint32();
+        console.log(`Transaction.parse: Read lockTime ${this.lockTime}, cursor now ${this.cursor}`);
+        this.length = this.cursor - this.offset;
+        console.log(`Transaction.parse: Finished parse, length ${this.length}`);
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
-        // TODO: Implement serialization logic
+        Utils.uint32ToByteStreamLE(this.version, stream);
+        stream.write(new VarInt(this.inputs.length).encode());
+        for (const input of this.inputs) {
+            input.bitcoinSerialize(stream);
+        }
+        stream.write(new VarInt(this.outputs.length).encode());
+        for (const output of this.outputs) {
+            output.bitcoinSerialize(stream);
+        }
+        Utils.uint32ToByteStreamLE(this.lockTime, stream);
     }
 }

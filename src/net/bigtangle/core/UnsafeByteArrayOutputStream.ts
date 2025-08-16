@@ -22,7 +22,7 @@ export class UnsafeByteArrayOutputStream {
      *
      * @param b the byte to be written.
      */
-    public write(b: number | Buffer): void {
+    public write(b: number | Buffer | Uint8Array): void {
         if (typeof b === 'number') {
             const newcount = this.count + 1;
             if (newcount > this.buf.length) {
@@ -31,7 +31,8 @@ export class UnsafeByteArrayOutputStream {
             this.buf[this.count] = b;
             this.count = newcount;
         } else {
-            this.writeBytes(b, 0, b.length);
+            const buffer = b instanceof Buffer ? b : Buffer.from(b);
+            this.writeBytes(buffer, 0, buffer.length);
         }
     }
 

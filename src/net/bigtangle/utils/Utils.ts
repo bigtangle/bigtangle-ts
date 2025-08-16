@@ -259,10 +259,12 @@ export class Utils {
         if (offset + 4 > bytes.length) {
             throw new Error("Attempt to read 4 bytes from position " + offset + " with only " + bytes.length + " bytes available");
         }
-        return (bytes[offset] & 0xff) |
+        const result = (bytes[offset] & 0xff) |
                ((bytes[offset + 1] & 0xff) << 8) |
                ((bytes[offset + 2] & 0xff) << 16) |
                ((bytes[offset + 3] & 0xff) << 24);
+        console.log(`Utils.readUint32: bytes[${offset}]=${bytes[offset].toString(16)}, bytes[${offset+1}]=${bytes[offset+1].toString(16)}, bytes[${offset+2}]=${bytes[offset+2].toString(16)}, bytes[${offset+3}]=${bytes[offset+3].toString(16)}, result=${result}`);
+        return result;
     }
 
     public static readInt64(bytes: Uint8Array, offset: number): BigInteger {

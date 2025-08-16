@@ -35,6 +35,7 @@ import { TransactionBag } from './TransactionBag';
 import { Preconditions } from '../utils/Preconditions';
 import { Buffer } from 'buffer';
 import { Transaction } from './Transaction';
+import { TransactionOutPoint } from './TransactionOutPoint';
 
 const { checkArgument, checkNotNull, checkState } = Preconditions;
 
@@ -207,14 +208,19 @@ export class TransactionOutput extends ChildMessage {
     protected parse(): void {
         const vlen = this.readVarInt();
         const v = this.readBytes(vlen);
+        // Parse the value string to a bigint
+        const valueStr = new TextDecoder().decode(v);
+        const valueBigInt = BigInt(valueStr);
+        
         this.tokenLen = this.readVarInt();
-        // TODO: Implement proper Coin constructor
-        this.value = Coin.ZERO; // Placeholder
+        const tokenid = this.readBytes(this.tokenLen);
+        
+        // Create the Coin with the parsed value and tokenid
+        this.value = Coin.valueOf(valueBigInt, Buffer.from(tokenid));
 
         this.scriptLen = this.readVarInt();
         this.scriptBytes = this.readBytes(this.scriptLen);
         this.length = this.cursor - this.offset;
-
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
@@ -416,9 +422,13 @@ export class TransactionOutput extends ChildMessage {
      * structure pointing to this output. Requires that this output is not
      * detached.
      */
-    public getOutPointFor(containingBlockHash: Sha256Hash): any /*TransactionOutPoint*/ {
-        // TODO: Implement TransactionOutPoint.fromTx4
-        return null; // Placeholder
+    public getOutPointFor(containingBlockHash: Sha256Hash): TransactionOutPoint {
+        return TransactionOutPoint.fromTx4(
+            this.params!,
+            this.getIndex(),
+            containingBlockHash,
+            this.getParentTransaction()
+        );
     }
 
     /**

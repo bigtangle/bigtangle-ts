@@ -93,6 +93,17 @@ export abstract class Message {
         this.payload = payload;
         this.cursor = this.offset = offset;
         this.length = length;
+        
+        // Log the first few bytes of the payload for debugging
+        if (payload && payload.length > 0) {
+            let bytesStr = "";
+            const end = Math.min(payload.length, 20);
+            for (let i = 0; i < end; i++) {
+                bytesStr += payload[i].toString(16).padStart(2, '0') + " ";
+            }
+            console.log(`Message.setValues5: payload[0..${end-1}]=${bytesStr}`);
+            console.log(`Message.setValues5: payload.length=${payload.length}`);
+        }
 
         this.parse();
 
@@ -320,7 +331,10 @@ export abstract class Message {
     }
 
     protected readVarInt(): number {
-        return this.readVarIntWithOffset(0);
+        console.log(`Message.readVarInt: cursor=${this.cursor}, payload length=${this.payload?.length}`);
+        const result = this.readVarIntWithOffset(0);
+        console.log(`Message.readVarInt: result=${result}, cursor now=${this.cursor}`);
+        return result;
     }
 
     protected readVarIntWithOffset(offset: number): number {
@@ -328,6 +342,16 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
+            console.log(`Message.readVarIntWithOffset: payload.length=${this.payload.length}, cursor=${this.cursor}, offset=${offset}`);
+            console.log(`Message.readVarIntWithOffset: payload[${this.cursor + offset}]=${this.payload[this.cursor + offset].toString(16)}`);
+            // Log a few bytes around the cursor for debugging
+            const start = Math.max(0, this.cursor + offset - 5);
+            const end = Math.min(this.payload.length, this.cursor + offset + 5);
+            let bytesStr = "";
+            for (let i = start; i < end; i++) {
+                bytesStr += this.payload[i].toString(16).padStart(2, '0') + " ";
+            }
+            console.log(`Message.readVarIntWithOffset: payload[${start}..${end-1}]=${bytesStr}`);
             const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
             this.cursor += offset + varint.getOriginalSizeInBytes();
             return varint.value.toJSNumber();
