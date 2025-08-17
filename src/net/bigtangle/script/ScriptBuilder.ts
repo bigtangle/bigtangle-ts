@@ -27,6 +27,9 @@ export class ScriptBuilder {
     }
 
     data(data: Uint8Array): ScriptBuilder {
+        if (!data) {
+            return this.smallNum(0);
+        }
         if (data.length === 0) {
             return this.smallNum(0);
         } else {
@@ -274,7 +277,7 @@ export class ScriptBuilder {
     }
 
     static createCLTVPaymentChannelOutput(time: bigInt.BigInteger, from: ECKey, to: ECKey): Script {
-        const timeBytes = Utils.reverseBytes(Utils.encodeMPI(time, false));
+        const timeBytes = Utils.encodeMPI(time, false);
         if (timeBytes.length > 5) {
             throw new Error("Time too large to encode as 5-byte int");
         }

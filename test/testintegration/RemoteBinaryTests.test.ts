@@ -11,6 +11,7 @@ import { TokenType } from "../../src/net/bigtangle/core/TokenType";
 import { RemoteTest } from "./Remote.test";
 import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
 import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
+import { Utils } from "net/bigtangle/core/Utils";
  
 
 class RemoteBinaryTests extends RemoteTest {}
@@ -29,6 +30,12 @@ describe("RemoteBinaryTests", () => {
     // Create a serializer with parseRetain set to true
     const serializer = tests.networkParameters.getSerializer(true);
     const block = serializer.makeBlock(Buffer.from(tip, "hex"));
+
+     const decodedData = Utils.HEX.decode(tip);
+   
+     expect(Buffer.from(tip, "hex")).toEqual(Buffer.from(decodedData));
+
+    console.log(block.toString());
     // Post to the server
     const url = tests.contextRoot + (ReqCmd.saveBlock || "/saveBlock");
     await expect(

@@ -238,26 +238,26 @@ export abstract class Message {
             // Cannot happen, we are serializing to a memory stream.
         }
 
+        // Prefer to avoid caching truncated or partial buffers. Only recache into this.payload
+        // when the serialized buffer length matches the expected this.length (if known).
+        const buf = stream.toByteArray();
         if (this.serializer && this.serializer.isParseRetainMode()) {
-            // A free set of steak knives!
-            // If there happens to be a call to this method we gain an opportunity to recache
-            // the byte array and in this case it contains no bytes from parent messages.
-            // This give a dual benefit.  Releasing references to the larger byte array so that it
-            // it is more likely to be GC'd.  And preventing double serializations.  E.g. calculating
-            // merkle root calls this method.  It is will frequently happen prior to serializing the block
-            // which means another call to bitcoinSerialize is coming.  If we didn't recache then internal
-            // serialization would occur a 2nd time and every subsequent time the message is serialized.
-            this.payload = stream.toByteArray();
-            this.cursor = this.cursor - this.offset;
-            this.offset = 0;
-            this.recached = true;
-            this.length = this.payload.length;
-            return this.payload;
+            if (this.length !== Message.UNKNOWN_LENGTH && buf.length === this.length) {
+                // Safe to recache: the produced byte array matches expected length.
+                this.payload = buf;
+                this.cursor = this.cursor - this.offset;
+                this.offset = 0;
+                this.recached = true;
+                this.length = this.payload.length;
+                return this.payload;
+            }
+            // If lengths don't match, do not recache to avoid storing a truncated representation.
+            // Fall through and return the produced buffer as-is.
         }
+
         // Record length. If this Message wasn't parsed from a byte stream it won't have length field
         // set (except for static length message types).  Setting it makes future streaming more efficient
         // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
-        const buf = stream.toByteArray();
         this.length = buf.length;
         return buf;
     }
@@ -310,7 +310,9 @@ export abstract class Message {
             }
             const u = Utils.readInt64(Buffer.from(this.payload), this.cursor);
             this.cursor += 8;
-            return u;
+            // Utils.readInt64 returns a big-integer BigInteger object. Convert to native bigint.
+            // Use string conversion to avoid precision issues and rely on big-integer to produce exact value.
+            return BigInt(u.toString());
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
                 throw new ProtocolException(e.message || "Array index out of bounds");
@@ -325,9 +327,11 @@ export abstract class Message {
             throw new ProtocolException("Payload is null");
         }
         // Use readInt64 and convert to unsigned if needed
-        const value = Utils.readInt64(Buffer.from(this.payload), this.cursor);
-        this.cursor += 8;
-        return value;
+    const value = Utils.readInt64(Buffer.from(this.payload), this.cursor);
+    this.cursor += 8;
+    // Convert big-integer to native bigint. For unsigned semantics the caller
+    // should interpret the resulting bigint appropriately.
+    return BigInt(value.toString());
     }
 
     protected readVarInt(): number {

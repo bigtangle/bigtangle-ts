@@ -260,6 +260,7 @@ export class Script {
         }
     }
 
+
     /**
      * Returns the public key in this script. If a script contains two constants and nothing else, it is assumed to
      * be a scriptSig (input) for a pay-to-address output and the second constant is returned (the first is the
@@ -318,7 +319,10 @@ export class Script {
             throw new ScriptException("Script not a standard CHECKLOCKTIMVERIFY transaction: " + this.toString());
         }
         if (!this.chunks[4].data) throw new ScriptException("No data in chunk 4 for CLTV expiry");
-        return Script.castToBigInteger(this.chunks[4].data, 5);
+        console.log("getCLTVPaymentChannelExpiry chunks[4].data:", this.chunks[4].data);
+        const result = Script.castToBigInteger(this.chunks[4].data, 5);
+        console.log("getCLTVPaymentChannelExpiry result:", result.toString());
+        return result;
     }
 
     /**
@@ -362,16 +366,16 @@ export class Script {
     static writeBytes(os: UnsafeByteArrayOutputStream, buf: Uint8Array): void {
         if (buf.length < OP_PUSHDATA1) {
             os.writeByte(buf.length);
-            os.write(Buffer.from(buf));
+            os.write(buf);
         } else if (buf.length < 256) {
             os.writeByte(OP_PUSHDATA1);
             os.writeByte(buf.length);
-            os.write(Buffer.from(buf));
+            os.write(buf);
         } else if (buf.length < 65536) {
             os.writeByte(OP_PUSHDATA2);
             os.writeByte(buf.length & 0xFF);
             os.writeByte((buf.length >> 8) & 0xFF);
-            os.write(Buffer.from(buf));
+            os.write(buf);
         } else {
             throw new Error("Unimplemented: Data push larger than 65535 bytes");
         }
@@ -823,7 +827,7 @@ export class Script {
         if (maxLength === undefined && chunk.length > 4) {
             throw new ScriptException("Script attempted to use an integer larger than 4 bytes");
         }
-        return Utils.decodeMPI(Utils.reverseBytes(chunk), false) as any;
+        return Utils.decodeMPI(chunk, false) as any;
     }
 
     isOpReturn(): boolean {
@@ -1339,7 +1343,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hash(Buffer.from(stack.pop()!)) );
+                    stack.push(Sha256Hash.hash(Buffer.from(stack.pop()!)));
                     break;
                 case OP_HASH160:
                     if (stack.length < 1) {
@@ -1351,7 +1355,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hashTwice(Buffer.from(stack.pop()!)) );
+                    stack.push(Sha256Hash.hashTwice(Buffer.from(stack.pop()!)));
                     break;
                 case OP_CODESEPARATOR:
                     lastCodeSepLocation = chunk.getStartLocationInProgram() + 1;

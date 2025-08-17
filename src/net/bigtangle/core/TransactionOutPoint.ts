@@ -111,6 +111,8 @@ export class TransactionOutPoint extends ChildMessage {
         const a = new TransactionOutPoint(params);
         a.setValues5(params, payload, offset, serializer, TransactionOutPoint.MESSAGE_LENGTH);
         a.setParent(parent);
+        // Ensure cursor is set to the end position after parsing
+        a.cursor = offset + TransactionOutPoint.MESSAGE_LENGTH;
         return a;
     }
 
@@ -301,7 +303,9 @@ export class TransactionOutPoint extends ChildMessage {
         if (o === null || !(o instanceof TransactionOutPoint))
             return false;
         const other = o as TransactionOutPoint;
-        return this.getIndex() === other.getIndex() && this.getHash().equals(other.getHash());
+        return this.getIndex() === other.getIndex() && 
+               this.getBlockHash().equals(other.getBlockHash()) && 
+               this.getTxHash().equals(other.getTxHash());
     }
 
     public hashCode(): number {

@@ -23,6 +23,7 @@ import { ChildMessage } from './ChildMessage';
 import { TransactionOutPoint } from './TransactionOutPoint';
 import { Script } from '../script/Script';
 import { NetworkParameters } from '../params/NetworkParameters';
+import { Address } from './Address';
 import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
 import { VerificationException } from '../exception/VerificationException';
@@ -129,9 +130,9 @@ export class TransactionInput extends ChildMessage {
         this.cursor += TransactionOutPoint.MESSAGE_LENGTH;
         
         const scriptLen = this.readVarInt();
-        this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
         this.sequence = this.readUint32();
+        this.length = this.cursor - this.offset;
     }
 
     /**
@@ -229,6 +230,52 @@ export class TransactionInput extends ChildMessage {
         // 40 = previous_outpoint (36) + sequence (4)
         const newLength = 40 + (scriptBytes === null ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
         this.adjustLength(newLength - oldLength);
+    }
+
+    /**
+     * Sets the scriptSig (convenience wrapper used by signers).
+     */
+    public setScriptSig(script: Script): void {
+        this.setScriptBytes(script.getProgram());
+    }
+
+    /**
+     * Factory alias used by older codepaths. Mirrors Java overloads.
+     */
+    public static fromOutpoint4(params: NetworkParameters, parentTransaction: Transaction, payload: Uint8Array, outpoint: TransactionOutPoint, value?: Coin | null): TransactionInput {
+        const inp = new TransactionInput(params);
+        inp.setParent(parentTransaction);
+        inp.outpoint = outpoint;
+        inp.scriptBytes = TransactionInput.EMPTY_ARRAY;
+        inp.sequence = TransactionInput.NO_SEQUENCE;
+        inp.length = 36 + 1 + 0 + 4; // rough estimate
+        if (value) inp.value = value;
+        return inp;
+    }
+
+    public static fromOutpoint5(params: NetworkParameters, parentTransaction: Transaction, payload: Uint8Array, outpoint: TransactionOutPoint, value?: Coin | null): TransactionInput {
+        return TransactionInput.fromOutpoint4(params, parentTransaction, payload, outpoint, value);
+    }
+
+    /**
+     * Convenience method that returns the from address of this input by parsing the
+     * scriptSig. The concept of a "from address" is not well defined in Bitcoin and
+     * you should not assume that senders of a transaction can actually receive
+     * coins on the same address they used to sign (e.g. this is not true for shared
+     * wallets).
+     *
+     * @return The address that originally owned the output this input is spending.
+     * @throws ScriptException if the input is a coinbase input or if the scriptSig is invalid
+     */
+    public getFromAddress(): Address {
+        if (this.isCoinBase()) {
+            throw new ScriptException(
+                "This is a coinbase transaction which generates new coins. It does not have a from address.");
+        }
+        if (this.params === null) {
+            throw new ScriptException("Network parameters are null");
+        }
+        return this.getScriptSig().getFromAddress(this.params);
     }
 
     /**
@@ -385,9 +432,6 @@ export class TransactionInput extends ChildMessage {
         return hash;
     }
 
-    /**
-     * Returns a human readable debug string.
-     */
     public toString(): string {
         let s = "TxIn";
         try {

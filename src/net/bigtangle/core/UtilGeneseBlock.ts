@@ -39,6 +39,31 @@ export class UtilGeneseBlock {
                 throw e;
             }
         }
+        // Debug: print serialized genesis block length/hex to diagnose header size mismatch
+        try {
+            console.log(`UtilGeneseBlock.createGenesis: block.length=${block.getLength()}`);
+            console.log(`UtilGeneseBlock.createGenesis: transactions=${block.getTransactions().length}`);
+            if (block.getTransactions().length > 0) {
+                const tx = block.getTransactions()[0];
+                console.log(`UtilGeneseBlock.createGenesis: firstTx.outputs=${tx.getOutputs().length}`);
+                console.log(`UtilGeneseBlock.createGenesis: firstTx.inputs=${tx.getInputs().length}`);
+            }
+            const ser = block.bitcoinSerialize();
+            console.log(`UtilGeneseBlock.createGenesis: serialized length=${ser.length}`);
+            const fullHex = Buffer.from(ser).toString('hex');
+            console.log(`UtilGeneseBlock.createGenesis: fullHex=${fullHex}`);
+            // If it's large enough, print header vs transactions split
+            if (ser.length >= 168) {
+                const hdr = Buffer.from(ser.slice(0, 168)).toString('hex');
+                const trx = Buffer.from(ser.slice(168)).toString('hex');
+                console.log(`UtilGeneseBlock.createGenesis: headerHex=${hdr}`);
+                console.log(`UtilGeneseBlock.createGenesis: txHex=${trx}`);
+            } else {
+                console.log('UtilGeneseBlock.createGenesis: serialized < 168 bytes; full payload shown');
+            }
+        } catch (e) {
+            console.error('UtilGeneseBlock.createGenesis: error serializing genesis', e);
+        }
         return block;
     }
 }

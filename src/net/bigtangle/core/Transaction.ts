@@ -37,6 +37,7 @@ import { Purpose } from './Purpose';
 import { SigHash } from './SigHash';
 import { Utils } from './Utils';
 import { VarInt } from './VarInt';
+import { Message } from './Message';
 
 /**
  * <p>
@@ -96,6 +97,9 @@ export class Transaction extends ChildMessage {
     // This is an in memory helper only.
     private hash: Sha256Hash | null = null;
 
+    // Tracks optimal encoding message size (mirror of Java field)
+    private optimalEncodingMessageSize: number = 0;
+
     private purpose: Purpose = Purpose.UNKNOWN;
 
     /**
@@ -132,7 +136,10 @@ export class Transaction extends ChildMessage {
 
     public getOptimalEncodingMessageSize(): number {
         // TODO: Implement this method properly
-        return this.length;
+        if (this.optimalEncodingMessageSize && this.optimalEncodingMessageSize !== 0)
+            return this.optimalEncodingMessageSize;
+        this.optimalEncodingMessageSize = this.getMessageSize();
+        return this.optimalEncodingMessageSize;
     }
 
     public getSigOpCount(): number {
@@ -155,9 +162,9 @@ export class Transaction extends ChildMessage {
     /**
      * Calculates the hash for the signature.
      */
-    public hashForSignature(inputIndex: number, connectedScript: Uint8Array, sighashFlags: number): Sha256Hash {
+    public hashForSignature(inputIndex: number, connectedScript: Uint8Array, sighashFlags: number): Uint8Array {
         // TODO: Implement this method properly
-        return Sha256Hash.ZERO_HASH; // Placeholder
+        return new Uint8Array(32); // Placeholder - return 32-byte array
     }
 
     /**
@@ -608,7 +615,8 @@ export class Transaction extends ChildMessage {
                 this.serializer!
             );
             this.outputs.push(output);
-            // The cursor has already been updated by the output's parse() method
+            // Update the parent cursor by the parsed output's size (child parse doesn't affect parent cursor)
+            this.cursor += output.getMessageSize();
             console.log(`Transaction.parse: Parsed output ${i}, cursor now ${this.cursor}`);
         }
         
@@ -618,6 +626,51 @@ export class Transaction extends ChildMessage {
         }
         this.lockTime = this.readUint32();
         console.log(`Transaction.parse: Read lockTime ${this.lockTime}, cursor now ${this.cursor}`);
+        // Read optional additional fields present in the Java implementation
+        // Each field is prefixed by a uint32 length. Defensive: validate the
+        // claimed length before attempting to read to avoid throwing when the
+        // cursor is misaligned and claims an absurdly large length.
+        const safeReadLen = (): number => {
+            let l = this.readUint32();
+            const remaining = this.payload ? (this.payload.length - this.cursor) : 0;
+            if (l < 0 || l > remaining || l > (Message ? Message.MAX_SIZE : Number.MAX_SAFE_INTEGER)) {
+                console.warn(`Transaction.parse: claimed length ${l} at cursor ${this.cursor - 4} is invalid (remaining=${remaining}), treating as 0`);
+                return 0;
+            }
+            return l;
+        };
+
+        // dataClassName
+        let len = safeReadLen();
+        if (len > 0) {
+            const buf = this.readBytes(len);
+            this.dataClassName = new TextDecoder().decode(buf);
+        }
+
+        // data
+        len = safeReadLen();
+        if (len > 0) {
+            this.data = this.readBytes(len);
+        }
+
+        // toAddressInSubtangle
+        len = safeReadLen();
+        if (len > 0) {
+            this.toAddressInSubtangle = this.readBytes(len);
+        }
+
+        // memo
+        len = safeReadLen();
+        if (len > 0) {
+            this.memo = new TextDecoder().decode(this.readBytes(len));
+        }
+
+        // dataSignature
+        len = safeReadLen();
+        if (len > 0) {
+            this.dataSignature = this.readBytes(len);
+        }
+
         this.length = this.cursor - this.offset;
         console.log(`Transaction.parse: Finished parse, length ${this.length}`);
     }
@@ -633,5 +686,177 @@ export class Transaction extends ChildMessage {
             output.bitcoinSerialize(stream);
         }
         Utils.uint32ToByteStreamLE(this.lockTime, stream);
+        // write dataClassName
+        if (this.dataClassName == null) {
+            Utils.uint32ToByteStreamLE(0, stream);
+        } else {
+            const b = new TextEncoder().encode(this.dataClassName);
+            Utils.uint32ToByteStreamLE(b.length, stream);
+            stream.write(b);
+        }
+
+        // write data
+        if (this.data == null) {
+            Utils.uint32ToByteStreamLE(0, stream);
+        } else {
+            Utils.uint32ToByteStreamLE(this.data.length, stream);
+            stream.write(this.data);
+        }
+
+        // write toAddressInSubtangle
+        if (this.toAddressInSubtangle == null) {
+            Utils.uint32ToByteStreamLE(0, stream);
+        } else {
+            Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
+            stream.write(this.toAddressInSubtangle);
+        }
+
+        // write memo
+        if (this.memo == null) {
+            Utils.uint32ToByteStreamLE(0, stream);
+        } else {
+            const membyte = new TextEncoder().encode(this.memo);
+            Utils.uint32ToByteStreamLE(membyte.length, stream);
+            stream.write(membyte);
+        }
+
+        // write dataSignature
+        if (this.dataSignature == null) {
+            Utils.uint32ToByteStreamLE(0, stream);
+        } else {
+            Utils.uint32ToByteStreamLE(this.dataSignature.length, stream);
+            stream.write(this.dataSignature);
+        }
+    }
+
+    // Helper mirroring Java's calcLength utility (used in some callers)
+    protected static calcLength(buf: Uint8Array, offset: number): number {
+        // Minimal implementation: attempt to decode sizes similar to Java
+        let cursor = offset + 4; // skip version
+        let varint = new VarInt(buf, cursor);
+        let txInCount = Number(varint.value);
+        cursor += varint.getOriginalSizeInBytes();
+        for (let i = 0; i < txInCount; i++) {
+            cursor += 36; // prevout length
+            varint = new VarInt(buf, cursor);
+            const scriptLen = Number(varint.value);
+            cursor += scriptLen + 4 + varint.getOriginalSizeInBytes();
+        }
+        varint = new VarInt(buf, cursor);
+        let txOutCount = Number(varint.value);
+        cursor += varint.getOriginalSizeInBytes();
+        for (let i = 0; i < txOutCount; i++) {
+            cursor += 8;
+            varint = new VarInt(buf, cursor);
+            const scriptLen = Number(varint.value);
+            cursor += scriptLen + varint.getOriginalSizeInBytes();
+        }
+        return cursor - offset + 4;
+    }
+    /**
+     * A human readable version of the transaction useful for debugging. The format
+     * is not guaranteed to be stable.
+     */
+    public toString(): string {
+        let s: string[] = [];
+        s.push("  " + (this.getHash ? this.getHash().toString() : "unknown") + '\n');
+        // if (this.updatedAt != null)
+        //     s.push(" updated: " + Utils.dateTimeFormat(this.updatedAt) + '\n');
+        if (this.version !== 1)
+            s.push("  version " + this.version + '\n');
+        // If you have isTimeLocked() and isOptInFullRBF() methods, implement them accordingly.
+        if ((this as any).isTimeLocked && (this as any).isTimeLocked()) {
+            s.push("  time locked until ");
+            if (this.lockTime < Transaction.LOCKTIME_THRESHOLD) {
+                s.push("block " + this.lockTime);
+            } else {
+                s.push(Utils.dateTimeFormat(this.lockTime * 1000));
+            }
+            s.push('\n');
+        }
+        if ((this as any).isOptInFullRBF && (this as any).isOptInFullRBF()) {
+            s.push("  opts into full replace-by-fee\n");
+        }
+        if (this.isCoinBase()) {
+            let script: string;
+            let script2: string;
+            try {
+                script = this.inputs.length === 0 ? "None" : this.inputs[0].getScriptSig().toString();
+                script2 = this.outputs.length === 0 ? "None" : this.outputs[0].toString();
+            } catch (e: any) {
+                script = "???";
+                script2 = "???";
+            }
+            s.push("     == COINBASE (scriptSig " + script + ")  (scriptPubKey " + script2 + ")\n");
+            return s.join('');
+        }
+        if (this.inputs.length > 0) {
+            for (const input of this.inputs) {
+                s.push("     ");
+                s.push("in   ");
+                    try {
+                    let scriptSigStr = "";
+                    const ss = input.getScriptSig();
+                    if (ss) scriptSigStr = ss.toString();
+                    s.push((scriptSigStr && scriptSigStr.length > 0) ? scriptSigStr : "<no scriptSig>");
+                    const inputValue = input.getValue ? input.getValue() : null;
+                    if (inputValue != null)
+                        s.push(" " + inputValue.toString());
+                    s.push("\n          ");
+                    s.push("outpoint:");
+                    const outpoint = input.getOutpoint ? input.getOutpoint() : null;
+                    s.push(outpoint ? outpoint.toString() : "null");
+                    const connectedOutput = outpoint && outpoint.getConnectedOutput ? outpoint.getConnectedOutput() : null;
+                    if (connectedOutput != null) {
+                        const scriptPubKey = connectedOutput.getScriptPubKey ? connectedOutput.getScriptPubKey() : null;
+                        if (scriptPubKey && (scriptPubKey.isSentToAddress && scriptPubKey.isSentToAddress() || scriptPubKey.isPayToScriptHash && scriptPubKey.isPayToScriptHash())) {
+                            s.push(" hash160:");
+                            s.push(Utils.HEX.encode(scriptPubKey.getPubKeyHash()));
+                        }
+                    }
+                    if (input.hasSequence && input.hasSequence()) {
+                        s.push("\n          sequence:" + (input.getSequenceNumber ? input.getSequenceNumber().toString(16) : "unknown"));
+                        if (input.isOptInFullRBF && input.isOptInFullRBF())
+                            s.push(", opts into full RBF");
+                    }
+                } catch (e: any) {
+                    s.push("[exception: " + (e && e.message ? e.message : e) + "]");
+                }
+                s.push('\n');
+            }
+        } else {
+            s.push("     ");
+            // s.push("INCOMPLETE: No inputs!\n");
+        }
+        for (const out of this.outputs) {
+            s.push("     ");
+            s.push("out  ");
+            try {
+                let scriptPubKeyStr = out.getScriptPubKey ? out.getScriptPubKey().toString() : "";
+                s.push((scriptPubKeyStr && scriptPubKeyStr.length > 0) ? scriptPubKeyStr : "<no scriptPubKey>");
+                s.push("\n ");
+                s.push(out.getValue().toString());
+                if (!out.isAvailableForSpending()) {
+                    s.push(" Spent");
+                }
+                const spentBy = out.getSpentBy ? out.getSpentBy() : null;
+                if (spentBy != null) {
+                    const pt = spentBy.getParentTransaction ? spentBy.getParentTransaction() : null;
+                    if (pt && pt.getHash) {
+                        const h = pt.getHash();
+                        s.push(" by ");
+                        s.push(h ? h.toString() : "unknown");
+                    } else {
+                        s.push(" by unknown");
+                    }
+                }
+            } catch (e: any) {
+                s.push("[exception: " + (e && e.message ? e.message : e) + "]");
+            }
+            s.push('\n');
+        }
+        if (this.memo != null)
+            s.push("   memo " + this.memo + '\n');
+        return s.join('');
     }
 }

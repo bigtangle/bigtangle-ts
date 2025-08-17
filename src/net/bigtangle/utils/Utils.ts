@@ -386,6 +386,7 @@ export class Utils {
     }
 
     public static encodeMPI(value: BigInteger, includeLength: boolean): Uint8Array {
+        console.log("encodeMPI value:", value.toString());
         if (value.equals(bigInt(0))) {
             if (!includeLength) {
                 return new Uint8Array(0);
@@ -398,7 +399,7 @@ export class Utils {
 
         // Get bytes from big-integer, most significant byte first
         const arrayResult = absValue.toArray(256);
-        const array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+        let array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
 
         // Ensure the highest bit is not set if positive, or is set if negative (for MPI format)
         let length = array.length;
@@ -418,6 +419,7 @@ export class Utils {
             resultBytes[0] |= 0x80;
         }
 
+        console.log("encodeMPI resultBytes:", resultBytes);
         if (includeLength) {
             const finalResult = new Uint8Array(resultBytes.length + 4);
             Utils.uint32ToByteArrayBE(resultBytes.length, finalResult, 0);

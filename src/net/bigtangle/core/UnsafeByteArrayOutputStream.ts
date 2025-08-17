@@ -30,6 +30,9 @@ export class UnsafeByteArrayOutputStream {
             }
             this.buf[this.count] = b;
             this.count = newcount;
+            // Debug: log single byte writes for tracing
+            // (small overhead, acceptable for diagnosis)
+            console.log(`UnsafeByteArrayOutputStream.write: wrote 1 byte, new size=${this.count}`);
         } else {
             const buffer = b instanceof Buffer ? b : Buffer.from(b);
             this.writeBytes(buffer, 0, buffer.length);
@@ -57,6 +60,8 @@ export class UnsafeByteArrayOutputStream {
         }
         b.copy(this.buf, this.count, off, off + len);
         this.count = newcount;
+    // Debug: log bulk writes for tracing
+    console.log(`UnsafeByteArrayOutputStream.writeBytes: wrote ${len} bytes, new size=${this.count}`);
     }
 
     /**
@@ -91,7 +96,9 @@ export class UnsafeByteArrayOutputStream {
      * @see java.io.ByteArrayOutputStream#size()
      */
     public toByteArray(): Buffer {
-        return this.count === this.buf.length ? this.buf : Utils.copyOf(this.buf, this.count);
+    // Diagnostic: log internal state to detect truncation/return issues
+    console.log(`UnsafeByteArrayOutputStream.toByteArray: count=${this.count}, buf.length=${this.buf.length}`);
+    return this.count === this.buf.length ? this.buf : Utils.copyOf(this.buf, this.count);
     }
 
     /**

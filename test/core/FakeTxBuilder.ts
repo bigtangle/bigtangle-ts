@@ -54,8 +54,8 @@ export class FakeTxBuilder {
             Sha256Hash.ZERO_HASH,
             Sha256Hash.ZERO_HASH,
         );
-        const input =  TransactionInput.fromOutpoint4(params, null, Buffer.from([]), outpoint);
         const tx = new Transaction(params);
+        const input =  TransactionInput.fromOutpoint4(params, tx, Buffer.from([]), outpoint);
         tx.addInput(input);
         const outputToMe = TransactionOutput.fromAddress(
             params,

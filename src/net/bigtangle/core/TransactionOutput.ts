@@ -21,6 +21,7 @@
 
 import { ChildMessage } from './ChildMessage';
 import { Script } from '../script/Script';
+import { ScriptBuilder } from '../script/ScriptBuilder';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
@@ -131,9 +132,8 @@ export class TransactionOutput extends ChildMessage {
      * TransactionOutput directly.
      */
     public static fromAddress(params: NetworkParameters, parent: Transaction | null, value: Coin, to: Address): TransactionOutput {
-        // TODO: Implement ScriptBuilder.createOutputScript
-        const scriptBytes = new Uint8Array(0); // Placeholder
-        return new TransactionOutput(params, parent, value, scriptBytes);
+        const script = ScriptBuilder.createOutputScript(to);
+        return new TransactionOutput(params, parent, value, script.getProgram());
     }
 
     /**
@@ -144,9 +144,8 @@ export class TransactionOutput extends ChildMessage {
      * directly.
      */
     public static fromCoinKey(params: NetworkParameters, parent: Transaction | null, value: Coin, to: ECKey): TransactionOutput {
-        // TODO: Implement ScriptBuilder.createOutputScript
-        const scriptBytes = new Uint8Array(0); // Placeholder
-        return new TransactionOutput(params, parent, value, scriptBytes);
+        const script = ScriptBuilder.createOutputScript(to);
+        return new TransactionOutput(params, parent, value, script.getProgram());
     }
 
     public getScriptPubKey(): Script {
@@ -206,11 +205,21 @@ export class TransactionOutput extends ChildMessage {
     }
 
     protected parse(): void {
-        const vlen = this.readVarInt();
-        const v = this.readBytes(vlen);
-        // Parse the value string to a bigint
-        const valueStr = new TextDecoder().decode(v);
-        const valueBigInt = BigInt(valueStr);
+        if (!this.payload) throw new Error("Payload is null");
+        
+        // Read the value as a little-endian 8-byte signed integer
+        const valueBytes = this.readBytes(8);
+        let valueBigInt = 0n;
+        
+        // Convert little-endian bytes to signed 64-bit integer
+        for (let i = 0; i < 8; i++) {
+            valueBigInt += BigInt(valueBytes[i]) << (BigInt(8) * BigInt(i));
+        }
+        
+        // Handle two's complement for negative values
+        if (valueBigInt >= 0x8000000000000000n) {
+            valueBigInt = valueBigInt - 0x10000000000000000n;
+        }
         
         this.tokenLen = this.readVarInt();
         const tokenid = this.readBytes(this.tokenLen);
@@ -225,14 +234,27 @@ export class TransactionOutput extends ChildMessage {
 
     protected bitcoinSerializeToStream(stream: any): void {
         checkNotNull(this.scriptBytes);
-        const valuebytes = this.value.getValue().toString();
-        const encoder = new TextEncoder();
-        const valueBuffer = encoder.encode(valuebytes);
-        stream.write(new VarInt(valueBuffer.length).encode());
-        stream.write(valueBuffer);
+        
+        // Write the value as a little-endian 8-byte signed integer
+        const valueBytes = new Uint8Array(8);
+        let value = this.value.getValue();
+        
+        // Handle negative values using two's complement
+        if (value < 0n) {
+            value = value + 0x10000000000000000n;
+        }
+        
+        for (let i = 0; i < 8; i++) {
+            valueBytes[i] = Number((value >> BigInt(i * 8)) & 0xFFn);
+        }
+        stream.write(valueBytes);
 
-        stream.write(new VarInt(this.value.getTokenid().length).encode());
-        stream.write(this.value.getTokenid());
+        // Write the tokenid with length prefix
+        const tokenid = this.value.getTokenid();
+        stream.write(new VarInt(tokenid.length).encode());
+        stream.write(tokenid);
+        
+        // Write the script with length prefix
         stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
     }

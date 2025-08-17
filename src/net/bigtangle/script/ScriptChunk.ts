@@ -176,12 +176,15 @@ export class ScriptChunk {
         let buf = "";
         if (this.isOpCode()) {
             buf += getOpCodeName(this.opcode);
+        } else if (this.isSmallNumOpCode(this.opcode)) {
+            // Small num (e.g., OP_0, OP_1, OP_1NEGATE)
+            buf += ScriptUtils.decodeFromOpN(this.opcode).toString();
         } else if (this.data !== null) {
             // Data chunk
             buf += getPushDataName(this.opcode) + "[" + Utils.HEX.encode(this.data) + "]";
         } else {
-            // Small num (e.g., OP_0, OP_1, OP_1NEGATE)
-            buf += ScriptUtils.decodeFromOpN(this.opcode);
+            // This case shouldn't happen with properly constructed chunks
+            buf += getPushDataName(this.opcode);
         }
         return buf;
     }

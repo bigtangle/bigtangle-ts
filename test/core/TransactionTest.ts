@@ -95,7 +95,7 @@ describe('TransactionTest', () => {
             let fromAddress = "";
             try {
                 if (!isCoinBase) {
-                    fromAddress = tx.getInputs()[0].getFromAddress();
+                    fromAddress = tx.getInputs()[0].getFromAddress().toString();
                 }
             } catch (e) {
                 // No address found.

@@ -13,37 +13,40 @@ export class VarInt {
      *
      * @param value the unsigned long value (beware widening conversion of negatives!)
      */
-    constructor(value: BigInteger | number | Buffer, offset?: number) {
-        if (Buffer.isBuffer(value)) {
+    constructor(value: BigInteger | number | Buffer | Uint8Array, offset?: number) {
+        // If a Uint8Array is passed, convert it to a Buffer for legacy APIs
+        let buf: Buffer | null = null;
+        if (value instanceof Uint8Array && !Buffer.isBuffer(value)) {
+            buf = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+        } else if (Buffer.isBuffer(value)) {
+            buf = value as Buffer;
+        }
+
+        if (buf) {
             // Constructor with buffer and offset
-            const buf = value;
             if (offset === undefined) {
                 throw new Error("Offset must be provided when constructing from buffer");
             }
-            
-            console.log(`VarInt.constructor: buf.length=${buf.length}, offset=${offset}, buf[${offset}]=${buf[offset].toString(16)}`);
+
+            // Debug logs helpful when diagnosing parsing issues
+            // console.log(`VarInt.constructor: buf.length=${buf.length}, offset=${offset}, buf[${offset}]=${buf[offset].toString(16)}`);
             const first = 0xFF & buf[offset];
-            console.log(`VarInt.constructor: first=${first}`);
             if (first < 253) {
                 this.value = bigInt(first);
                 this.originallyEncodedSize = 1; // 1 data byte (8 bits)
-                console.log(`VarInt.constructor: 1-byte VarInt, value=${this.value.toJSNumber()}`);
             } else if (first === 253) {
                 this.value = bigInt(0xFF & buf[offset + 1]).or(bigInt(0xFF & buf[offset + 2]).shiftLeft(8));
                 this.originallyEncodedSize = 3; // 1 marker + 2 data bytes (16 bits)
-                console.log(`VarInt.constructor: 2-byte VarInt, value=${this.value.toJSNumber()}`);
             } else if (first === 254) {
                 this.value = bigInt(Utils.readUint32(buf, offset + 1));
                 this.originallyEncodedSize = 5; // 1 marker + 4 data bytes (32 bits)
-                console.log(`VarInt.constructor: 4-byte VarInt, value=${this.value.toJSNumber()}`);
             } else {
                 this.value = Utils.readUint64(buf, offset + 1);
                 this.originallyEncodedSize = 9; // 1 marker + 8 data bytes (64 bits)
-                console.log(`VarInt.constructor: 8-byte VarInt, value=${this.value.toString()}`);
             }
         } else {
-            // Constructor with value
-            this.value = typeof value === 'number' ? bigInt(value) : value;
+            // Constructor with numeric/bigint value
+            this.value = typeof value === 'number' ? bigInt(value) : (value as BigInteger);
             this.originallyEncodedSize = this.getSizeInBytes();
         }
     }
