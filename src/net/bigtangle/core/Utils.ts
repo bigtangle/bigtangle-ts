@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import crypto from 'crypto';
 import base58 from 'bs58';
 import { BaseEncoding } from '../utils/BaseEncoding';
+import { Sha256Hash } from './Sha256Hash';
 
 export class Utils {
  
@@ -68,7 +69,12 @@ export class Utils {
         if (offset + 8 > buffer.length) {
             throw new Error(`Attempt to read 8 bytes from position ${offset} with only ${buffer.length} bytes available`);
         }
-        return buffer.readBigUInt64LE(offset);
+        const value = buffer.readBigUInt64LE(offset);
+        // Convert to signed BigInt
+        if (value >= 0x8000000000000000n) {
+            return value - 0x10000000000000000n;
+        }
+        return value;
     }
     
     public static reverseDwordBytes(bytes: Buffer, length: number): Buffer {
@@ -210,5 +216,26 @@ export class Utils {
         buffer1.copy(result, 0);
         buffer2.copy(result, buffer1.length);
         return result;
+    }
+    
+    public static calculateMerkleRoot(hashes: Sha256Hash[]): Sha256Hash {
+        // Implement merkle root calculation
+        if (hashes.length === 0) {
+            return Sha256Hash.ZERO_HASH;
+        }
+        
+        let tree = [...hashes];
+        while (tree.length > 1) {
+            const newTree: Sha256Hash[] = [];
+            for (let i = 0; i < tree.length; i += 2) {
+                const left = tree[i];
+                const right = i + 1 < tree.length ? tree[i + 1] : left;
+                const combined = Buffer.concat([left.getBytes(), right.getBytes()]);
+                const hash = Sha256Hash.hashTwice(combined);
+                newTree.push(hash);
+            }
+            tree = newTree;
+        }
+        return tree[0];
     }
 }

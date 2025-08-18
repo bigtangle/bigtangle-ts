@@ -13,7 +13,7 @@ import { Block } from "../../src/net/bigtangle/core/Block";
 import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
 import { Address } from "../../src/net/bigtangle/core/Address";
- 
+
 describe("BlockTest", () => {
   const PARAMS = TestParams.get();
 
@@ -21,7 +21,7 @@ describe("BlockTest", () => {
   const blockHex = "01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f306a36800000000ae47012000000000ae4701200000000000000000f54a5851e9372b87810a8e60cdd2e7cfd80b6e310000000000000000000000000000000000000000010100000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003020000ffffffff010000c16ff286230001bc23210250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352ac000000000000000000000000000000000000000000000000";
   const blockBytes = Buffer.from(Utils.HEX.decode(blockHex));
 
-  test.skip("testBlockVerification", () => {
+  test("testBlockVerification", () => {
     const blockde = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
     blockde.verify();
     // Instead of checking for a specific hash, we'll just verify that the hash is valid
@@ -30,8 +30,8 @@ describe("BlockTest", () => {
 
   test("testSerial", () => {
     const block = PARAMS.getDefaultSerializer().makeBlock(blockBytes);
-    
-    // Validate the deserialized block properties
+
+    // Validate the deserialized block properties using getter methods
     expect(block.getVersion()).toBe(1);
     expect(block.getTimeSeconds()).toBe(1755514611);
     expect(block.getHeight()).toBe(0);
@@ -41,7 +41,7 @@ describe("BlockTest", () => {
     expect(block.getMerkleRoot().toString()).toBe("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31");
     expect(block.getDifficultyTarget()).toBe(508814037);
     expect(block.getNonce()).toBe(0);
-    expect(block.getMinerAddress().toString()).toBe("1111111111111111111114oLvT2");
+    expect(Address.fromPubKeyHash(TestParams.get(), block.getMinerAddress()).toString()).toBe("1111111111111111111114oLvT2");
     expect(block.getBlockType()).toBe(BlockType.BLOCKTYPE_INITIAL);
 
     // Validate transaction details
@@ -50,10 +50,10 @@ describe("BlockTest", () => {
     expect(tx.isCoinBase()).toBe(true);
     expect(tx.getInputs().length).toBe(1);
     expect(tx.getOutputs().length).toBe(1);
-    
+
     const output = tx.getOutputs()[0];
     expect(output.getValue().toString()).toBe("100000000000000000");
-    
+
     // Verify the output script
     const pubkey = Utils.HEX.decode("03d6053241c5abca6621c238922e7473977320ef310be0a8538cc2df7ee5a0187c");
     const scriptBytes = output.getScriptBytes();
@@ -73,7 +73,7 @@ describe("BlockTest", () => {
       Buffer.from(Utils.HEX.decode(tip))
     );
 
- 
+
     console.log(" Orignal  Block  :", blockde.toString());
 
     // Verify that the block was parsed correctly
@@ -81,7 +81,7 @@ describe("BlockTest", () => {
     expect(blockde.getHeight()).toBe(6);
     expect(blockde.getNonce()).toBe(39988229);
     expect(blockde.getBlockType()).toBe(1); // BLOCKTYPE_TRANSFER
-    const tb=blockde;
+    const tb = blockde;
     // Assert transaction details
     expect(tb.getTransactions().length).toBe(1);
 
@@ -99,7 +99,7 @@ describe("BlockTest", () => {
     // expect(Utils.HEX.encode(input.getOutpoint().getTxHash().getBytes()))
     //   .toBe("ad1665697e83496891c8921bde5c60f88d9e16149e931336f26bf87df49e3035");
     // expect(input.getOutpoint().getIndex()).toBe(1);
-		
+
     // Assert output details
     expect(tx.getOutputs().length).toBe(2);
     const output1 = tx.getOutputs()[0];
@@ -110,9 +110,9 @@ describe("BlockTest", () => {
     // Verify the block can be serialized and deserialized correctly
     const blockbyte = blockde.bitcoinSerialize();
     const reparsedBlock = serializer.makeBlock(Buffer.from(blockbyte));
-  console.log("Test Block recovered :", reparsedBlock.toString());
+    console.log("Test Block recovered :", reparsedBlock.toString());
 
-   // const blockJava = "hash: 010aa752eb83ce682765dd3e0fbd8a05b393057769e21b0c50ca41dec4ca30a5\nversion: 1   time: 1754256489 (2025-08-03T21:28:09Z)\nheight: 6\nchain length: 2\nprevious: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nbranch: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nmerkle: 14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\ndifficulty target (nBits):    536954798\nnonce: 39988229\nmineraddress: 14zyhLV1FWsdjj7WCP9EomckQ8GHudL8bY\nblocktype: BLOCKTYPE_TRANSFER\n1 transaction(s):\n14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\n   in   PUSHDATA(72)[3045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01]\n        outpoint:008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb : ad1665697e83496891c8921bde5c60f88d9e16149e931336f26bf87df49e3035 : 1\n   out  DUP HASH160 PUSHDATA(20)[51d65cb4f2e64551c447cd41635dd9214bbaf19d] EQUALVERIFY CHECKSIG\n[1000000:bc]\n   out  PUSHDATA(33)[02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975] CHECKSIG\n[99999999996997000:bc]\nmemo {\n  \"kv\" : [ {\n    \"key\" : \"memo\",\n    \"value\" : \"payList\"\n  } ]\n}";
+    // const blockJava = "hash: 010aa752eb83ce682765dd3e0fbd8a05b393057769e21b0c50ca41dec4ca30a5\nversion: 1   time: 1754256489 (2025-08-03T21:28:09Z)\nheight: 6\nchain length: 2\nprevious: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nbranch: 01162622daec45a931ade863f005ea908640edc9693a1f57116b5ccdaa215d61\nmerkle: 14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\ndifficulty target (nBits):    536954798\nnonce: 39988229\nmineraddress: 14zyhLV1FWsdjj7WCP9EomckQ8GHudL8bY\nblocktype: BLOCKTYPE_TRANSFER\n1 transaction(s):\n14e0f936ce9b2cda41aab7038e6734fcad6e254ea76979e2b4467a882ec48dfe\n   in   PUSHDATA(72)[3045022100fa7d6a086c244d84f942049c8e24d6f9f854ab85abce4eeaa77be984040e00d302204f5aa11ea921d718f133679b558c016763f0c9995156baed5dcd8033a1b1838e01]\n        outpoint:008cdb09efc7dd99014d74db1d0f2468cf52e6556fb869d08bb48850b67709bb : ad1665697e83496891c8921bde5c60f88d9e16149e931336f26bf87df49e3035 : 1\n   out  DUP HASH160 PUSHDATA(20)[51d65cb4f2e64551c447cd41635dd9214bbaf19d] EQUALVERIFY CHECKSIG\n[1000000:bc]\n   out  PUSHDATA(33)[02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975] CHECKSIG\n[99999999996997000:bc]\nmemo {\n  \"kv\" : [ {\n    \"key\" : \"memo\",\n    \"value\" : \"payList\"\n  } ]\n}";
 
 
     // Check that key properties are preserved
@@ -134,7 +134,7 @@ describe("BlockTest", () => {
       expect(reparsedTx.getOutputs().length).toBe(originalTx.getOutputs().length);
     }
 
- 
+
     //  java and ts  must be consistent
     expect(Utils.HEX.encode(blockbyte)).toBe(tip);
 
@@ -226,22 +226,9 @@ describe("BlockTest", () => {
     // They should be identical in terms of hash
     expect(block1.getHash().equals(originalBlock.getHash())).toBe(true);
   });
+ 
 
-  test.skip("testUpdateLength", () => {
-    const params = MainNetParams.get();
-    const block = UtilsTest.createBlock(
-      PARAMS,
-      UtilGeneseBlock.createGenesis(params),
-      UtilGeneseBlock.createGenesis(params)
-    );
-    const origBlockLen = block.getLength();
-    const tx = new Transaction(params);
-    // Simplified test - just check that adding a transaction updates the block length
-    block.addTransaction(tx);
-    expect(block.getLength()).toBeGreaterThan(origBlockLen);
-  });
-
-  test.skip("testBitcoinSerializerMakeBlockWithSignedTransactions", () => {
+  test("testBitcoinSerializerMakeBlockWithSignedTransactions", () => {
     // Test BitcoinSerializer.makeBlock with a genesis block that has a coinbase transaction
     const params = TestParams.get();
 

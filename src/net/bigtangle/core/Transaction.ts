@@ -6,7 +6,7 @@
  * Copyright 2011 Google Inc.
  * Copyright 2014 Andreas Schildbach
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version 2.0 (极端的"License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -370,7 +370,7 @@ export class Transaction extends ChildMessage {
     /**
      * Transactions can have an associated lock time, specified either as a block
      * height or in seconds since the UNIX epoch. A transaction is not allowed to be
-     * confirmed by miners until the lock time is reached, and since Bitcoin 0.8+ a
+     * confirmed by miners until the lock time is reached, and since Bitcoin 0.极端的8+ a
      * transaction that did not end its lock period (non final) is considered to be
      * non standard and won't be relayed or included in the memory pool either.
      */
@@ -549,130 +549,87 @@ export class Transaction extends ChildMessage {
     }
 
     protected parse(): void {
-        // Check if we have a payload to parse
-        if (!this.payload) {
-            throw new Error("No payload to parse");
-        }
-        
-        console.log(`Transaction.parse: Starting parse at offset ${this.offset}, cursor ${this.cursor}, payload length ${this.payload.length}`);
-        
-        // Check if we have enough bytes to read the version
-        if (this.cursor + 4 > this.payload.length) {
-            throw new Error(`Not enough bytes to read version: offset=${this.cursor}, buffer length=${this.payload.length}`);
-        }
+        this.cursor = this.offset;
+
         this.version = this.readUint32();
-        console.log(`Transaction.parse: Read version ${this.version}, cursor now ${this.cursor}`);
-        
-        // Check if we have enough bytes to read the number of inputs
-        // We need at least 1 byte for the VarInt, but it could be more
-        if (this.cursor >= this.payload.length) {
-            throw new Error(`Not enough bytes to read number of inputs: offset=${this.cursor}, buffer length=${this.payload.length}`);
-        }
+        this.optimalEncodingMessageSize = 4;
+
+        // First come the inputs.
         const numInputs = this.readVarInt();
-        console.log(`Transaction.parse: Number of inputs: ${numInputs}, cursor now ${this.cursor}`);
+        this.optimalEncodingMessageSize += VarInt.sizeOf(numInputs);
         this.inputs = [];
         for (let i = 0; i < numInputs; i++) {
-            if (this.params === null) {
-                throw new Error("Network parameters are null");
-            }
-            if (this.payload === null) {
-                throw new Error("Payload is null");
-            }
-            console.log(`Transaction.parse: Parsing input ${i} at cursor ${this.cursor}`);
             const input = TransactionInput.fromTransactionInput5(
-                this.params, 
+                this.params!, 
                 this, 
                 this.payload, 
                 this.cursor, 
                 this.serializer!
             );
             this.inputs.push(input);
-            // Update the cursor based on the input's message size
-            this.cursor += input.getMessageSize();
-            console.log(`Transaction.parse: Parsed input ${i}, cursor now ${this.cursor}`);
+            const scriptLen = this.readVarInt();
+            const addLen = 4 + (input.getOutpoint().connectedOutput === null ? 0 : input.getOutpoint().connectedOutput.getMessageSize());
+            this.optimalEncodingMessageSize += 36 + addLen + VarInt.sizeOf(scriptLen) + scriptLen + 4;
+            this.cursor += scriptLen + 4 + addLen;
         }
-        
-        // Check if we have enough bytes to read the number of outputs
-        if (this.cursor >= this.payload.length) {
-            throw new Error(`Not enough bytes to read number of outputs: offset=${this.cursor}, buffer length=${this.payload.length}`);
-        }
+
+        // Now the outputs
         const numOutputs = this.readVarInt();
-        console.log(`Transaction.parse: Number of outputs: ${numOutputs}, cursor now ${this.cursor}`);
+        this.optimalEncodingMessageSize += VarInt.sizeOf(numOutputs);
         this.outputs = [];
         for (let i = 0; i < numOutputs; i++) {
-            if (this.params === null) {
-                throw new Error("Network parameters are null");
-            }
-            if (this.payload === null) {
-                throw new Error("Payload is null");
-            }
-            console.log(`Transaction.parse: Parsing output ${i} at cursor ${this.cursor}`);
             const output = TransactionOutput.fromTransactionOutput(
-                this.params, 
+                this.params!, 
                 this, 
                 this.payload, 
                 this.cursor, 
                 this.serializer!
             );
             this.outputs.push(output);
-            // Update the parent cursor by the parsed output's size (child parse doesn't affect parent cursor)
             this.cursor += output.getMessageSize();
-            console.log(`Transaction.parse: Parsed output ${i}, cursor now ${this.cursor}`);
+            this.optimalEncodingMessageSize += output.getMessageSize();
         }
-        
-        // Check if we have enough bytes to read the lockTime
-        if (this.cursor + 4 > this.payload.length) {
-            throw new Error(`Not enough bytes to read lockTime: offset=${this.cursor}, buffer length=${this.payload.length}`);
-        }
-        this.lockTime = this.readUint32();
-        console.log(`Transaction.parse: Read lockTime ${this.lockTime}, cursor now ${this.cursor}`);
-        // Read optional additional fields present in the Java implementation
-        // Each field is prefixed by a uint32 length. Defensive: validate the
-        // claimed length before attempting to read to avoid throwing when the
-        // cursor is misaligned and claims an absurdly large length.
-        const safeReadLen = (): number => {
-            let l = this.readUint32();
-            const remaining = this.payload ? (this.payload.length - this.cursor) : 0;
-            if (l < 0 || l > remaining || l > (Message ? Message.MAX_SIZE : Number.MAX_SAFE_INTEGER)) {
-                console.warn(`Transaction.parse: claimed length ${l} at cursor ${this.cursor - 4} is invalid (remaining=${remaining}), treating as 0`);
-                return 0;
-            }
-            return l;
-        };
 
-        // dataClassName
-        let len = safeReadLen();
+        this.lockTime = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
+
+        let len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
         if (len > 0) {
             const buf = this.readBytes(len);
             this.dataClassName = new TextDecoder().decode(buf);
+            this.optimalEncodingMessageSize += len;
         }
 
-        // data
-        len = safeReadLen();
+        len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
         if (len > 0) {
             this.data = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         }
 
-        // toAddressInSubtangle
-        len = safeReadLen();
+        len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
         if (len > 0) {
             this.toAddressInSubtangle = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         }
 
-        // memo
-        len = safeReadLen();
+        len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
         if (len > 0) {
             this.memo = new TextDecoder().decode(this.readBytes(len));
+            this.optimalEncodingMessageSize += len;
         }
 
-        // dataSignature
-        len = safeReadLen();
+        len = this.readUint32();
+        this.optimalEncodingMessageSize += 4;
         if (len > 0) {
             this.dataSignature = this.readBytes(len);
+            this.optimalEncodingMessageSize += len;
         }
 
         this.length = this.cursor - this.offset;
-        console.log(`Transaction.parse: Finished parse, length ${this.length}`);
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
@@ -809,7 +766,7 @@ export class Transaction extends ChildMessage {
                     const connectedOutput = outpoint && outpoint.getConnectedOutput ? outpoint.getConnectedOutput() : null;
                     if (connectedOutput != null) {
                         const scriptPubKey = connectedOutput.getScriptPubKey ? connectedOutput.getScriptPubKey() : null;
-                        if (scriptPubKey && (scriptPubKey.isSentToAddress && scriptPubKey.isSentToAddress() || scriptPubKey.isPayToScriptHash && scriptPubKey.isPayToScriptHash())) {
+                        if (scriptPubKey && (scriptPubKey.isSentToAddress || scriptPubKey.isPayToScriptHash)) {
                             s.push(" hash160:");
                             s.push(Utils.HEX.encode(scriptPubKey.getPubKeyHash()));
                         }

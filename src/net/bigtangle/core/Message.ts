@@ -346,18 +346,26 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
+            const currentPosition = this.cursor + offset;
+            if (currentPosition >= this.payload.length) {
+                throw new ProtocolException(`Cursor position ${currentPosition} is beyond payload length ${this.payload.length}`);
+            }
+            
             console.log(`Message.readVarIntWithOffset: payload.length=${this.payload.length}, cursor=${this.cursor}, offset=${offset}`);
-            console.log(`Message.readVarIntWithOffset: payload[${this.cursor + offset}]=${this.payload[this.cursor + offset].toString(16)}`);
+            const byteValue = this.payload[currentPosition];
+            console.log(`Message.readVarIntWithOffset: payload[${currentPosition}]=${byteValue?.toString(16) ?? 'undefined'}`);
+            
             // Log a few bytes around the cursor for debugging
-            const start = Math.max(0, this.cursor + offset - 5);
-            const end = Math.min(this.payload.length, this.cursor + offset + 5);
+            const start = Math.max(0, currentPosition - 5);
+            const end = Math.min(this.payload.length, currentPosition + 5);
             let bytesStr = "";
             for (let i = start; i < end; i++) {
-                bytesStr += this.payload[i].toString(16).padStart(2, '0') + " ";
+                bytesStr += this.payload[i]?.toString(16).padStart(2, '0') + " ";
             }
             console.log(`Message.readVarIntWithOffset: payload[${start}..${end-1}]=${bytesStr}`);
-            const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
-            this.cursor += offset + varint.getOriginalSizeInBytes();
+            
+            const varint = new VarInt(Buffer.from(this.payload), currentPosition);
+            this.cursor = currentPosition + varint.getOriginalSizeInBytes();
             return varint.value.toJSNumber();
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
@@ -375,6 +383,12 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
+            
+            // Check if we have enough data to read
+            if (this.cursor + length > this.payload.length) {
+                throw new ProtocolException(`Attempt to read ${length} bytes from position ${this.cursor} with only ${this.payload.length - this.cursor} bytes available`);
+            }
+            
             const b = new Uint8Array(length);
             b.set(this.payload.subarray(this.cursor, this.cursor + length));
             this.cursor += length;

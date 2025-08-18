@@ -207,29 +207,36 @@ export class TransactionOutput extends ChildMessage {
     protected parse(): void {
         if (!this.payload) throw new Error("Payload is null");
         
-        // Read the value as a little-endian 8-byte signed integer
-        const valueBytes = this.readBytes(8);
-        let valueBigInt = 0n;
-        
-        // Convert little-endian bytes to signed 64-bit integer
-        for (let i = 0; i < 8; i++) {
-            valueBigInt += BigInt(valueBytes[i]) << (BigInt(8) * BigInt(i));
-        }
-        
-        // Handle two's complement for negative values
-        if (valueBigInt >= 0x8000000000000000n) {
-            valueBigInt = valueBigInt - 0x10000000000000000n;
-        }
-        
-        this.tokenLen = this.readVarInt();
-        const tokenid = this.readBytes(this.tokenLen);
-        
-        // Create the Coin with the parsed value and tokenid
-        this.value = Coin.valueOf(valueBigInt, Buffer.from(tokenid));
+        try {
+            // Read the value as a little-endian 8-byte signed integer
+            const valueBytes = this.readBytes(8);
+            let valueBigInt = 0n;
+            
+            // Convert little-endian bytes to signed 64-bit integer
+            for (let i = 0; i < 8; i++) {
+                valueBigInt += BigInt(valueBytes[i]) << (BigInt(8) * BigInt(i));
+            }
+            
+            // Handle two's complement for negative values
+            if (valueBigInt >= 0x8000000000000000n) {
+                valueBigInt = valueBigInt - 0x10000000000000000n;
+            }
+            
+            this.tokenLen = this.readVarInt();
+            // Only read tokenid if tokenLen is greater than 0
+            const tokenid = this.tokenLen > 0 ? this.readBytes(this.tokenLen) : new Uint8Array(0);
+            
+            // Create the Coin with the parsed value and tokenid
+            this.value = Coin.valueOf(valueBigInt, Buffer.from(tokenid));
 
-        this.scriptLen = this.readVarInt();
-        this.scriptBytes = this.readBytes(this.scriptLen);
-        this.length = this.cursor - this.offset;
+            this.scriptLen = this.readVarInt();
+            // Only read script if scriptLen is greater than 0
+            this.scriptBytes = this.scriptLen > 0 ? this.readBytes(this.scriptLen) : new Uint8Array(0);
+            this.length = this.cursor - this.offset;
+        } catch (e) {
+            console.error("Error parsing TransactionOutput:", e);
+            throw new ProtocolException("Failed to parse TransactionOutput: " + (e as Error).message);
+        }
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
