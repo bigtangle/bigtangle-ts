@@ -64,6 +64,10 @@ export class Utils {
     }
 
     public static readInt64(buffer: Buffer, offset: number): bigint {
+        console.log(`Utils.readInt64: buffer.length=${buffer.length}, offset=${offset}`);
+        if (offset + 8 > buffer.length) {
+            throw new Error(`Attempt to read 8 bytes from position ${offset} with only ${buffer.length} bytes available`);
+        }
         return buffer.readBigUInt64LE(offset);
     }
     
