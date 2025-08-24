@@ -59,7 +59,7 @@ export abstract class CustomTransactionSigner extends StatelessTransactionSigner
                 continue;
             }
 
-            const sighash = tx.hashForSignature(i, redeemData.redeemScript.getProgram(), SigHash.ALL);
+            const sighash = tx.hashForSignature(i, redeemData.redeemScript.getProgram(), SigHash.ALL, false);
             if (sighash === null) {
                 throw new Error(`Hash for signature is null for input ${i}`);
             }

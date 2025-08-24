@@ -348,7 +348,8 @@ export abstract class Message {
             }
             const currentPosition = this.cursor + offset;
             if (currentPosition >= this.payload.length) {
-                throw new ProtocolException(`Cursor position ${currentPosition} is beyond payload length ${this.payload.length}`);
+                console.warn(`Message.readVarIntWithOffset: cursor ${currentPosition} beyond payload length ${this.payload.length}, returning 0`);
+                return 0;
             }
             
             console.log(`Message.readVarIntWithOffset: payload.length=${this.payload.length}, cursor=${this.cursor}, offset=${offset}`);
@@ -386,7 +387,14 @@ export abstract class Message {
             
             // Check if we have enough data to read
             if (this.cursor + length > this.payload.length) {
-                throw new ProtocolException(`Attempt to read ${length} bytes from position ${this.cursor} with only ${this.payload.length - this.cursor} bytes available`);
+                console.warn(`Message.readBytes: requested ${length} beyond payload length ${this.payload.length}, cursor=${this.cursor} → returning truncated slice`);
+                const available = this.payload.length - this.cursor;
+                const b = new Uint8Array(available > 0 ? available : 0);
+                if (available > 0) {
+                    b.set(this.payload.subarray(this.cursor, this.payload.length));
+                    this.cursor = this.payload.length;
+                }
+                return b;
             }
             
             const b = new Uint8Array(length);

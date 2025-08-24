@@ -1487,7 +1487,7 @@ export class Script {
                 verifyFlags.has(Script.VerifyFlag.LOW_S));
 
             // TODO: Should check hash type is known
-            const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
+                const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sigHashMode(), sig.anyoneCanPay());
             // Convert to core ECDSASignature for verification
             const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
             if (hash !== null) {
@@ -1570,7 +1570,7 @@ export class Script {
             // more expensive than hashing, its not a big deal.
             try {
                 const sig = TransactionSignature.decodeFromBitcoin(sigs[0], requireCanonical, false);
-                const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sighashFlags);
+                const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sigHashMode(), sig.anyoneCanPay());
                 // Convert to core ECDSASignature for verification
                 const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
                 if (hash !== null && ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify)) {
@@ -1621,7 +1621,7 @@ export class Script {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
             // For now, use a dummy clone.
             // txContainingThis = {} as Transaction; // Placeholder
-            const payloadBytes = txContainingThis.bitcoinSerializeCopy();
+            const payloadBytes = txContainingThis.bitcoinSerialize();
             const params = txContainingThis.getParams();
             if (params === null) {
                 throw new Error("Transaction parameters are null");

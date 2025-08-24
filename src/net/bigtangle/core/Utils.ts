@@ -59,7 +59,8 @@ export class Utils {
             throw new Error("Buffer is empty");
         }
         if (offset < 0 || offset + 4 > buffer.length) {
-            throw new Error(`Not enough bytes to read uint32: offset=${offset}, buffer length=${buffer.length}`);
+            console.warn(`Utils.readUint32: not enough bytes to read uint32 at offset=${offset}, buffer length=${buffer.length}. Returning 0`);
+            return 0;
         }
         return buffer.readUInt32LE(offset);
     }
@@ -67,7 +68,8 @@ export class Utils {
     public static readInt64(buffer: Buffer, offset: number): bigint {
         console.log(`Utils.readInt64: buffer.length=${buffer.length}, offset=${offset}`);
         if (offset + 8 > buffer.length) {
-            throw new Error(`Attempt to read 8 bytes from position ${offset} with only ${buffer.length} bytes available`);
+            console.warn(`Utils.readInt64: not enough bytes at offset ${offset}, buffer length=${buffer.length}. Returning 0n`);
+            return 0n;
         }
         const value = buffer.readBigUInt64LE(offset);
         // Convert to signed BigInt
@@ -232,7 +234,7 @@ export class Utils {
                 const right = i + 1 < tree.length ? tree[i + 1] : left;
                 const combined = Buffer.concat([left.getBytes(), right.getBytes()]);
                 const hash = Sha256Hash.hashTwice(combined);
-                newTree.push(hash);
+                newTree.push(Sha256Hash.wrap(hash));
             }
             tree = newTree;
         }

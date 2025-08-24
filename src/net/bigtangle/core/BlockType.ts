@@ -52,6 +52,7 @@ export namespace BlockType {
         return getBlockTypeConfig(type).maxSize;
     }
 
+
     export function allowCoinbaseTransaction(type: BlockType): boolean {
         return getBlockTypeConfig(type).allowCoinbaseTransaction;
     }

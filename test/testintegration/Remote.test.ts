@@ -555,10 +555,13 @@ export abstract class RemoteTest {
     tx.addInput(input);
 
     // Sign the transaction
-    const sighash = tx.hashForSignature(
-      0,
-      spendableOutput.getScriptBytes(),
-       SigHash.ALL
+        const inputIndex = 0;
+        const redeemScript = output.getScript()!.getProgram();
+        const sighash = tx.hashForSignature(
+            inputIndex,
+            redeemScript,
+            SigHash.ALL,
+            false
     );
     if (!sighash) {
       throw new Error("Unable to create sighash for transaction");
@@ -964,12 +967,16 @@ export abstract class RemoteTest {
       .getDefaultSerializer()
       .makeBlock(Buffer.from(Utils.HEX.decode(data)));
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
-    block.addCoinbaseTransaction(
-      Buffer.from(keys[2].getPubKey()),
+    // Add coinbase transaction using alternative approach
+    const coinbaseTx = new Transaction(this.networkParameters);
+    coinbaseTx.addOutput(new TransactionOutput(
+      this.networkParameters,
+      coinbaseTx,
       basecoin,
-      tokenInfo,
-      new MemoInfo("coinbase")
-    );
+      Buffer.from(keys[2].getPubKey())
+    ));
+    coinbaseTx.addInput(new TransactionInput(this.networkParameters));
+    block.addTransaction(coinbaseTx);
     block = await this.adjustSolve(block);
 
     console.log("block hash : " + block.getHashAsString());
@@ -1261,12 +1268,16 @@ export abstract class RemoteTest {
       );
     }
 
-    block.addCoinbaseTransaction(
-      Buffer.from(outKey.getPubKey()),
+    // Add coinbase transaction using alternative approach
+    const coinbaseTx = new Transaction(this.networkParameters);
+    coinbaseTx.addOutput(new TransactionOutput(
+      this.networkParameters,
+      coinbaseTx,
       basecoin,
-      tokenInfo,
-      new MemoInfo("coinbase")
-    );
+      Buffer.from(outKey.getPubKey())
+    ));
+    coinbaseTx.addInput(new TransactionInput(this.networkParameters));
+    block.addTransaction(coinbaseTx);
 
     const transaction = block.getTransactions()![0];
 
@@ -1318,7 +1329,11 @@ export abstract class RemoteTest {
       outKey,
       aesKey
     );
-    block.addTransaction(feeBlock.getTransactions()[0]);
+    // Add null check for feeBlock transactions
+    const transactions = feeBlock.getTransactions();
+    if (transactions && transactions.length > 0) {
+        block.addTransaction(transactions[0]);
+    }
 
     // save block
     const adjustedBlock = await this.adjustSolve(block);

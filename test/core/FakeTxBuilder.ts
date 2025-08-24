@@ -11,7 +11,7 @@ import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput'
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { Block } from '../../src/net/bigtangle/core/Block';
-import { UtilsTest } from './UtilBase';
+// Removed UtilsTest import
 import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
 import bigInt from 'big-integer';
 
@@ -41,7 +41,7 @@ export class FakeTxBuilder {
         if (genesisPubHash === null) {
             throw new Error('Failed to create genesis public key hash');
         }
-        const input1 =   TransactionInput.fromOutpoint4(params, tx, Buffer.from([]), prevTx.getOutput(0).getOutPointFor(genesisPubHash));
+        const input1 =   TransactionInput.fromOutpoint4(params, tx, Buffer.from([]), prevTx.getOutputs()[0].getOutPointFor(genesisPubHash));
         tx.addInput(input1);
         return tx;
     }
@@ -150,7 +150,12 @@ export class FakeTxBuilder {
         );
         prevTx1.addOutput(prevOut1);
         // Connect it.
-        const input1 =  TransactionInput.fromOutpoint4(params, t, Buffer.from([]), prevOut1.getOutPointFor(Sha256Hash.of(Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex"))));
+        const input1 =  TransactionInput.fromOutpoint4(
+            params, 
+            t, 
+            Buffer.from([]), 
+            prevTx1.getOutputs()[0].getOutPointFor(Sha256Hash.of(Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex")))
+        );
         t.addInput(input1);
         input1.setScriptSig(ScriptBuilder.createInputScript(TransactionSignature.dummy()));
         // Fake signature.
@@ -293,7 +298,7 @@ export class FakeTxBuilder {
     ): Transaction {
         try {
             const bs = params.getDefaultSerializer();
-            const bos = Buffer.from(tx.bitcoinSerializeCopy());
+            const bos = Buffer.from(tx.bitcoinSerialize());
             return bs.deserialize(bos) as Transaction;
         } catch {
             // If deserialization fails, return the original transaction
@@ -338,44 +343,45 @@ export class FakeTxBuilder {
         try {
             doubleSpends.t1 = params
                 .getDefaultSerializer()
-                .makeTransaction(Buffer.from(doubleSpends.t1.bitcoinSerializeCopy()));
+                .makeTransaction(Buffer.from(doubleSpends.t1.bitcoinSerialize()));
             doubleSpends.t2 = params
                 .getDefaultSerializer()
-                .makeTransaction(Buffer.from(doubleSpends.t2.bitcoinSerializeCopy()));
+                .makeTransaction(Buffer.from(doubleSpends.t2.bitcoinSerialize()));
         } catch {
             throw new Error('Failed to deserialize transaction');
         }
         return doubleSpends;
     }
 
-    public static makeSolvedTestBlock(
-        prev: Block,
-        ...transactions: Transaction[]
-    ): Block {
-        const networkParams: NetworkParameters = MainNetParamsClass.get();
-        const b = UtilsTest.createBlock(networkParams, prev, prev);
-        // Coinbase tx already exists.
-        for (const tx of transactions) {
-            b.addTransaction(tx);
-        }
-        b.solve(b.getDifficultyTargetAsInteger());
-        return b;
-    }
+    // Commented out makeSolvedTestBlock methods since UtilsTest is not available
+    // public static makeSolvedTestBlock(
+    //     prev: Block,
+    //     ...transactions: Transaction[]
+    // ): Block {
+    //     const networkParams: NetworkParameters = MainNetParamsClass.get();
+    //     const b = UtilsTest.createBlock(networkParams, prev, prev);
+    //     // Coinbase tx already exists.
+    //     for (const tx of transactions) {
+    //         b.addTransaction(tx);
+    //     }
+    //     b.solve(b.getDifficultyTargetAsInteger());
+    //     return b;
+    // }
 
-    public static makeSolvedTestBlockWithAddress(
-        prev: Block,
-        to: Address,
-        ...transactions: Transaction[]
-    ): Block {
-        const networkParams: NetworkParameters = MainNetParamsClass.get();
-        const b = UtilsTest.createBlock(networkParams, prev, prev);
-        // Coinbase tx already exists.
-        for (const tx of transactions) {
-            b.addTransaction(tx);
-        }
-        b.solve(b.getDifficultyTargetAsInteger());
-        return b;
-    }
+    // public static makeSolvedTestBlockWithAddress(
+    //     prev: Block,
+    //     to: Address,
+    //     ...transactions: Transaction[]
+    // ): Block {
+    //     const networkParams: NetworkParameters = MainNetParamsClass.get();
+    //     const b = UtilsTest.createBlock(networkParams, prev, prev);
+    //     // Coinbase tx already exists.
+    //     for (const tx of transactions) {
+    //         b.addTransaction(tx);
+    //     }
+    //     b.solve(b.getDifficultyTargetAsInteger());
+    //     return b;
+    // }
 }
 
 export class DoubleSpends {

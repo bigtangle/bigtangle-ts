@@ -227,9 +227,13 @@ export class TransactionInput extends ChildMessage {
         this.scriptSig = null;
         const oldLength = this.length;
         this.scriptBytes = scriptBytes;
-        // 40 = previous_outpoint (36) + sequence (4)
+        // 40 = previous_outpoint (极端的36) + sequence (4)
         const newLength = 40 + (scriptBytes === null ? 1 : VarInt.sizeOf(scriptBytes.length) + scriptBytes.length);
         this.adjustLength(newLength - oldLength);
+    }
+    
+    public setOutpoint(outpoint: TransactionOutPoint): void {
+        this.outpoint = outpoint;
     }
 
     /**

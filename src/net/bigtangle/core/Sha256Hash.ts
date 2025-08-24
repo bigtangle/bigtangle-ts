@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { Buffer } from 'buffer';
 import { Utils } from '../utils/Utils';
+import { MessageDigest } from '../utils/MessageDigest';
 
 /**
  * A Sha256Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be used as keys in a
@@ -25,25 +26,17 @@ export class Sha256Hash {
         this.bytes = rawHashBytes;
     }
 
-    public static wrap(rawHashBytes: Buffer ): Sha256Hash {
-       // if (rawHashBytes === null || rawHashBytes.length === 0) return null;
+    public static wrap(rawHashBytes: Buffer ): Sha256Hash  {
+      //  if (rawHashBytes === null || rawHashBytes.length === 0) return null;
         return new Sha256Hash(rawHashBytes);
     }
 
-    /**
-     * Creates a new instance that wraps the given hash value (represented as a hex string).
-     *
-     * @param hexString a hash value represented as a hex string
-     * @return a new instance
-     * @throws IllegalArgumentException if the given string is not a valid
-     *         hex string, or if it does not represent exactly 32 bytes
-     */
-    public static wrapString(hexString: string): Sha256Hash   {
-        const buffer = Buffer.from(hexString, 'hex');
-     //   if (buffer.length !== Sha256Hash.LENGTH) return null;
-        return new Sha256Hash(buffer);
+    public static wrapString(hexString: string ): Sha256Hash {
+         return new Sha256Hash(Buffer.from(Utils.HEX.decode(hexString)));
     }
 
+
+    
     /**
      * Creates a new instance that wraps the given hash value, but with byte order reversed.
      *
@@ -92,8 +85,10 @@ export class Sha256Hash {
      *
      * @return a new SHA-256 MessageDigest instance
      */
-    private static newDigest(): any {
-        return createHash('sha256');
+    private static newDigest(): MessageDigest {
+      
+            return MessageDigest.getInstance("SHA-256");
+        
     }
 
     /**
@@ -146,13 +141,11 @@ export class Sha256Hash {
     public static hashTwiceRange(input: Buffer, offset: number, length: number): Buffer {
         const digest = Sha256Hash.newDigest();
         const subarray = input.subarray(offset, offset + length);
-        // Convert Uint8Array to Buffer if necessary
-        const bufferInput = Buffer.isBuffer(subarray) ? subarray : Buffer.from(subarray);
-        digest.update(bufferInput);
-        const hash1 = digest.digest();
-        const digest2 = Sha256Hash.newDigest();
-        digest2.update(hash1);
-        return Buffer.from(digest2.digest());
+        digest.update(subarray);
+        const firstHash = digest.digest();
+        digest.reset();
+        digest.update(firstHash);
+        return Buffer.from(digest.digest());
     }
 
     /**

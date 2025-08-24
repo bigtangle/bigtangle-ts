@@ -73,7 +73,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
 
             const script = redeemData.redeemScript.getProgram();
             try {
-                const sighash = tx.hashForSignature(i, script, SigHash.ALL);
+                const sighash = tx.hashForSignature(i, script, SigHash.ALL, false);
                 if (sighash === null) {
                     console.warn(`Unable to create sighash for input ${i}`);
                     continue;

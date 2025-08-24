@@ -1,6 +1,6 @@
 /*******************************************************************************
- *  Copyright   2018  Inasset GmbH.
- *
+ *  Copyright   2018  Inasset GmbH. 
+ *  
  *******************************************************************************/
 /*
  * Copyright 2011 Google Inc.
@@ -44,6 +44,7 @@ import { TransactionInput } from './TransactionInput';
 import { Coin } from './Coin';
 import { MemoInfo } from './MemoInfo';
 import { DataClassName } from './DataClassName';
+import { MultiSignAddress } from './MultiSignAddress';
 import { Buffer } from 'buffer';
 
 /**
@@ -60,26 +61,50 @@ import { Buffer } from 'buffer';
  * To get a block, you can either build one from the raw bytes you can get from
  * another implementation, or request one specifically using
  * </p>
- *
+ * 
  */
 export class Block extends Message {
+    private static readonly log = console;
+
     // Fields defined as part of the protocol format.
     private version: number = 0;
     private prevBlockHash: Sha256Hash;
     private prevBranchBlockHash: Sha256Hash; // second predecessor
-    private merkleRoot: Sha256Hash;
+    private merkleRoot: Sha256Hash | null;
     private time: number = 0;
     private difficultyTarget: number = 0; // "nBits"
     private lastMiningRewardBlock: number = 0; // last approved reward blocks max
     private nonce: number = 0;
     private minerAddress: Uint8Array; // Utils.sha256hash160
     private blockType: BlockType;
+    
+    public setBlockType(blockType: BlockType): void {
+        this.unCacheHeader();
+        this.blockType = blockType;
+        this.hash = null;
+    }
+    
+    public setMinerAddress(minerAddress: Uint8Array): void {
+        this.unCacheHeader();
+        this.minerAddress = minerAddress;
+        this.hash = null;
+    }
+    
+    public setDifficultyTarget(difficultyTarget: number): void {
+        this.unCacheHeader();
+        this.difficultyTarget = difficultyTarget;
+        this.hash = null;
+    }
     private height: number = 0;
     // If NetworkParameters.USE_EQUIHASH, this field will contain the PoW
     // solution
 
     /** If null, it means this object holds only the headers. */
     private transactions: Transaction[] | null = null;
+    
+    public getTransactions(): Transaction[] | null {
+        return this.transactions;
+    }
 
     /** Stores the hash of the block. If null, getHash() will recalculate it. */
     private hash: Sha256Hash | null = null;
@@ -95,11 +120,17 @@ export class Block extends Message {
     // (which Message needs)
     protected optimalEncodingMessageSize: number = 0;
 
+    // Used to make transactions unique.
+    private static txCounter: number = 0;
+
+    // Static random generator
+    private static gen = Math.random;
+
     public constructor(params: NetworkParameters) {
         super(params);
         this.prevBlockHash = Sha256Hash.ZERO_HASH;
         this.prevBranchBlockHash = Sha256Hash.ZERO_HASH;
-        this.merkleRoot = Sha256Hash.ZERO_HASH;
+        this.merkleRoot = null;
         this.minerAddress = new Uint8Array(20);
         this.blockType = BlockType.BLOCKTYPE_TRANSFER;
     }
@@ -109,7 +140,7 @@ export class Block extends Message {
             BlockType.BLOCKTYPE_TRANSFER, 0, Utils.encodeCompactBits(params.getMaxTarget()), 0);
         block.version = setVersion;
         block.length = NetworkParameters.HEADER_SIZE;
-        block.transactions = null; // Explicitly set transactions to null for headers
+        block.transactions = null;
         return block;
     }
 
@@ -146,7 +177,7 @@ export class Block extends Message {
 
     /**
      * Construct a block object from the Bitcoin wire format.
-     *
+     * 
      * @param params       NetworkParameters object.
      * @param payloadBytes the payload to extract the block from.
      * @param serializer   the serializer to use for this message.
@@ -162,7 +193,7 @@ export class Block extends Message {
 
     /**
      * Construct a block object from the Bitcoin wire format.
-     *
+     * 
      * @param params       NetworkParameters object.
      * @param payloadBytes the payload to extract the block from.
      * @param offset       The location of the first payload byte within the array.
@@ -174,16 +205,6 @@ export class Block extends Message {
      */
     public static setBlock5(params: NetworkParameters, payloadBytes: Uint8Array, offset: number,
         serializer: MessageSerializer<NetworkParameters>, length: number): Block {
-        // Log the first few bytes of the payload for debugging
-        if (payloadBytes && payloadBytes.length > 0) {
-            let bytesStr = "";
-            const end = Math.min(payloadBytes.length, 20);
-            for (let i = 0; i < end; i++) {
-                bytesStr += payloadBytes[i].toString(16).padStart(2, '0') + " ";
-            }
-            console.log(`Block.setBlock5: payloadBytes[0..${end-1}]=${bytesStr}`);
-            console.log(`Block.setBlock5: payloadBytes.length=${payloadBytes.length}`);
-        }
         const a = new Block(params);
         a.setValues5(params, payloadBytes, offset, serializer, length);
         return a;
@@ -195,147 +216,96 @@ export class Block extends Message {
 
     /**
      * Parse transactions from the block.
-     *
+     * 
      * @param transactionsOffset Offset of the transactions within the block. Useful
      *                           for non-Bitcoin chains where the block header may
      *                           not be a fixed size.
      */
     protected parseTransactions(transactionsOffset: number): void {
         this.cursor = transactionsOffset;
-        console.log(`parseTransactions: transactionsOffset=${transactionsOffset}, payloadLen=${this.payload ? this.payload.length : 'null'}`);
-        this.optimalEncodingMessageSize = this.getHeaderSize();
-        
-        if (!this.payload || this.payload.length <= this.cursor) {
+        this.optimalEncodingMessageSize = NetworkParameters.HEADER_SIZE;
+        if (this.payload && this.payload.length === this.cursor) {
+            // This message is just a header, it has no transactions.
             this.transactionBytesValid = false;
             return;
         }
-        
+
         try {
-            const numTransactions = this.readVarInt();
-            this.optimalEncodingMessageSize += new VarInt(numTransactions).encode().length;
+            const numTransactions = Number(this.readVarInt());
+            this.optimalEncodingMessageSize += VarInt.sizeOf(numTransactions);
             this.transactions = [];
             
             for (let i = 0; i < numTransactions; i++) {
-                // Check if we have enough data to read at least the transaction header
-                if (this.cursor >= (this.payload?.length || 0)) {
-                    console.warn("Reached end of payload while parsing transactions");
-                    break;
+                const tx = Transaction.fromTransaction6(
+                    this.params!, 
+                    this.payload!, 
+                    this.cursor, 
+                    this, 
+                    this.serializer!, 
+                    Message.UNKNOWN_LENGTH
+                );
+                
+                // Allow exact fit (cursor + size == payload.length)
+                if (this.cursor + tx.getMessageSize() > this.payload!.length) {
+                    throw new ProtocolException(`Transaction data exceeds payload length: cursor=${this.cursor}, txSize=${tx.getMessageSize()}, payloadLength=${this.payload!.length}`);
                 }
                 
-                if (this.params === null) throw new Error("Network parameters are null");
-                if (this.payload === null) throw new Error("Payload is null");
-                if (this.serializer === null) throw new Error("Serializer is null");
-
-                const tx = Transaction.fromTransaction6(this.params, this.payload, this.cursor, this, this.serializer, Message.UNKNOWN_LENGTH);
                 this.transactions.push(tx);
-                
                 this.cursor += tx.getMessageSize();
                 this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
             }
             
-            this.transactionBytesValid = this.serializer !== null && this.serializer.isParseRetainMode();
+            this.transactionBytesValid = true;
+            this.merkleRoot = null;
         } catch (e) {
             console.error("Error parsing transactions:", e);
-            // If we're in parse-retain mode, keep the original transaction
-            // bytes valid and mark the block length as the full payload length
-            // so bitcoinSerialize can return the raw payload and preserve exact
-            // round-trip behavior even if parsing failed.
-            const retain = this.serializer !== null && this.serializer.isParseRetainMode();
-            this.transactionBytesValid = retain;
-            if (retain && this.payload) {
-                // Set length to the full payload slice so serialization copies the
-                // original bytes back out.
-                this.length = this.payload.length - this.offset;
-            }
+            this.transactionBytesValid = false;
+            throw e;
         }
     }
 
-    /**
-     * Try parsing transactions at a given offset without mutating this object.
-     * Returns parsed transactions, the cursor position after parsing, and the
-     * optimal encoding size. Throws on parse errors.
-     */
-    private tryParseTransactionsAt(startOffset: number): { txs: Transaction[]; endCursor: number; optimalSize: number } {
-        if (!this.payload) throw new Error('Payload is null');
-        let localCursor = startOffset;
-        let localOptimal = this.getHeaderSize();
-        // Use a fresh array for txs
-        const txs: Transaction[] = [];
-
-        // Helper to read VarInt from payload at localCursor without changing global cursor
-        const readVarIntAt = (offset: number) => {
-            const v = new VarInt(Buffer.from(this.payload!), offset);
-            return { value: v.value.toJSNumber(), size: v.getOriginalSizeInBytes() };
-        };
-
-        // Read number of transactions
-        const nv = readVarIntAt(localCursor);
-        const numTransactions = nv.value;
-        localOptimal += nv.size;
-        localCursor += nv.size;
-
-        console.log(`tryParseTransactionsAt: startOffset=${startOffset}, numTransactions=${numTransactions}, firstVarIntSize=${nv.size}`);
-
-        for (let i = 0; i < numTransactions; i++) {
-            if (!this.params) throw new Error('Network parameters are null');
-            if (!this.serializer) throw new Error('Serializer is null');
-
-            // Construct transaction using Transaction.fromTransaction6 which will parse using Message parsing
-            const tx = Transaction.fromTransaction6(this.params, this.payload, localCursor, this as any as Block, this.serializer, Message.UNKNOWN_LENGTH);
-            txs.push(tx);
-
-            // advance local cursor by parsed message size
-            localCursor += tx.getMessageSize();
-            localOptimal += tx.getOptimalEncodingMessageSize();
-            console.log(`tryParseTransactionsAt: parsed tx ${i} size=${tx.getMessageSize()} outputs=${tx.getOutputs().length}`);
-        }
-
-        return { txs, endCursor: localCursor, optimalSize: localOptimal };
-    }
-
-    protected parse(): void {
+    protected parse(lengthArg: number = Message.UNKNOWN_LENGTH): void {
         // header
         this.cursor = this.offset;
-        const headerSize = this.getHeaderSize();
+        this.version = this.readUint32();
+        this.prevBlockHash = this.readHash();
+        this.prevBranchBlockHash = this.readHash();
+        this.merkleRoot = this.readHash();
+        this.time = Number(this.readInt64());
+        this.difficultyTarget = Number(this.readInt64());
+        this.lastMiningRewardBlock = Number(this.readInt64());
+        this.nonce = this.readUint32();
         
-        if (this.payload && this.payload.length >= this.offset + headerSize) {
-            this.version = this.readUint32();
-            this.prevBlockHash = this.readHash();
-            this.prevBranchBlockHash = this.readHash();
-            this.merkleRoot = this.readHash();
-            this.time = Number(this.readInt64());
-            this.difficultyTarget = Number(this.readInt64());
-            this.lastMiningRewardBlock = Number(this.readInt64());
-            this.nonce = this.readUint32();
-            this.minerAddress = this.readBytes(20);
-            this.blockType = BlockType.values()[this.readUint32()];
-            this.height = Number(this.readInt64());
-            
-            // Now we've read the fixed header
-            this.hash = Sha256Hash.wrapReversed(
-                Sha256Hash.hashTwice(Buffer.from(this.payload.subarray(this.offset, this.cursor)))
-            );
-            this.headerBytesValid = this.serializer !== null && this.serializer.isParseRetainMode();
-            
-            // Only parse transactions if we have payload beyond the header
-            if (this.payload.length > this.cursor) {
-                this.parseTransactions(this.cursor);
-            } else {
-                // No transactions, set to empty array
-                this.transactions = [];
-                this.transactionBytesValid = false;
-            }
-            
-            // Set length to the actual parsed length
-            this.length = this.cursor - this.offset;
+        // Read miner address - handle potentially shorter addresses
+        const addressBytes = this.readBytes(20);
+        if (addressBytes.length < 20) {
+            // Pad with zeros if address is shorter than 20 bytes
+            const padded = new Uint8Array(20);
+            padded.set(addressBytes);
+            this.minerAddress = padded;
         } else {
-            throw new ProtocolException("Incomplete header");
+            this.minerAddress = addressBytes;
         }
-    }
-
-    private getHeaderSize(): number {
-        // In the future, this might depend on the block version
-        return NetworkParameters.HEADER_SIZE;
+        
+        this.blockType = BlockType.values()[this.readUint32()];
+        this.height = Number(this.readInt64());
+        
+        // Calculate hash only if we have enough data for the header
+        if (this.cursor <= this.payload!.length) {
+            this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(this.payload!.subarray(this.offset, this.cursor))));
+        }
+        this.headerBytesValid = this.serializer!.isParseRetainMode();
+        
+        // Only parse transactions if we have more data after the header
+        if (this.cursor < this.payload!.length) {
+            this.parseTransactions(this.cursor);
+        }
+        // length must include entire payload if given, not just header
+        if (lengthArg !== Message.UNKNOWN_LENGTH) {
+            this.length = lengthArg;
+        } else {
+            this.length = this.payload ? this.payload.length - this.offset : this.cursor - this.offset;
+        }
     }
 
     public getOptimalEncodingMessageSize(): number {
@@ -358,74 +328,27 @@ export class Block extends Message {
         stream.write(this.prevBlockHash.getReversedBytes());
         stream.write(this.prevBranchBlockHash.getReversedBytes());
         stream.write(this.getMerkleRoot().getReversedBytes());
-        // Write time and difficultyTarget as 64-bit values to match the
-        // authoritative header layout (NetworkParameters.HEADER_SIZE).
-        // Ensure we convert floating point times to integer seconds before writing
-        Utils.int64ToByteStreamLE(BigInt(Math.floor(this.time)), stream);
-        Utils.int64ToByteStreamLE(BigInt(Math.floor(this.difficultyTarget)), stream);
-        Utils.int64ToByteStreamLE(BigInt(Math.floor(this.lastMiningRewardBlock)), stream);
+        Utils.int64ToByteStreamLE(BigInt(this.time), stream);
+        Utils.int64ToByteStreamLE(BigInt(this.difficultyTarget), stream);
+        Utils.int64ToByteStreamLE(BigInt(this.lastMiningRewardBlock), stream);
         Utils.uint32ToByteStreamLE(this.nonce, stream);
         stream.write(this.minerAddress);
         Utils.uint32ToByteStreamLE(BlockType.ordinal(this.blockType), stream);
-        Utils.int64ToByteStreamLE(BigInt(Math.floor(this.height)), stream);
-        // Ensure the written header occupies exactly NetworkParameters.HEADER_SIZE bytes.
-        // Some networks include extra PoW/padding bytes in the header. If the
-        // output stream exposes size(), use it to calculate how many bytes to
-        // pad. Otherwise fall back to padding the difference between the
-        // canonical field length (152) and the authoritative header size.
-        try {
-            const headerSize = NetworkParameters.HEADER_SIZE;
-            let written = -1;
-            if (typeof (stream.size) === 'function') {
-                written = stream.size();
-            }
-            if (written >= 0) {
-                if (written < headerSize) {
-                    const pad = Buffer.alloc(headerSize - written);
-                    stream.write(pad);
-                }
-            } else {
-                // Fallback: we've written the canonical fields (152 bytes). Pad the rest.
-                const canonicalFields = 152;
-                if (headerSize > canonicalFields) {
-                    const pad = Buffer.alloc(headerSize - canonicalFields);
-                    stream.write(pad);
-                }
-            }
-        } catch (e) {
-            // If padding fails for any reason, ignore; serialization will still be valid
-            // albeit possibly shorter than the authoritative header size.
-        }
+        Utils.int64ToByteStreamLE(BigInt(this.height), stream);
     }
 
     writePoW(stream: any): void {
-        // Empty implementation for now
+        // Empty implementation
     }
 
     private writeTransactions(stream: any): void {
         // check for no transaction conditions first
-        // must be a more efficient way to do this but I'm tired atm.
-        console.log(`Block.writeTransactions: transactions=${this.transactions ? this.transactions.length : 'null'}, transactionBytesValid=${this.transactionBytesValid}, payloadLen=${this.payload ? this.payload.length : 'null'}, offset=${this.offset}, length=${this.length}`);
         if (this.transactions === null) {
-            console.log('Block.writeTransactions: no transactions to write');
             return;
         }
 
         // confirmed we must have transactions either cached or as objects.
-        // Only use cached transaction bytes when we actually have no in-memory
-        // transaction objects. This prevents returning a stale cached slice when
-        // the block was created/modified programmatically.
-        if (this.transactionBytesValid && this.payload && this.payload.length >= this.offset + this.length && (this.transactions === null || this.transactions.length === 0)) {
-            const sliceStart = this.offset + NetworkParameters.HEADER_SIZE;
-            const sliceEnd = this.offset + this.length;
-            console.log(`Block.writeTransactions: writing cached transaction bytes slice [${sliceStart}..${sliceEnd}) length=${sliceEnd - sliceStart}`);
-            stream.write(Buffer.from(this.payload.subarray(sliceStart, sliceEnd)));
-            return;
-        }
-
-        console.log(`Block.writeTransactions: serializing ${this.transactions.length} transactions`);
-
-        console.log(`Block.writeTransactions: writing VarInt of ${this.transactions.length}`);
+        // Always serialize transactions from objects to avoid truncation
         stream.write(new VarInt(this.transactions.length).encode());
         for (const tx of this.transactions) {
             tx.bitcoinSerialize(stream);
@@ -437,76 +360,40 @@ export class Block extends Message {
      * transactions
      */
     public bitcoinSerialize(): Uint8Array {
-        // Check if we have valid cached bytes for both header and transactions
-        // but only return the cached bytes if there are no transaction objects
-        // present (i.e. this is strictly a header or the payload already
-        // contains the full transactions slice). This avoids returning a
-        // cached payload that doesn't reflect in-memory transaction objects
-        // (e.g. genesis created programmatically).
-        if (this.headerBytesValid && this.transactionBytesValid && this.payload !== null && (this.transactions === null || this.transactions.length === 0)) {
-            // Bytes should never be null if both flags are true
-            if (this.length === this.payload.length) {
-                return this.payload;
+        // we have completely cached byte array.
+        if (this.headerBytesValid && this.transactionBytesValid) {
+            if (this.length === this.payload!.length) {
+                return this.payload!;
             } else {
-                // byte array is offset so copy out the correct range
+                // byte array is offset so copy out the correct range.
                 const buf = new Uint8Array(this.length);
-                buf.set(this.payload.subarray(this.offset, this.offset + this.length));
+                buf.set(this.payload!.subarray(this.offset, this.offset + this.length));
                 return buf;
             }
         }
 
-        console.log(`Block.bitcoinSerialize: starting length=${this.length}`);
+        // At least one of the two cacheable components is invalid
+        // so fall back to stream write since we can't be sure of the length.
         const stream = new UnsafeByteArrayOutputStream(
             this.length === Message.UNKNOWN_LENGTH ? NetworkParameters.HEADER_SIZE + this.guessTransactionsLength() : this.length);
         try {
             this.writeHeader(stream);
-            try { console.log(`Block.bitcoinSerialize: after writeHeader size=${typeof (stream.size) === 'function' ? stream.size() : -1}`); } catch (e) {}
             this.writePoW(stream);
-            try { console.log(`Block.bitcoinSerialize: after writePoW size=${typeof (stream.size) === 'function' ? stream.size() : -1}`); } catch (e) {}
-            // For headers, we still need to write the transaction count (0)
-            if (this.transactions !== null) {
-                if (this.transactions.length > 0) {
-                    this.writeTransactions(stream);
-                } else {
-                    // Write transaction count as 0 for headers with empty transaction list
-                    stream.write(new VarInt(0).encode());
-                }
-            } else {
-                // If transactions is null, this is a header, so write transaction count as 0
-                stream.write(new VarInt(0).encode());
-            }
-            try { console.log(`Block.bitcoinSerialize: after writeTransactions size=${typeof (stream.size) === 'function' ? stream.size() : -1}`); } catch (e) {}
+            this.writeTransactions(stream);
         } catch (e) {
             // Cannot happen, we are serializing to a memory stream.
         }
-        let out: Uint8Array;
-        try {
-            out = stream.toByteArray();
-        } catch (e) {
-            console.error('Block.bitcoinSerialize: error converting stream to byte array', e);
-            // Fall back to an empty buffer to avoid throwing further.
-            out = new Uint8Array(0);
-        }
-        console.log(`Block.bitcoinSerialize: final out.length=${out.length}`);
-        return out;
+        const result = stream.toByteArray();
+        // Update the length to match the actual serialized length
+        this.length = result.length;
+        return result;
     }
 
     protected bitcoinSerializeToStream(stream: any): void {
         this.writeHeader(stream);
         this.writePoW(stream);
         // We may only have enough data to write the header and PoW.
-        // For headers, we still need to write the transaction count (0)
-        if (this.transactions !== null) {
-            if (this.transactions.length > 0) {
-                this.writeTransactions(stream);
-            } else {
-                // Write transaction count as 0 for headers with empty transaction list
-                stream.write(new VarInt(0).encode());
-            }
-        } else {
-            // If transactions is null, this is a header, so write transaction count as 0
-            stream.write(new VarInt(0).encode());
-        }
+        this.writeTransactions(stream);
     }
 
     /**
@@ -555,7 +442,7 @@ export class Block extends Message {
         this.unCacheHeader();
         // Clear merkleRoot last as it may end up being parsed during
         // unCacheHeader().
-        this.merkleRoot = null as any; // This will be recalculated when needed
+        this.merkleRoot = null as any;
     }
 
     /**
@@ -618,10 +505,7 @@ export class Block extends Message {
 
     /** Returns a copy of the block */
     public cloneAsHeader(): Block {
-        if (this.params === null) {
-            throw new Error("Network parameters are null");
-        }
-        const block = Block.setBlock2(this.params, this.version);
+        const block = Block.setBlock2(this.params!, NetworkParameters.BLOCK_VERSION_GENESIS);
         this.copyBitcoinHeaderTo(block);
         return block;
     }
@@ -631,7 +515,8 @@ export class Block extends Message {
         block.nonce = this.nonce;
         block.prevBlockHash = this.prevBlockHash;
         block.prevBranchBlockHash = this.prevBranchBlockHash;
-        block.merkleRoot = this.getMerkleRoot();
+        // Ensure we're not copying null merkleRoot
+        block.merkleRoot = this.merkleRoot || Sha256Hash.ZERO_HASH;
         block.version = this.version;
         block.time = this.time;
         block.difficultyTarget = this.difficultyTarget;
@@ -659,12 +544,8 @@ export class Block extends Message {
         s += "   merkle: " + this.getMerkleRoot() + "\n";
         s += "   difficulty target (nBits):    " + this.difficultyTarget + "\n";
         s += "   nonce: " + this.nonce + "\n";
-        if (this.minerAddress !== null) {
-            if (this.params === null) {
-                throw new Error("Network parameters are null");
-            }
-            s += "   mineraddress: " + new Address(this.params, this.params.getAddressHeader(), Buffer.from(this.minerAddress)) + "\n";
-        }
+        if (this.minerAddress !== null)
+            s += "   mineraddress: " + new Address(this.params!, this.params!.getAddressHeader(), Buffer.from(this.minerAddress)) + "\n";
 
         s += "   blocktype: " + this.blockType + "\n";
         if (this.transactions !== null && this.transactions.length > 0) {
@@ -675,52 +556,44 @@ export class Block extends Message {
         }
         if (this.blockType === BlockType.BLOCKTYPE_REWARD) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
+                if (this.transactions !== null && this.transactions.length > 0) {
                     const rewardInfo = new RewardInfo().parse(this.transactions[0].getData()!);
                     s += rewardInfo.toString();
                 }
             } catch (e) {
-                // ignore throw new RuntimeException(e);
+                // ignore
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_ORDER_OPEN) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
-                    const info = new OrderOpenInfo().parse(this.transactions[0].getData()!);
-                    s += info.toString();
-                }
+                const info = new OrderOpenInfo().parse(this.transactions![0].getData()!);
+                s += info.toString();
             } catch (e) {
-                // ignore throw new RuntimeException(e);
+                // ignore
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_TOKEN_CREATION) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
-                    const info = new TokenInfo().parse(this.transactions[0].getData()!);
-                    s += info.toString();
-                }
+                const info = new TokenInfo().parse(this.transactions![0].getData()!);
+                s += info.toString();
             } catch (e) {
-                // ignore throw new RuntimeException(e);
+                // ignore
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_CONTRACT_EXECUTE) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
-                    const info = new ContractExecutionResult().parse(this.transactions[0].getData()!);
-                    s += info.toString();
-                }
+                const info = new ContractExecutionResult().parse(this.transactions![0].getData()!);
+                s += info.toString();
             } catch (e) {
-                // ignore throw new RuntimeException(e);
+                // ignore
             }
         }
         if (this.blockType === BlockType.BLOCKTYPE_ORDER_EXECUTE) {
             try {
-                if (this.transactions !== null && this.transactions.length > 0 && this.transactions[0].getData() !== null) {
-                    const info = new OrderExecutionResult().parse(this.transactions[0].getData()!);
-                    s += info.toString();
-                }
+                const info = new OrderExecutionResult().parse(this.transactions![0].getData()!);
+                s += info.toString();
             } catch (e) {
-                // ignore throw new RuntimeException(e);
+                // ignore
             }
         }
         return s;
@@ -731,15 +604,18 @@ export class Block extends Message {
      * Finds a value of nonce and equihashProof if using Equihash that validates
      * correctly.
      */
-    public solve(target: bigint): void {
+    public solve(target?: bigint): void {
         // Add randomness to prevent new empty blocks from same miner with same
         // approved blocks to be the same
-        this.setNonce(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        this.setNonce(Math.floor(Block.gen() * Number.MAX_SAFE_INTEGER));
+
+        // Use provided target or calculate from difficulty
+        const powTarget = target || this.getDifficultyTargetAsInteger();
 
         while (true) {
             try {
                 // Is our proof of work valid yet?
-                if (this.checkProofOfWork(false, target))
+                if (this.checkProofOfWork(false, powTarget))
                     return;
 
                 // No, so increment the nonce and try again.
@@ -749,14 +625,10 @@ export class Block extends Message {
             }
         }
     }
-
-    /**
-     * <p>
-     * Finds a value of nonce and equihashProof if using Equihash that validates
-     * correctly.
-     */
+    
+    // Alias for solve to maintain backward compatibility
     public solveDefault(): void {
-        this.solve(this.getDifficultyTargetAsInteger());
+        this.solve();
     }
 
     /**
@@ -767,10 +639,7 @@ export class Block extends Message {
      */
     public getDifficultyTargetAsInteger(): bigint {
         const target = Utils.decodeCompactBits(this.difficultyTarget);
-        if (this.params === null) {
-            throw new Error("Network parameters are null");
-        }
-        if (target < 0 || target > this.params.getMaxTarget())
+        if (target < 0 || target > this.params!.getMaxTarget())
             throw new VerificationException("Difficulty target out of bounds");
         return target;
     }
@@ -778,112 +647,355 @@ export class Block extends Message {
     /**
      * Returns true if the PoW of the block is OK
      */
-    public checkProofOfWork(throwException: boolean): void;
-    public checkProofOfWork(throwException: boolean, target: bigint): boolean;
-    public checkProofOfWork(throwException: boolean, target?: bigint): void | boolean {
-        if (target === undefined) {
-            this.checkProofOfWork(throwException, this.getDifficultyTargetAsInteger());
-            return;
-        }
-
+    public checkProofOfWork(throwException: boolean, target?: bigint): boolean {
+        // Use provided target or calculate from difficulty
+        const powTarget = target || this.getDifficultyTargetAsInteger();
+        
         // No PoW for genesis block
         if (this.getBlockType() === BlockType.BLOCKTYPE_INITIAL) {
             return true;
         }
 
-        // This part is key - it is what proves the block was as difficult to
-        // make as it claims to be. Note however that in the context of this
-        // function, the block can claim to be as difficult as it wants to be ....
-        // if somebody was able to take control of our network connection and
-        // fork us onto a different chain, they could send us valid blocks with
-        // ridiculously easy difficulty and this function would accept them.
-        //
-        // To prevent this attack from being possible, elsewhere we check that
-        // the difficultyTarget field is of the right value. This requires us
-        // to have the preceeding blocks.
-
         const h = this.calculatePoWHash().toBigInteger();
 
-        if (h > target) {
-            // Proof of work check failed!
+        if (h > powTarget) {
             if (throwException)
                 throw new VerificationException("Proof of work failed");
-            else
-                return false;
+            return false;
         }
 
         return true;
     }
 
-    // Add the missing verify method
-    public verify(): void {
-        // For now, we'll just implement a placeholder
-        // In a real implementation, this would verify the block's proof-of-work
-        // and other consensus rules
-        console.log("Block verification called");
-    }
-
-    // Add the missing setMinerAddress method
-    public setMinerAddress(address: Uint8Array): void {
-        this.minerAddress = address;
-    }
-    
-    // Add missing setDifficultyTarget method
-    public setDifficultyTarget(difficultyTarget: number): void {
-        this.difficultyTarget = difficultyTarget;
-    }
-    
-    // Add the missing addCoinbaseTransaction method
-    public addCoinbaseTransaction(coinbaseData: Uint8Array): void {
-        if (this.transactions === null) {
-            this.transactions = [];
-        }
-        // Create a new transaction for the coinbase
-        const tx = new Transaction(this.params!);
-        tx.setData(coinbaseData);
-        this.transactions.push(tx);
-    }
-    
-    // Fix merkle root calculation
-    public calculateMerkleRoot(): Sha256Hash {
-        if (!this.transactions || this.transactions.length === 0) {
-            return Sha256Hash.ZERO_HASH;
-        }
-        
-        // Get transaction hashes as Sha256Hash objects
-        const hashes = this.transactions.map(tx => tx.getHash());
-        return Utils.calculateMerkleRoot(hashes);
-    }
-
-    getVersion(): number { return this.version; }
-    getTimeSeconds(): number { return this.time; }
-    getHeight(): number { return this.height; }
-    getPrevBlockHash(): Sha256Hash { return this.prevBlockHash; }
-    getPrevBranchBlockHash(): Sha256Hash { return this.prevBranchBlockHash; }
-    getMerkleRoot(): Sha256Hash { return this.merkleRoot; }
-    getDifficultyTarget(): number { return this.difficultyTarget; }
-    getLastMiningRewardBlock(): number { return this.lastMiningRewardBlock; }
-    getNonce(): number { return this.nonce; }
-    getMinerAddress(): Uint8Array { return this.minerAddress; }
-    getTransactions(): Transaction[] | null { return this.transactions; }
-    getBlockType(): BlockType { return this.blockType; }
-    
-    setNonce(nonce: number): void {
-        this.unCacheHeader();
-        this.nonce = nonce;
-        this.hash = null;
-    }
-    
-    setHeight(height: number): void {
-        this.unCacheHeader();
-        this.height = height;
-        this.hash = null;
-    }
-    
     private checkTimestamp(): void {
         // Allow injection of a fake clock to allow unit testing.
         const currentTime = Math.floor(Date.now() / 1000);
         if (this.time > currentTime + NetworkParameters.ALLOWED_TIME_DRIFT)
             throw new VerificationException("Time traveler");
+    }
+
+    private checkSigOps(): void {
+        // Check there aren't too many signature verifications in the block.
+        // This is an anti-DoS measure, see the
+        // comments for MAX_BLOCK_SIGOPS.
+        let sigOps = 0;
+        if (this.transactions === null)
+            return;
+        for (const tx of this.transactions) {
+            sigOps += tx.getSigOpCount();
+        }
+        if (sigOps > NetworkParameters.MAX_BLOCK_SIGOPS)
+            throw new VerificationException("Too many signature operations");
+    }
+
+    private checkMerkleRoot(): void {
+        const calculatedRoot = this.calculateMerkleRoot();
+        // Handle possible null merkleRoot
+        if (this.merkleRoot === null) {
+            this.merkleRoot = calculatedRoot;
+        }
+        if (!calculatedRoot.equals(this.merkleRoot)) {
+            Block.log.error("Merkle tree did not verify");
+            this.merkleRoot = calculatedRoot;
+        }
+    }
+    
+    
+    public getMinerAddress(): Uint8Array {
+        return this.minerAddress;
+    }
+
+    private calculateMerkleRoot(): Sha256Hash {
+        const tree = this.buildMerkleTree();
+        if (tree.length === 0)
+            return Sha256Hash.ZERO_HASH;
+        return Sha256Hash.wrap(Buffer.from(tree[tree.length - 1]));
+    }
+
+    public getMerkleRoot(): Sha256Hash {
+        if (this.merkleRoot === null) {
+            this.merkleRoot = this.calculateMerkleRoot();
+        }
+        return this.merkleRoot;
+    }
+
+    private buildMerkleTree(): Uint8Array[] {
+        // The Merkle root is based on a tree of hashes calculated from the
+        // transactions:
+        //
+        // root
+        // / \
+        // A B
+        // / \ / \
+        // t1 t2 t3 t4
+        //
+        // The tree is represented as a list: t1,t2,t3,t4,A,B,root where each
+        // entry is a hash.
+        //
+        // The hashing algorithm is double SHA-256. The leaves are a hash of the
+        // serialized contents of the transaction.
+        // The interior nodes are hashes of the concenation of the two child
+        // hashes.
+        //
+        // This structure allows the creation of proof that a transaction was
+        // included into a block without having to
+        // provide the full block contents. Instead, you can provide only a
+        // Merkle branch. For example to prove tx2 was
+        // in a block you can just provide tx2, the hash(tx1) and B. Now the
+        // other party has everything they need to
+        // derive the root, which can be checked against the block header. These
+        // proofs aren't used right now but
+        // will be helpful later when we want to download partial block
+        // contents.
+        //
+        // Note that if the number of transactions is not even the last tx is
+        // repeated to make it so (see
+        // tx3 above). A tree with 5 transactions would look like this:
+        //
+        // root
+        // / \
+        // 1 5
+        // / \ / \
+        // 2 3 4 4
+        // / \ / \ / \
+        // t1 t2 t3 t4 t5 t5
+        const tree: Uint8Array[] = [];
+        if (this.transactions === null)
+            this.transactions = [];
+        // Start by adding all the hashes of the transactions as leaves of the
+        // tree.
+        for (const t of this.transactions) {
+            tree.push(t.getHash().getBytes());
+        }
+        let levelOffset = 0; // Offset in the list where the currently processed
+                                // level starts.
+        // Step through each level, stopping when we reach the root (levelSize
+        // == 1).
+        for (let levelSize = this.transactions.length; levelSize > 1; levelSize = Math.floor((levelSize + 1) / 2)) {
+            // For each pair of nodes on that level:
+            for (let left = 0; left < levelSize; left += 2) {
+                // The right hand node can be the same as the left hand, in the
+                // case where we don't have enough
+                // transactions.
+                const right = Math.min(left + 1, levelSize - 1);
+                const leftBytes = tree[levelOffset + left];
+                const rightBytes = tree[levelOffset + right];
+                const leftReversed = Utils.reverseBytes(Buffer.from(leftBytes));
+                const rightReversed = Utils.reverseBytes(Buffer.from(rightBytes));
+                const concatenated = Buffer.concat([leftReversed, rightReversed]);
+                const hashResult = Sha256Hash.hashTwice(concatenated);
+                tree.push(new Uint8Array(Utils.reverseBytes(hashResult)));
+            }
+            // Move to the next level.
+            levelOffset += levelSize;
+        }
+        return tree;
+    }
+
+    /**
+     * Checks the block data to ensure it follows the rules laid out in the network
+     * parameters. Specifically, throws an exception if the proof of work is
+     * invalid, or if the timestamp is too far from what it should be. This is
+     * <b>not</b> everything that is required for a block to be valid, only what is
+     * checkable independent of the chain and without a transaction index.
+     *
+     */
+    public verifyHeader(): void {
+        // Prove that this block is OK. It might seem that we can just ignore
+        // most of these checks given that the
+        // network is also verifying the blocks, but we cannot as it'd open us
+        // to a variety of obscure attacks.
+        //
+        // Firstly we need to ensure this block does in fact represent real work
+        // done. If the difficulty is high
+        // enough, it's probably been done by the network.
+        this.checkProofOfWork(true);
+        this.checkTimestamp();
+    }
+
+    /**
+     * Checks the block contents formally
+     *
+     * @throws VerificationException if there was an error verifying the block.
+     */
+    public verifyTransactions(): void {
+        // Now we need to check that the body of the block actually matches the
+        // headers. The network won't generate
+        // an invalid block, but if we didn't validate this then an untrusted
+        // man-in-the-middle could obtain the next
+        // valid block from the network and simply replace the transactions in
+        // it with their own fictional
+        // transactions that reference spent or non-existant inputs.
+        // if (transactions.isEmpty())
+        // throw new VerificationException("Block had no transactions");
+        if (this.getOptimalEncodingMessageSize() > this.getMaxBlockSize())
+            throw new VerificationException("Block size too large");
+        this.checkMerkleRoot();
+        this.checkSigOps();
+        if (this.transactions === null)
+            return;
+        for (const transaction of this.transactions) {
+            if (!this.allowCoinbaseTransaction() && transaction.isCoinBase()) {
+                throw new VerificationException("Coinbase transaction not allowed");
+            }
+
+            transaction.verify();
+        }
+    }
+
+    private getMaxBlockSize(): number {
+        return BlockType.getMaxBlockSize(this.blockType);
+    }
+
+    /**
+     * Verifies both the header and that the transactions hash to the merkle root.
+     *
+     */
+    public verify(): void {
+        this.verifyHeader();
+        this.verifyTransactions();
+    }
+
+    public equals(o: any): boolean {
+        if (this === o)
+            return true;
+        if (o === null || !(o instanceof Block))
+            return false;
+        return this.getHash().equals((o as Block).getHash());
+    }
+
+    public hashCode(): number {
+        return this.getHash().hashCode();
+    }
+
+
+    /** Exists only for unit testing. */
+    setMerkleRoot(value: Sha256Hash | null): void {
+        this.unCacheHeader();
+        this.merkleRoot = value;
+        this.hash = null;
+    }
+
+    /**
+     * Adds a transaction to this block. The nonce and merkle root are invalid after
+     * this.
+     */
+    public addTransaction(t: Transaction): void {
+        this.unCacheTransactions();
+        if (this.transactions === null) {
+            this.transactions = [];
+        }
+        t.setParent(this);
+        this.transactions.push(t);
+        // TODO: Implement adjustLength
+        // this.adjustLength(transactions.size(), t.length);
+        // Force a recalculation next time the values are needed.
+        this.merkleRoot = null;
+        this.hash = null;
+    }
+
+    /**
+     * Returns the version of the block data structure as defined by the Bitcoin
+     * protocol.
+     */
+    public getVersion(): number {
+        return this.version;
+    }
+
+    /**
+     * Returns the hash of the previous trunk block in the chain, as defined by the
+     * block header.
+     */
+    public getPrevBlockHash(): Sha256Hash {
+        return this.prevBlockHash;
+    }
+
+    public setPrevBlockHash(prevBlockHash: Sha256Hash): void {
+        this.unCacheHeader();
+        this.prevBlockHash = prevBlockHash;
+        this.hash = null;
+    }
+
+    /**
+     * Returns the hash of the previous branch block in the chain, as defined by the
+     * block header.
+     */
+    public getPrevBranchBlockHash(): Sha256Hash {
+        return this.prevBranchBlockHash;
+    }
+
+    public setPrevBranchBlockHash(prevBranchBlockHash: Sha256Hash): void {
+        this.unCacheHeader();
+        this.prevBranchBlockHash = prevBranchBlockHash;
+        this.hash = null;
+    }
+
+    /**
+     * Returns the time at which the block was solved and broadcast, according to
+     * the clock of the solving node. This is measured in seconds since the UNIX
+     * epoch (midnight Jan 1st 1970).
+     */
+    public getTimeSeconds(): number {
+        return this.time;
+    }
+
+    /**
+     * Returns the time at which the block was solved and broadcast, according to
+     * the clock of the solving node.
+     */
+    public getTime(): Date {
+        return new Date(this.getTimeSeconds() * 1000);
+    }
+
+    public setTime(time: number): void {
+        this.unCacheHeader();
+        this.time = time;
+        this.hash = null;
+    }
+
+    /**
+     * Returns the nonce, an arbitrary value that exists only to make the hash of
+     * the block header fall below the difficulty target.
+     */
+    public getNonce(): number {
+        return this.nonce;
+    }
+
+    /** Sets the nonce and clears any cached data. */
+    public setNonce(nonce: number): void {
+        this.unCacheHeader();
+        this.nonce = nonce;
+        this.hash = null;
+    }
+
+    public allowCoinbaseTransaction(): boolean {
+        // Always allow coinbase transactions for initial blocks
+        if (this.blockType === BlockType.BLOCKTYPE_INITIAL) {
+            return true;
+        }
+        return BlockType.allowCoinbaseTransaction(this.blockType);
+    }
+
+
+    public getLastMiningRewardBlock(): number {
+        return this.lastMiningRewardBlock;
+    }
+
+    public getDifficultyTarget(): number {
+        return this.difficultyTarget;
+    }
+
+    public getHeight(): number {
+        return this.height;
+    }
+
+    public getBlockType(): BlockType {
+        return this.blockType;
+    }
+
+    public setHeight(height: number): void {
+        this.unCacheHeader();
+        this.height = height;
+        this.hash = null;
     }
 }

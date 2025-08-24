@@ -24,7 +24,7 @@ describe('TransactionOutputTest', () => {
         );
         tx.addOutput(output);
         expect(
-            tx.getOutput(0).getAddressFromP2SH(MainNetParams.get())!.toString(),
+            tx.getOutputs()[0].getAddressFromP2SH(MainNetParams.get())!.toString(),
         ).toBe(P2SHAddressString);
     });
 });

@@ -223,8 +223,8 @@ describe('ScriptSerialization', () => {
         const input = TransactionInput.fromScriptBytes(PARAMS, tx, Buffer.alloc(0));
         tx.addInput(input);
         
-        const sighash = tx.hashForSignature(0, outputScript.getProgram(), 1);
-        const ecdsaSignature = await key1.sign(sighash);
+        const sighash = tx.hashForSignature(0, outputScript.getProgram(), 1, false);
+        const ecdsaSignature = await key1.sign(sighash.getBytes());
         const r = bigInt(ecdsaSignature.r.toString());
         const s = bigInt(ecdsaSignature.s.toString());
         const signature = new TransactionSignature(r, s, 1);

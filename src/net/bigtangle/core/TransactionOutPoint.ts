@@ -283,9 +283,21 @@ export class TransactionOutPoint extends ChildMessage {
     public getIndex(): number {
         return this.index;
     }
-
+    
+    public setBlockHash(blockHash: Sha256Hash): void {
+        this.blockHash = blockHash;
+    }
+    
+    public setTxHash(txHash: Sha256Hash): void {
+        this.txHash = txHash;
+    }
+    
     public setIndex(index: number): void {
         this.index = index;
+    }
+    
+    public setConnectedOutput(connectedOutput: TransactionOutput | null): void {
+        this.connectedOutput = connectedOutput;
     }
 
     /**
