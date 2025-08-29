@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { MainNetParams } from "../../src/net/bigtangle/params/MainNetParams";
 import { UtilGeneseBlock } from "../../src/net/bigtangle/core/UtilGeneseBlock";
 import { Transaction } from "../../src/net/bigtangle/core/Transaction";
-import { TestParams } from "net/bigtangle/params/TestParams";
+import { TestParams } from "../../src/net/bigtangle/params/TestParams"; // Fixed import path
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
 import { describe, test, expect } from "vitest";
 import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
@@ -11,10 +11,14 @@ import { BlockType } from "../../src/net/bigtangle/core/BlockType";
 import { Block } from "../../src/net/bigtangle/core/Block";
 import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
+import { ScriptBuilder } from "../../src/net/bigtangle/script/ScriptBuilder"; // Added ScriptBuilder import
+import { ECKey } from "../../src/net/bigtangle/core/ECKey"; // Added ECKey import
 
 describe("BlockTest", () => {
   const PARAMS = TestParams.get(); 
-  const blockBytes = Buffer.from(UtilGeneseBlock.createGenesis(PARAMS).unsafeBitcoinSerialize());
+  const gen=UtilGeneseBlock.createGenesis(PARAMS);
+  console.log("Genesis Block:", gen.toString());
+  const blockBytes = Buffer.from(gen.unsafeBitcoinSerialize());
   // Exact genesis block hex from the Java test
   const blockHex ="01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008b404ea4787ac1af3c007dc3462b9875d320ee983690b649d9c564da7a4c38d56d235e5b00000000ae47012000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff000000000108016345785d8a000001bc232102721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975ac000000000000000036000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200147ae0000000000000000000000000000";
 
@@ -27,6 +31,7 @@ describe("BlockTest", () => {
 
   test("testGenesis", () => { 
     const serializedHex = Utils.HEX.encode(blockBytes);
+ 
     expect(serializedHex).toBe(blockHex);
  
 	});
@@ -49,15 +54,17 @@ describe("BlockTest", () => {
     expect(block.getBlockType()).toBe(BlockType.BLOCKTYPE_INITIAL);
 
     // Validate the miner address
-    expect(new Address(MainNetParams.get(), block.getMinerAddress()).toString()).toBe("1111111111111111111114oLvT2");
+    expect(Address.fromP2PKH(MainNetParams.get(), Buffer.from(block.getMinerAddress())).toString()).toBe("1111111111111111111114oLvT2");
 
     // Validate block serialization
     expect(block.bitcoinSerialize().length).toBe(blockBytes.length);
     expect(Buffer.from(block.bitcoinSerialize())).toEqual(blockBytes);
 
     // Validate transaction details
-    expect(block.getTransactions().length).toBe(1);
-    const tx = block.getTransactions()[0];
+    const transactions = block.getTransactions();
+    expect(transactions).not.toBeNull();
+    expect(transactions!.length).toBe(1);
+    const tx = transactions![0];
     expect(tx.isCoinBase()).toBe(true);
     expect(tx.getInputs().length).toBe(1);
     expect(tx.getOutputs().length).toBe(1);
@@ -69,10 +76,12 @@ describe("BlockTest", () => {
     // Verify the output script matches: PUSHDATA(33)[pubkey] CHECKSIG
     const pubkey = Utils.HEX.decode("02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975");
     const expectedScript = ScriptBuilder.createOutputScript(ECKey.fromPublicOnly(pubkey));
-    expect(Buffer.from(expectedScript.getProgram())).toEqual(Buffer.from(output.getScriptBytes()));
+    const expectedProgramBuffer = Buffer.from(expectedScript.getProgram());
+    const outputScriptBuffer = Buffer.from(output.getScriptBytes());
+    expect(expectedProgramBuffer).toEqual(outputScriptBuffer);
 
     // Additional assertions based on block.toString() output
-    expect(block.getHash().equals(Sha256Hash.wrap("4855f019ed0b97ae7dcfab83a010c12d8badef5f669584e3464d85d5c59c57ae"))).toBe(true);
+    expect(block.getHash().equals(Sha256Hash.wrap(Buffer.from("4855f019ed0b97ae7dcfab83a010c12d8badef5f669584e3464d85d5c59c57ae", "hex")))).toBe(true);
   });
 
   test("testSerial2", () => {

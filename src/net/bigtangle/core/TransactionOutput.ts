@@ -256,22 +256,12 @@ export class TransactionOutput extends ChildMessage {
         this.length = this.cursor - this.offset;
     }
 
-    protected bitcoinSerializeToStream(stream: any): void {
-        checkNotNull(this.scriptBytes);
+    public bitcoinSerializeToStream(stream: any): void {
+        checkNotNull(this.scriptBytes); 
         
-        // Write the value as a little-endian 8-byte signed integer
-        const valueBytes = new Uint8Array(8);
-        let value = this.value.getValue();
-        
-        // Handle negative values using two's complement
-        if (value < 0n) {
-            value = value + 0x10000000000000000n;
-        }
-        
-        for (let i = 0; i < 8; i++) {
-            valueBytes[i] = Number((value >> BigInt(i * 8)) & 0xFFn);
-        }
-        stream.write(valueBytes);
+       const  valuebytes= Utils.bigIntToBytes( this.value.getValue());
+          stream.write(new VarInt(valuebytes.length).encode()); 
+        stream.write(valuebytes);
 
         // Write the tokenid with length prefix
         const tokenid = this.value.getTokenid();
@@ -282,6 +272,8 @@ export class TransactionOutput extends ChildMessage {
         stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
     }
+
+
 
     /**
      * Returns the value of this output. This is the amount of currency that the

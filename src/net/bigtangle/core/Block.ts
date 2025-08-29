@@ -545,7 +545,7 @@ export class Block extends Message {
         s += "   difficulty target (nBits):    " + this.difficultyTarget + "\n";
         s += "   nonce: " + this.nonce + "\n";
         if (this.minerAddress !== null)
-            s += "   mineraddress: " + new Address(this.params!, this.params!.getAddressHeader(), Buffer.from(this.minerAddress)) + "\n";
+            s += "   mineraddress: " + new Address(this.params!, this.params!.getAddressHeader(), Buffer.from(this.minerAddress)).toBase58() + "\n";
 
         s += "   blocktype: " + this.blockType + "\n";
         if (this.transactions !== null && this.transactions.length > 0) {
