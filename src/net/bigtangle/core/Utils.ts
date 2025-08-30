@@ -39,20 +39,34 @@ export class Utils {
   }
 
   public static uint32ToByteStreamLE(value: number, stream: any): void {
-    // Ensure the value is within the valid range for a 32-bit unsigned integer
     if (value < 0 || value > 0xffffffff) {
-      throw new RangeError(
-        `The value of "value" is out of range. It must be >= 0 and <= 4294967295. Received ${value}`
-      );
+      throw new RangeError(`Value out of range: ${value}`);
     }
+
     const buffer = Buffer.alloc(4);
-    buffer.writeUInt32LE(value, 0);
+    buffer[0] = value & 0xff;
+    buffer[1] = (value >>> 8) & 0xff;
+    buffer[2] = (value >>> 16) & 0xff;
+    buffer[3] = (value >>> 24) & 0xff;
+
     stream.write(buffer);
   }
 
   public static int64ToByteStreamLE(value: bigint, stream: any): void {
+    if (value < 0n || value > 0xffffffffffffffffn) {
+      throw new RangeError(`Value out of range for uint64: ${value}`);
+    }
+
     const buffer = Buffer.alloc(8);
-    buffer.writeBigUInt64LE(BigInt(value), 0);
+    buffer[0] = Number(value & 0xffn);
+    buffer[1] = Number((value >> 8n) & 0xffn);
+    buffer[2] = Number((value >> 16n) & 0xffn);
+    buffer[3] = Number((value >> 24n) & 0xffn);
+    buffer[4] = Number((value >> 32n) & 0xffn);
+    buffer[5] = Number((value >> 40n) & 0xffn);
+    buffer[6] = Number((value >> 48n) & 0xffn);
+    buffer[7] = Number((value >> 56n) & 0xffn);
+
     stream.write(buffer);
   }
 

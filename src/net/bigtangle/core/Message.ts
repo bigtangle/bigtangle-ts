@@ -231,12 +231,8 @@ export abstract class Message {
         }
 
         // No cached array available so serialize parts by stream.
-        const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length + 32);
-        try {
-            this.bitcoinSerializeToStream(stream);
-        } catch (e) {
-            // Cannot happen, we are serializing to a memory stream.
-        }
+        const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length + 32); 
+            this.bitcoinSerializeToStream(stream); 
 
         // Prefer to avoid caching truncated or partial buffers. Only recache into this.payload
         // when the serialized buffer length matches the expected this.length (if known).
@@ -259,6 +255,8 @@ export abstract class Message {
         // set (except for static length message types).  Setting it makes future streaming more efficient
         // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
         this.length = buf.length;
+
+          console.log(`UnsafeByteArrayOutputStream.toByteArray: cursor=${this.cursor }, offset =${ this.offset}, buf.length=${ buf.length}`);
         return buf;
     }
 

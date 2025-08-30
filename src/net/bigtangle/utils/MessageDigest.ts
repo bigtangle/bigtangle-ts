@@ -1,125 +1,169 @@
-import { MessageDigestSpi } from './MessageDigestSpi';
-import { SHA256DigestSpi } from './SHA256DigestSpi';
-import { MD5DigestSpi } from './SHA256DigestSpi';
+// MessageDigest.ts
+// Translation of java.security.MessageDigest
 
-/**
- * Main class for message digest operations
- * Similar to Java's MessageDigest
- */
-export class MessageDigest {
-    private spi: MessageDigestSpi;
-    private algorithm: string;
-    private provider: string;
-    private isReset: boolean = true;
-    
-    protected constructor(spi: MessageDigestSpi, algorithm: string, provider: string = "default") {
-        this.spi = spi;
-        this.algorithm = algorithm;
-        this.provider = provider;
+import { MessageDigestSpi } from "./MessageDigestSpi";
+import { SHA256DigestSpi } from "./SHA256DigestSpi";
+
+// Simple provider stub
+interface Provider {
+  name: string;
+}
+
+export abstract class MessageDigest extends MessageDigestSpi {
+  protected algorithm: string;
+  protected state: number = 0; // 0 = INITIAL, 1 = IN_PROGRESS
+  protected provider?: any;    // Stub for Provider
+
+  protected constructor(algorithm: string, provider?: any) {
+    super();
+    this.algorithm = algorithm;
+    this.provider = provider;
+  }
+
+  // -----------------------
+  // Update methods
+  // -----------------------
+  public updateByte(input: number): void {
+    this.engineUpdateByte(input);
+    this.state = 1;
+  }
+
+  public update(input: Uint8Array, offset: number = 0, len?: number): void {
+    if (!input) {
+      throw new Error("No input buffer given");
     }
-    
-    /**
-     * Returns a MessageDigest object that implements the specified digest algorithm
-     */
-    static getInstance(algorithm: string, provider?: string): MessageDigest {
-        // Implementation would use a factory pattern to create appropriate SPI
-        switch (algorithm.toLowerCase()) {
-            case "sha-256":
-                return new MessageDigest(new SHA256DigestSpi(), algorithm, provider);
-            case "md5":
-                return new MessageDigest(new MD5DigestSpi(), algorithm, provider);
-            default:
-                throw new Error(`No such algorithm: ${algorithm}`);
-        }
+    const length = len ?? input.length - offset;
+    if (input.length - offset < length) {
+      throw new Error("Input buffer too short");
     }
-    
-    /**
-     * Returns the algorithm name
-     */
-    getAlgorithm(): string {
-        return this.algorithm;
+    this.engineUpdateBytes(input, offset, length);
+    this.state = 1;
+  }
+
+  public updateBuffer(input: Uint8Array): void {
+    if (!input) {
+      throw new Error("Null input buffer");
     }
-    
-    /**
-     * Returns the provider name
-     */
-    getProvider(): string {
-        return this.provider;
+    this.engineUpdateBuffer(input);
+    this.state = 1;
+  }
+
+  // -----------------------
+  // Digest methods
+  // -----------------------
+  public digest(): Uint8Array {
+    const result = this.engineDigest();
+    this.state = 0;
+    return result;
+  }
+
+  public digestInto(buf: Uint8Array, offset: number, len: number): number {
+    if (!buf) {
+      throw new Error("No output buffer given");
     }
-    
-    /**
-     * Returns the digest length in bytes
-     */
-    getDigestLength(): number {
-        return this.spi.engineGetDigestLength();
+    if (buf.length - offset < len) {
+      throw new Error("Output buffer too small for specified offset and length");
     }
-    
-    /**
-     * Updates the digest using the specified byte
-     */
-    /**
-     * Updates the digest using the specified array of bytes
-     */
-    update(input: number): void;
-    update(input: number[]): void;
-    update(input: Uint8Array): void;
-    update(input: number[], offset: number, len: number): void;
-    update(input: any, offset?: number, len?: number): void {
-        if (typeof input === 'number') {
-            this.spi.engineUpdate(input);
-        } else if (input instanceof Uint8Array) {
-            this.spi.engineUpdate(input);
-        } else if (Array.isArray(input) && offset !== undefined && len !== undefined) {
-            this.spi.engineUpdate(input, offset, len);
-        } else if (Array.isArray(input)) {
-            this.spi.engineUpdate(input, 0, input.length);
-        }
-        this.isReset = false;
+    const numBytes = this.engineDigestInto(buf, offset, len);
+    this.state = 0;
+    return numBytes;
+  }
+
+  public digestBytes(input: Uint8Array): Uint8Array {
+    this.update(input);
+    return this.digest();
+  }
+
+  // -----------------------
+  // Utility methods
+  // -----------------------
+  public reset(): void {
+    this.engineReset();
+    this.state = 0;
+  }
+
+  public getAlgorithm(): string {
+    return this.algorithm;
+  }
+
+  public getDigestLength(): number {
+    const digestLen = this.engineGetDigestLength();
+    if (digestLen === 0) {
+      try {
+        const md = this.clone() as MessageDigest;
+        const digest = md.digest();
+        return digest.length;
+      } catch {
+        return digestLen;
+      }
     }
-    
-    /**
-     * Completes the hash computation and returns the digest
-     */
-    digest(): number[];
-    digest(buf: number[], offset: number, len: number): number;
-    digest(buf?: number[], offset?: number, len?: number): number[] | number {
-        if (buf && offset !== undefined && len !== undefined) {
-            return this.spi.engineDigest(buf, offset, len);
-        } else {
-            return this.spi.engineDigest();
-        }
+    return digestLen;
+  }
+
+  public clone(): MessageDigest {
+    const copy = super.clone() as MessageDigest;
+    copy.algorithm = this.algorithm;
+    copy.state = this.state;
+    copy.provider = this.provider;
+    return copy;
+  }
+
+  public toString(): string {
+    let stateStr = "";
+    switch (this.state) {
+      case 0: stateStr = "<initialized>"; break;
+      case 1: stateStr = "<in progress>"; break;
     }
-    
-    /**
-     * Resets the digest for further use
-     */
-    reset(): void {
-        this.spi.engineReset();
-        this.isReset = true;
+    return `${this.algorithm} Message Digest from ${this.provider?.name ?? "(no provider)"}, ${stateStr}`;
+  }
+
+  // -----------------------
+  // Constant-time comparison
+  // -----------------------
+  public static isEqual(digesta: Uint8Array, digestb: Uint8Array): boolean {
+    if (digesta === digestb) return true;
+    if (!digesta || !digestb) return false;
+
+    const lenA = digesta.length;
+    const lenB = digestb.length;
+
+    if (lenB === 0) {
+      return lenA === 0;
     }
-    
-    /**
-     * Returns a string representation of this message digest object
-     */
-    toString(): string {
-        return `MessageDigest ${this.algorithm} from ${this.provider}`;
+
+    let result = lenA - lenB;
+    for (let i = 0; i < lenA; i++) {
+      // indexB = 0 if i >= lenB
+      const indexB = i < lenB ? i : 0;
+      result |= digesta[i] ^ digestb[indexB];
     }
-    
-    /**
-     * Utility method to compute digest of a string
-     */
-    static digestString(algorithm: string, data: string, encoding: string = "utf-8"): number[] {
-        const md = MessageDigest.getInstance(algorithm);
-        const encoder = new TextEncoder();
-        const dataBytes = encoder.encode(data);
-        md.update(dataBytes);
-        return md.digest();
-    }
-    
-    /**
-     * Utility method to compute hex string representation
-     */
-    static digestToHex(digest: number[]): string {
-        return digest.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
+    return result === 0;
+  }
+
+  /**
+   * Returns a MessageDigest object that implements the specified digest algorithm.
+   *
+   * @param algorithm the name of the algorithm requested
+   * @return a MessageDigest object that implements the specified algorithm
+   * @throws Error if no implementation for the specified algorithm is available
+   */
+  public static getInstance(algorithm: string): MessageDigest {
+    // Simple factory method to create MessageDigest instances
+    // For now, we'll throw an error and let the concrete implementations handle this
+    throw new Error(`Unsupported algorithm: ${algorithm}. Use concrete implementation directly.`);
+  }
+
+  /**
+   * Creates a MessageDigest instance for the specified algorithm.
+   * This is a TypeScript translation of the Java MessageDigest.from() method.
+   *
+   * @param algorithm the name of the algorithm requested
+   * @return a MessageDigest object that implements the specified algorithm
+   * @throws Error if no implementation for the specified algorithm is available
+   */
+  public static from(algorithm: string): MessageDigest {
+    // In a real implementation, this would use a more sophisticated provider mechanism
+    // For now, we'll delegate to getInstance
+    return MessageDigest.getInstance(algorithm);
+  }
 }

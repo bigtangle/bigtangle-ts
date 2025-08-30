@@ -2,6 +2,9 @@ import { createHash } from 'crypto';
 import { Buffer } from 'buffer';
 import { Utils } from '../utils/Utils';
 import { MessageDigest } from '../utils/MessageDigest';
+import { SHA256Digest } from '../utils/SHA256Digest';
+import { MessageDigestSpi } from '../utils/MessageDigestSpi';
+import { MessageDigestFactory } from '../utils/MessageDigestFactory';
 
 /**
  * A Sha256Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be used as keys in a
@@ -87,7 +90,7 @@ export class Sha256Hash {
      */
     private static newDigest(): MessageDigest {
       
-            return MessageDigest.getInstance("SHA-256");
+            return MessageDigestFactory.getInstance("SHA-256");
         
     }
 
@@ -140,8 +143,8 @@ export class Sha256Hash {
      */
     public static hashTwiceRange(input: Buffer, offset: number, length: number): Buffer {
         const digest = Sha256Hash.newDigest();
-        const subarray = input.subarray(offset, offset + length);
-        digest.update(subarray);
+       
+        digest.update(input, offset, length);
         const firstHash = digest.digest();
         digest.reset();
         digest.update(firstHash);

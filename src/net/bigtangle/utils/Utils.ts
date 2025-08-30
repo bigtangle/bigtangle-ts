@@ -25,72 +25,124 @@ export class Utils {
 
   public static readonly HEX = BaseEncoding.base16().lowerCase();
 
-  /**
-   * Converts a BigInteger to a byte array that matches Java's BigInteger.toByteArray() method.
- 
-   * @param b The BigInteger to convert
-   * @returns A byte array representing the BigInteger in two's-complement form
-   */
-  public static bigIntToBytes(value: BigInteger | bigint): Uint8Array {
-    // Handle both BigInteger and bigint types
-    if (typeof value === 'bigint') {
-      // Equivalent to bitLength()/8 + 1
-      const bitLength = value === 0n ? 0 : value.toString(2).length;
-      const byteLen = Math.floor(bitLength / 8) + 1;
 
-      const byteArray = new Uint8Array(byteLen);
-      let temp = value;
+    /**
+     * Converts a BigInteger to a byte array that matches Java's BigInteger.toByteArray() method.
+     * This method returns a byte array containing the two's-complement representation of this BigInteger.
+     * The byte array will be in big-endian byte-order: the most significant byte is in the zeroth element.
+     * The array will contain the minimum number of bytes required to represent this BigInteger,
+     * including at least one sign bit, which is (ceil((this.bitLength() + 1)/8)).
+     *
+     * @param b The BigInteger to convert
+     * @returns A byte array representing the BigInteger in two's-complement form
+     */
+    public static bigIntToBytes(b: BigInteger | bigint): Uint8Array {
+        if (b === null) {
+            return new Uint8Array(0);
+        }
 
-      for (let i = byteLen - 1; i >= 0; i--) {
-        byteArray[i] = Number(temp & 0xffn); // lowest 8 bits
-        temp >>= 8n; // shift right 8 bits
-      }
+        // Convert native bigint to BigInteger if needed
+        let bigIntValue: BigInteger;
+        if (typeof b === 'bigint') {
+            bigIntValue = bigInt(b.toString());
+        } else {
+            bigIntValue = b;
+        }
 
-      return byteArray;
-    } else {
-      // Handle BigInteger from big-integer library
-      // Equivalent to bitLength()/8 + 1
-      const bitLength = value.isZero() ? 0 : value.toString(2).length;
-      const byteLen = Math.floor(bitLength / 8) + 1;
+        // Handle zero case
+        if (bigIntValue.isZero()) {
+            return new Uint8Array([0]);
+        }
 
-      const byteArray = new Uint8Array(byteLen);
-      let temp = value;
+        // Get the absolute value as bytes
+        const isNegative = bigIntValue.isNegative();
+        let absValue = isNegative ? bigIntValue.abs() : bigIntValue;
 
-      for (let i = byteLen - 1; i >= 0; i--) {
-        byteArray[i] = temp.and(0xff).toJSNumber(); // lowest 8 bits
-        temp = temp.shiftRight(8); // shift right 8 bits
-      }
+        // Convert to byte array by repeatedly dividing by 256
+        const bytes: number[] = [];
+        const big256 = bigInt(256);
+        
+        while (absValue.greater(bigInt(0))) {
+            const divmod = absValue.divmod(big256);
+            bytes.push(divmod.remainder.toJSNumber());
+            absValue = divmod.quotient;
+        }
+        
+        // Reverse to get big-endian format (most significant byte first)
+        bytes.reverse();
 
-      return byteArray;
+        // For positive numbers, we might need to add a zero byte at the beginning
+        // if the most significant bit is set (to ensure it's interpreted as positive)
+        if (!isNegative && bytes.length > 0 && (bytes[0] & 0x80) !== 0) {
+            bytes.unshift(0);
+        }
+
+        // For negative numbers, we need to compute the two's complement
+        if (isNegative) {
+            // Ensure we have at least one byte
+            if (bytes.length === 0) {
+                bytes.push(0);
+            }
+            
+            // Compute two's complement: invert all bits and add 1
+            // Invert all bits
+            for (let i = 0; i < bytes.length; i++) {
+                bytes[i] = ~bytes[i] & 0xFF;
+            }
+            
+            // Add 1 to complete two's complement
+            let carry = 1;
+            for (let i = bytes.length - 1; i >= 0 && carry > 0; i--) {
+                const sum = bytes[i] + carry;
+                bytes[i] = sum & 0xFF;
+                carry = sum > 0xFF ? 1 : 0;
+            }
+            
+            // If we still have a carry, we need to expand the array
+            if (carry > 0) {
+                bytes.unshift(1);
+            }
+            
+            // Now ensure the most significant bit is 1 for negative numbers
+            if ((bytes[0] & 0x80) === 0) {
+                // We need to add a leading byte with all bits set to 1
+                bytes.unshift(0xFF);
+            }
+        }
+
+        return new Uint8Array(bytes);
     }
-  }
+
 
   /**
    * Converts a BigInteger to a fixed-size byte array.
-   * 
+   *
    * @param value The BigInteger to convert
    * @param length The fixed length of the output array
    * @returns A byte array of the specified length representing the BigInteger
    */
-  public static bigIntToBytesFixed(value: BigInteger, length: number): Uint8Array {
+  public static bigIntToBytesFixed(
+    value: BigInteger,
+    length: number
+  ): Uint8Array {
     const bytes = Utils.bigIntToBytes(value);
     const result = new Uint8Array(length);
-    
+
     // Copy bytes to the end of the fixed-size array
     const copyStart = Math.max(0, length - bytes.length);
     const bytesStart = Math.max(0, bytes.length - length);
-    
+
     for (let i = 0; i < Math.min(bytes.length, length); i++) {
       result[copyStart + i] = bytes[bytesStart + i];
     }
-    
+
     // If the number is negative, fill the leading bytes with 0xFF
     if (value.isNegative()) {
       for (let i = 0; i < copyStart; i++) {
-        result[i] = 0xFF;
+        result[i] = 0xff;
       }
     }
-    
+
     return result;
   }
 
