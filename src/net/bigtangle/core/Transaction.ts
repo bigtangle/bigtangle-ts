@@ -467,18 +467,15 @@ export class Transaction extends ChildMessage {
         this.inputs = [];
         for (let i = 0; i < numInputs; i++) {
             const input = TransactionInput.fromTransactionInput5(
-                this.params!, 
-                this, 
-                this.payload!, 
-                this.cursor, 
-                this.serializer!
+                this.params!,
+                this,
+                this.payload!,
+                this.cursor,
+                this.serializer!,
             );
             this.inputs.push(input);
-            const scriptLen = this.readVarInt();
-            const connectedOutput = input.getOutpoint().connectedOutput;
-            const addLen = 4 + (connectedOutput === null ? 0 : connectedOutput.getMessageSize());
-            this.optimalEncodingMessageSize += 36 + addLen + VarInt.sizeOf(scriptLen) + scriptLen + 4;
-            this.cursor += scriptLen + 4 + addLen;
+            this.cursor += input.getMessageSize();
+            this.optimalEncodingMessageSize += input.getMessageSize();
         }
 
         // Now the outputs
@@ -501,37 +498,37 @@ export class Transaction extends ChildMessage {
         this.lockTime = this.readUint32();
         this.optimalEncodingMessageSize += 4;
 
-        let len = this.readUint32();
-        this.optimalEncodingMessageSize += 4;
+        let len = this.readVarInt();
+        this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             const buf = this.readBytes(len);
             this.dataClassName = new TextDecoder().decode(buf);
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readUint32();
-        this.optimalEncodingMessageSize += 4;
+        len = this.readVarInt();
+        this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.data = this.readBytes(len);
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readUint32();
-        this.optimalEncodingMessageSize += 4;
+        len = this.readVarInt();
+        this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.toAddressInSubtangle = this.readBytes(len);
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readUint32();
-        this.optimalEncodingMessageSize += 4;
+        len = this.readVarInt();
+        this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.memo = new TextDecoder().decode(this.readBytes(len));
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readUint32();
-        this.optimalEncodingMessageSize += 4;
+        len = this.readVarInt();
+        this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.dataSignature = this.readBytes(len);
             this.optimalEncodingMessageSize += len;
@@ -954,18 +951,18 @@ export class Transaction extends ChildMessage {
         Utils.uint32ToByteStreamLE(this.lockTime, stream);
         // write dataClassName
         if (this.dataClassName == null) {
-            Utils.uint32ToByteStreamLE(0, stream);
+            stream.write(new VarInt(0).encode());
         } else {
             const b = new TextEncoder().encode(this.dataClassName);
-            Utils.uint32ToByteStreamLE(b.length, stream);
+            stream.write(new VarInt(b.length).encode());
             stream.write(b);
         }
 
         // write data
         if (this.data == null) {
-            Utils.uint32ToByteStreamLE(0, stream);
+            stream.write(new VarInt(0).encode());
         } else {
-            Utils.uint32ToByteStreamLE(this.data.length, stream);
+            stream.write(new VarInt(this.data.length).encode());
             if (this.data.length > 0) {
                 stream.write(this.data);
             }
@@ -973,9 +970,9 @@ export class Transaction extends ChildMessage {
 
         // write toAddressInSubtangle
         if (this.toAddressInSubtangle == null) {
-            Utils.uint32ToByteStreamLE(0, stream);
+            stream.write(new VarInt(0).encode());
         } else {
-            Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
+            stream.write(new VarInt(this.toAddressInSubtangle.length).encode());
             if (this.toAddressInSubtangle.length > 0) {
                 stream.write(this.toAddressInSubtangle);
             }
@@ -983,18 +980,18 @@ export class Transaction extends ChildMessage {
 
         // write memo
         if (this.memo == null) {
-            Utils.uint32ToByteStreamLE(0, stream);
+            stream.write(new VarInt(0).encode());
         } else {
             const membyte = new TextEncoder().encode(this.memo);
-            Utils.uint32ToByteStreamLE(membyte.length, stream);
+            stream.write(new VarInt(membyte.length).encode());
             stream.write(membyte);
         }
 
         // write dataSignature
         if (this.dataSignature == null) {
-            Utils.uint32ToByteStreamLE(0, stream);
+            stream.write(new VarInt(0).encode());
         } else {
-            Utils.uint32ToByteStreamLE(this.dataSignature.length, stream);
+            stream.write(new VarInt(this.dataSignature.length).encode());
             stream.write(this.dataSignature);
         }
     }

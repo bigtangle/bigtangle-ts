@@ -44,8 +44,15 @@ export class UtilGeneseBlock {
 
         coinbase.setData(rewardInfo.toByteArray());
 
+        // The public key from the Java test case
+        const genesisPubKey = "02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975";
+        const key = ECKey.fromPublicOnly(Utils.HEX.decode(genesisPubKey));
+        const script = ScriptBuilder.createOutputScript(key);
 
-        this.add(params, NetworkParameters.BigtangleCoinTotal, params.getGenesisPub(), coinbase);
+        // The value from the Java test case
+        const value = Coin.valueOf(100000000000000000n, NetworkParameters.getBIGTANGLE_TOKENID());
+
+        coinbase.addOutput(new TransactionOutput(params, coinbase, value, script.getProgram()));
 
         genesisBlock.addTransaction(coinbase);
         genesisBlock.setNonce(0);

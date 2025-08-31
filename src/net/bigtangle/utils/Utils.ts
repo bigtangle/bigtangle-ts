@@ -3,6 +3,7 @@ import { ripemd160 } from "@noble/hashes/ripemd160";
 import bigInt from "big-integer"; // Use big-integer
 import type { BigInteger } from "big-integer";
 import { VerificationException } from "../exception/VerificationException";
+import * as tools from "uint8array-tools";
 
 import { Buffer } from "buffer";
 import { ContractEventInfo } from "../core/ContractEventInfo";
@@ -200,10 +201,7 @@ export class Utils {
     out: Uint8Array,
     offset: number
   ): void {
-    out[offset] = (val >>> 24) & 0xff;
-    out[offset + 1] = (val >>> 16) & 0xff;
-    out[offset + 2] = (val >>> 8) & 0xff;
-    out[offset + 3] = val & 0xff;
+    tools.writeUInt32(out, offset, val, "BE");
   }
 
   public static uint32ToByteArrayLE(
@@ -211,10 +209,7 @@ export class Utils {
     out: Uint8Array,
     offset: number
   ): void {
-    out[offset] = val & 0xff;
-    out[offset + 1] = (val >>> 8) & 0xff;
-    out[offset + 2] = (val >>> 16) & 0xff;
-    out[offset + 3] = (val >>> 24) & 0xff;
+    tools.writeUInt32(out, offset, val, "LE");
   }
 
   public static uint64ToByteArrayLE(
@@ -295,11 +290,7 @@ export class Utils {
           " bytes available"
       );
     }
-    const result =
-      (bytes[offset] & 0xff) |
-      ((bytes[offset + 1] & 0xff) << 8) |
-      ((bytes[offset + 2] & 0xff) << 16) |
-      ((bytes[offset + 3] & 0xff) << 24);
+    const result = tools.readUInt32(bytes, offset, "LE");
     console.log(
       `Utils.readUint32: bytes[${offset}]=${bytes[offset].toString(
         16
@@ -313,45 +304,21 @@ export class Utils {
   }
 
   public static readInt64(bytes: Uint8Array, offset: number): BigInteger {
-    const low =
-      (bytes[offset] & 0xff) |
-      ((bytes[offset + 1] & 0xff) << 8) |
-      ((bytes[offset + 2] & 0xff) << 16) |
-      ((bytes[offset + 3] & 0xff) << 24);
-    const high =
-      (bytes[offset + 4] & 0xff) |
-      ((bytes[offset + 5] & 0xff) << 8) |
-      ((bytes[offset + 6] & 0xff) << 16) |
-      ((bytes[offset + 7] & 0xff) << 24);
-    // Convert to BigInteger to properly handle 64-bit values
-    return bigInt(low).add(bigInt(high).multiply(bigInt(0x100000000)));
+    const value = tools.readUInt64(bytes, offset, "LE");
+    // Convert to signed BigInt
+    if (value >= 0x8000000000000000n) {
+      return bigInt(value - 0x10000000000000000n);
+    }
+    return bigInt(value);
   }
 
   public static readUint64(bytes: Uint8Array, offset: number): BigInteger {
-    const low =
-      (bytes[offset] & 0xff) |
-      ((bytes[offset + 1] & 0xff) << 8) |
-      ((bytes[offset + 2] & 0xff) << 16) |
-      ((bytes[offset + 3] & 0xff) << 24);
-    const high =
-      (bytes[offset + 4] & 0xff) |
-      ((bytes[offset + 5] & 0xff) << 8) |
-      ((bytes[offset + 6] & 0xff) << 16) |
-      ((bytes[offset + 7] & 0xff) << 24);
-    // Convert to BigInteger to properly handle 64-bit unsigned values
-    // We need to handle the case where high is negative due to signed integer overflow
-    const highBigInt =
-      high >= 0 ? bigInt(high) : bigInt(high).add(bigInt(0x100000000));
-    return bigInt(low).add(highBigInt.multiply(bigInt(0x100000000)));
+    const value = tools.readUInt64(bytes, offset, "LE");
+    return bigInt(value);
   }
 
   public static readUint32BE(bytes: Uint8Array, offset: number): number {
-    return (
-      ((bytes[offset] & 0xff) << 24) |
-      ((bytes[offset + 1] & 0xff) << 16) |
-      ((bytes[offset + 2] & 0xff) << 8) |
-      (bytes[offset + 3] & 0xff)
-    );
+    return tools.readUInt32(bytes, offset, "BE");
   }
 
   public static readNBytesString(dis: DataInputStream): string | null {
@@ -419,7 +386,7 @@ export class Utils {
   }
 
   public static readUint16BE(bytes: Uint8Array, offset: number): number {
-    return ((bytes[offset] & 0xff) << 8) | (bytes[offset + 1] & 0xff);
+    return tools.readUInt16(bytes, offset, "BE");
   }
 
   public static sha256hash160(input: Uint8Array): Uint8Array {

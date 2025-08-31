@@ -2,6 +2,7 @@ import { Buffer } from "buffer";
 import crypto from "crypto";
 import base58 from "bs58";
 import bigInt, { BigInteger } from "big-integer";
+import * as tools from "uint8array-tools";
 import { BaseEncoding } from "../utils/BaseEncoding";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils as UtilsHelper } from "../utils/Utils";
@@ -43,13 +44,9 @@ export class Utils {
       throw new RangeError(`Value out of range: ${value}`);
     }
 
-    const buffer = Buffer.alloc(4);
-    buffer[0] = value & 0xff;
-    buffer[1] = (value >>> 8) & 0xff;
-    buffer[2] = (value >>> 16) & 0xff;
-    buffer[3] = (value >>> 24) & 0xff;
-
-    stream.write(buffer);
+    const buffer = new Uint8Array(4);
+    tools.writeUInt32(buffer, 0, value, "LE");
+    stream.write(Buffer.from(buffer));
   }
 
   public static int64ToByteStreamLE(value: bigint, stream: any): void {
@@ -57,17 +54,9 @@ export class Utils {
       throw new RangeError(`Value out of range for uint64: ${value}`);
     }
 
-    const buffer = Buffer.alloc(8);
-    buffer[0] = Number(value & 0xffn);
-    buffer[1] = Number((value >> 8n) & 0xffn);
-    buffer[2] = Number((value >> 16n) & 0xffn);
-    buffer[3] = Number((value >> 24n) & 0xffn);
-    buffer[4] = Number((value >> 32n) & 0xffn);
-    buffer[5] = Number((value >> 40n) & 0xffn);
-    buffer[6] = Number((value >> 48n) & 0xffn);
-    buffer[7] = Number((value >> 56n) & 0xffn);
-
-    stream.write(buffer);
+    const buffer = new Uint8Array(8);
+    tools.writeUInt64(buffer, 0, value, "LE");
+    stream.write(Buffer.from(buffer));
   }
 
   public static readUint32(buffer: Buffer, offset: number): number {
@@ -80,7 +69,7 @@ export class Utils {
       );
       return 0;
     }
-    return buffer.readUInt32LE(offset);
+    return tools.readUInt32(buffer, offset, "LE");
   }
 
   public static readInt64(buffer: Buffer, offset: number): bigint {
@@ -93,7 +82,7 @@ export class Utils {
       );
       return 0n;
     }
-    const value = buffer.readBigUInt64LE(offset);
+    const value = tools.readUInt64(buffer, offset, "LE");
     // Convert to signed BigInt
     if (value >= 0x8000000000000000n) {
       return value - 0x10000000000000000n;
@@ -111,8 +100,8 @@ export class Utils {
     const chunkCount = Math.floor(length / 4);
     for (let i = 0; i < chunkCount; i++) {
       const offset = i * 4;
-      const value = bytes.readUInt32BE(offset);
-      buf.writeUInt32LE(value, offset);
+      const value = tools.readUInt32(bytes, offset, "BE");
+      tools.writeUInt32(buf, offset, value, "LE");
     }
 
     // Copy any remaining bytes that don't form a complete dword

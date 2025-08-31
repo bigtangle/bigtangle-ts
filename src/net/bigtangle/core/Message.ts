@@ -333,38 +333,16 @@ export abstract class Message {
     }
 
     protected readVarInt(): number {
-        console.log(`Message.readVarInt: cursor=${this.cursor}, payload length=${this.payload?.length}`);
-        const result = this.readVarIntWithOffset(0);
-        console.log(`Message.readVarInt: result=${result}, cursor now=${this.cursor}`);
-        return result;
-    }
-
-    protected readVarIntWithOffset(offset: number): number {
         try {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const currentPosition = this.cursor + offset;
-            if (currentPosition >= this.payload.length) {
-                console.warn(`Message.readVarIntWithOffset: cursor ${currentPosition} beyond payload length ${this.payload.length}, returning 0`);
-                return 0;
+            if (this.cursor >= this.payload.length) {
+                throw new ProtocolException("Attempt to read VarInt past end of buffer");
             }
             
-            console.log(`Message.readVarIntWithOffset: payload.length=${this.payload.length}, cursor=${this.cursor}, offset=${offset}`);
-            const byteValue = this.payload[currentPosition];
-            console.log(`Message.readVarIntWithOffset: payload[${currentPosition}]=${byteValue?.toString(16) ?? 'undefined'}`);
-            
-            // Log a few bytes around the cursor for debugging
-            const start = Math.max(0, currentPosition - 5);
-            const end = Math.min(this.payload.length, currentPosition + 5);
-            let bytesStr = "";
-            for (let i = start; i < end; i++) {
-                bytesStr += this.payload[i]?.toString(16).padStart(2, '0') + " ";
-            }
-            console.log(`Message.readVarIntWithOffset: payload[${start}..${end-1}]=${bytesStr}`);
-            
-            const varint = new VarInt(Buffer.from(this.payload), currentPosition);
-            this.cursor = currentPosition + varint.getOriginalSizeInBytes();
+            const varint = new VarInt(Buffer.from(this.payload), this.cursor);
+            this.cursor += varint.getOriginalSizeInBytes();
             return varint.value.toJSNumber();
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
@@ -383,16 +361,8 @@ export abstract class Message {
                 throw new ProtocolException("Payload is null");
             }
             
-            // Check if we have enough data to read
             if (this.cursor + length > this.payload.length) {
-                console.warn(`Message.readBytes: requested ${length} beyond payload length ${this.payload.length}, cursor=${this.cursor} → returning truncated slice`);
-                const available = this.payload.length - this.cursor;
-                const b = new Uint8Array(available > 0 ? available : 0);
-                if (available > 0) {
-                    b.set(this.payload.subarray(this.cursor, this.payload.length));
-                    this.cursor = this.payload.length;
-                }
-                return b;
+                throw new ProtocolException(`Ran off the end of the buffer: tried to read ${length} bytes when only ${this.payload.length - this.cursor} were available`);
             }
             
             const b = new Uint8Array(length);

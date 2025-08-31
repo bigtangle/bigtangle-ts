@@ -163,10 +163,6 @@ export class TransactionInput extends ChildMessage {
         stream.write(new VarInt(this.scriptBytes.length).encode());
         stream.write(this.scriptBytes);
         Utils.uint32ToByteStreamLE(this.sequence, stream);
-        Utils.uint32ToByteStreamLE(this.outpoint.connectedOutput != null ? 1 : 0, stream);
-		if (this.outpoint.connectedOutput != null) {
-			this.outpoint.connectedOutput.bitcoinSerializeToStream(stream);
-		}
     }
 
 
