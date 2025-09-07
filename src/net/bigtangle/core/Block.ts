@@ -255,8 +255,8 @@ export class Block extends Message {
                 this.optimalEncodingMessageSize += tx.getOptimalEncodingMessageSize();
             }
             
-            this.transactionBytesValid = true;
-            this.merkleRoot = null;
+            this.transactionBytesValid = this.serializer?.isParseRetainMode() ?? false;
+           
         } catch (e) {
             console.error("Error parsing transactions:", e);
             this.transactionBytesValid = false;

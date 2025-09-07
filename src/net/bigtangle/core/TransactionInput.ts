@@ -126,13 +126,24 @@ export class TransactionInput extends ChildMessage {
     }
 
     protected parse(): void {
-        this.outpoint = TransactionOutPoint.fromTransactionOutPoint5(this.params!, this.payload!, this.cursor, this.parent, this.serializer!);
+        if (!this.params) {
+            throw new Error("Network parameters are required");
+        }
+        if (!this.payload) {
+            throw new Error("Payload is required");
+        }
+        this.outpoint = TransactionOutPoint.fromTransactionOutPoint5(this.params, this.payload, this.cursor, this, this.serializer!);
         this.cursor += TransactionOutPoint.MESSAGE_LENGTH;
         
         const scriptLen = this.readVarInt();
+        	this.length = this.cursor - this.offset + scriptLen + 4;
         this.scriptBytes = this.readBytes(scriptLen);
         this.sequence = this.readUint32();
-        this.length = this.cursor - this.offset;
+	if (this.readUint32() == 1) {
+			this.outpoint.connectedOutput = TransactionOutput.fromTransactionOutput(this.params, this.parent as Transaction,
+					this.payload, this.cursor, this.serializer);
+			this.cursor += this.outpoint.connectedOutput.getMessageSize();
+		}
     }
 
     /**

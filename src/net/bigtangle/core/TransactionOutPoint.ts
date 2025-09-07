@@ -306,7 +306,7 @@ export class TransactionOutPoint extends ChildMessage {
      */
     public isCoinBase(): boolean {
         return this.getBlockHash().equals(Sha256Hash.ZERO_HASH) && this.getTxHash().equals(Sha256Hash.ZERO_HASH)
-            && this.getIndex() === 0;
+            && ( this.getIndex()==0  || (this.getIndex() >>> 0) === 0xFFFFFFFF);
     }
 
     public equals(o: any): boolean {

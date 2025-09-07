@@ -474,8 +474,15 @@ export class Transaction extends ChildMessage {
                 this.serializer!,
             );
             this.inputs.push(input);
-            this.cursor += input.getMessageSize();
-            this.optimalEncodingMessageSize += input.getMessageSize();
+
+          const scriptLen = this.readVarInt1(TransactionOutPoint.MESSAGE_LENGTH);
+          const connectedOutput = input.getOutpoint().connectedOutput;
+          const addLen = 4 + (connectedOutput == null ? 0 : connectedOutput.getMessageSize());
+          this.optimalEncodingMessageSize += TransactionOutPoint.MESSAGE_LENGTH + addLen + VarInt.sizeOf(scriptLen)
+                  + scriptLen + 4;
+          this.cursor += scriptLen + 4 + addLen;
+
+             
         }
 
         // Now the outputs
@@ -498,7 +505,7 @@ export class Transaction extends ChildMessage {
         this.lockTime = this.readUint32();
         this.optimalEncodingMessageSize += 4;
 
-        let len = this.readVarInt();
+        let len = this.readUint32();
         this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             const buf = this.readBytes(len);
@@ -506,28 +513,28 @@ export class Transaction extends ChildMessage {
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readVarInt();
+        len = this.readUint32();
         this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.data = this.readBytes(len);
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readVarInt();
+        len = this.readUint32();
         this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.toAddressInSubtangle = this.readBytes(len);
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readVarInt();
+        len = this.readUint32();
         this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.memo = new TextDecoder().decode(this.readBytes(len));
             this.optimalEncodingMessageSize += len;
         }
 
-        len = this.readVarInt();
+        len = this.readUint32();
         this.optimalEncodingMessageSize += VarInt.sizeOf(len);
         if (len > 0) {
             this.dataSignature = this.readBytes(len);
@@ -577,7 +584,7 @@ export class Transaction extends ChildMessage {
      */
     public toString(): string {
         let s: string[] = [];
-        s.push("  " + (this.hash ? this.hash.toString() : "unknown") + '\n');
+        s.push("  " + (this.hash ? this.hash.toString() : "") + '\n');
         // if (this.updatedAt != null)
         //     s.push(" updated: " + Utils.dateTimeFormat(this.updatedAt) + '\n');
         if (this.version !== 1)

@@ -332,25 +332,29 @@ export abstract class Message {
     return BigInt(value.toString());
     }
 
+
     protected readVarInt(): number {
+        return this.readVarInt1(0);
+    }
+
+    protected readVarInt1(offset: number): number {
         try {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            if (this.cursor >= this.payload.length) {
-                throw new ProtocolException("Attempt to read VarInt past end of buffer");
-            }
-            
-            const varint = new VarInt(Buffer.from(this.payload), this.cursor);
-            this.cursor += varint.getOriginalSizeInBytes();
+            const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
+            this.cursor += offset + varint.getOriginalSizeInBytes();
+            // Convert BigInteger to number
             return varint.value.toJSNumber();
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
+                // Pass the error message instead of the exception object
                 throw new ProtocolException(e.message || "Array index out of bounds");
             }
             throw e;
         }
     }
+
 
     protected readBytes(length: number): Uint8Array {
         if (length > Message.MAX_SIZE) {

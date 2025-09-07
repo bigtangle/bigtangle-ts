@@ -154,8 +154,8 @@ describe("BlockTest", () => {
     const output1 = tx.getOutputs()[0];
     const output2 = tx.getOutputs()[1];
 
-    expect(output1.getValue().toString()).toBe("1000000");
-    expect(output2.getValue().toString()).toBe("99999999996997000");
+    expect(output1.getValue().getValue().toString()).toBe("1000000");
+    expect(output2.getValue().getValue().toString()).toBe("99999999996997000");
     // Verify the block can be serialized and deserialized correctly
     const blockbyte = blockde.bitcoinSerialize();
     const reparsedBlock = serializer.makeBlock(Buffer.from(blockbyte));
