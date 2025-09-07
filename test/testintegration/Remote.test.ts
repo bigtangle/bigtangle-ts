@@ -1321,13 +1321,12 @@ export abstract class RemoteTest {
       [outKey],
       this.contextRoot
     );
+    // Create a coin list for the fee transaction
+    // This is a simplified approach - in reality, you'd need to get actual spendable outputs
+    const coinList: FreeStandingTransactionOutput[] = [];
     const feeBlock = await w.feeTransaction(
-      new Coin(
-        BigInt(w.getFee() || 0),
-        NetworkParameters.getBIGTANGLE_TOKENID()
-      ),
-      outKey,
-      aesKey
+      aesKey,
+      coinList
     );
     // Add null check for feeBlock transactions
     const transactions = feeBlock.getTransactions();

@@ -794,41 +794,52 @@ export class Transaction extends ChildMessage {
         // You wanted to reserialize, right?
         this.length = this.unsafeBitcoinSerialize().length;
     }
-
-    /**
-     * Adds the given output to this transaction. The output must be completely
-     * initialized. Returns the given output.
-     */
-    public addOutput(arg1: TransactionOutput | Coin, arg2?: Address | ECKey | Script): TransactionOutput {
-        this.unCache();
-        
-        if (arg1 instanceof TransactionOutput) {
-            // Case: addOutput(to: TransactionOutput)
-            arg1.setParent(this);
-            this.outputs.push(arg1);
-            return arg1;
-        } else if (arg1 instanceof Coin && arg2) {
-            // Case: addOutput(value: Coin, target: ...)
-            let scriptBytes: Uint8Array;
-            
-            if (arg2 instanceof Address) {
-                scriptBytes = arg2.getHash160();
-            } else if (arg2 instanceof ECKey) {
-                scriptBytes = arg2.getPubKey();
-            } else if (arg2 instanceof Script) {
-                scriptBytes = arg2.getProgram();
-            } else {
-                throw new Error("Invalid target type for addOutput");
-            }
-            
-            const to = new TransactionOutput(this.params!, this, arg1, scriptBytes);
-            to.setParent(this);
-            this.outputs.push(to);
-            return to;
+	/**
+	 * Creates an output based on the given address and value, adds it to this
+	 * transaction, and returns the new output.
+	 */
+	public  addOutputAddress( value: Coin,  address:Address) :TransactionOutput {
+        if(this.params == null) {
+            throw new ProtocolException("Network parameters not set");
         }
-        
-        throw new Error("Invalid arguments for addOutput");
-    }
+		return this.addOutput(TransactionOutput.fromAddress(this.params, this, value, address));
+	}
+
+	/**
+	 * Creates an output that pays to the given pubkey directly (no address) with
+	 * the given value, adds it to this transaction, and returns the new output.
+	 */
+	public  addOutputEckey( value:Coin,  pubkey:ECKey):TransactionOutput {
+            if(this.params == null) {
+            throw new ProtocolException("Network parameters not set");
+        }
+		return this.addOutput(TransactionOutput.fromCoinKey(this.params, this, value, pubkey));
+	}
+
+    	/**
+	 * Adds the given output to this transaction. The output must be completely
+	 * initialized. Returns the given output.
+	 */
+	public  addOutput( to:TransactionOutput) :TransactionOutput {
+		this.unCache();
+		to.setParent(this);
+		this.outputs.push(to);
+		this.adjustLength(this.outputs.length, to.getLength());
+		return to;
+	}
+
+
+	/**
+	 * Creates an output that pays to the given script. The address and key forms
+	 * are specialisations of this method, you won't normally need to use it unless
+	 * you're doing unusual things.
+	 */
+	public  addOutputScript( value:Coin,  script:Script):TransactionOutput {
+            if(this.params == null) {
+            throw new ProtocolException("Network parameters not set");
+        }
+		return this.addOutput(new TransactionOutput(this.params, this, value, script.getProgram()));
+	}
 
     /**
      * Calculates a signature that is valid for being inserted into the input at the

@@ -81,7 +81,7 @@ export class TransactionOutput extends ChildMessage {
   private description: string | null = null;
 
   public constructor(
-    params: NetworkParameters,
+    params: NetworkParameters  ,
     parent: Transaction | null,
     value: Coin,
     scriptBytes: Uint8Array
@@ -159,7 +159,7 @@ export class TransactionOutput extends ChildMessage {
    * TransactionOutput directly.
    */
   public static fromAddress(
-    params: NetworkParameters,
+    params: NetworkParameters  ,
     parent: Transaction | null,
     value: Coin,
     to: Address
