@@ -162,7 +162,8 @@ export class Wallet extends WalletBase {
     const tx = new Transaction(this.params);
     
     // Add output for the token
-    tx.addOutput(basecoin, ownerKey);
+    const output = new TransactionOutput(this.params, tx, basecoin, ownerKey.getPubKey());
+    tx.addOutput(output);
     
     // Add memo if provided
     if (memoInfo) {
@@ -242,7 +243,7 @@ export class Wallet extends WalletBase {
     
     return utxos;
   }
-
+  
     async feeTransaction1(
     aesKey: any,
     coinList: FreeStandingTransactionOutput[]
@@ -269,7 +270,8 @@ export class Wallet extends WalletBase {
         
         if (!amount.isNegative()) {
           if (beneficiary) {
-            spent.addOutput(amount, beneficiary);
+            const output = new TransactionOutput(this.params, spent, amount, beneficiary.getPubKey());
+            spent.addOutput(output);
           }
           break;
         }
@@ -332,7 +334,7 @@ export class Wallet extends WalletBase {
     throw new Error("Key not found for address: " + address);
   }
   
-  public async payMoneyToECKeyList(
+  async payMoneyToECKeyList(
     aesKey: any,
     giveMoneyResult: Map<string, bigint>,
     tokenid: Uint8Array,
@@ -345,55 +347,54 @@ export class Wallet extends WalletBase {
       return null;
     }
     
-    const tx = new Transaction(this.params);
+    const summe = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
+    const multispent = new Transaction(this.params);
+    multispent.setMemo(new MemoInfo(memo).toString());
     
     // Add outputs for each recipient
-    const entries1 = Array.from(giveMoneyResult.entries());
-    for (const element of entries1) {
-      const [address, amount] = element; 
-      const coin = Coin.valueOf(amount, Buffer.from(tokenid));
-      tx.addOutputAddress(coin, Address.fromBase58(this.params, address));
+    const entries = Array.from(giveMoneyResult.entries());
+    for (const element of entries) {
+      const [addressStr, amount] = element;
+      const coin = new Coin(amount, Buffer.from(tokenid));
+      const address = Address.fromBase58(this.params, addressStr);
+      multispent.addOutputAddress(coin, address);
+      summe.add(coin);
     }
     
-    // Add memo
-    tx.setMemo(memo);
+    let amount = summe.negate();
     
-    // Filter coins by token ID
-    const filteredCoins = this.filterTokenid(tokenid, coinList);
-    
-    // Add inputs
-    let totalAmountNeeded = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
-    const entries2 = Array.from(giveMoneyResult.entries());
-    for (const element of entries2) {
-      const [_, amount] = element;
-      totalAmountNeeded = totalAmountNeeded.add(Coin.valueOf(amount, Buffer.from(tokenid)));
+    // Add fee if needed
+    if (this.getFee() && !amount.isBIG()) {
+      amount = amount.add(Coin.FEE_DEFAULT.negate());
     }
     
-    let currentAmount = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
-    for (const spendableOutput of filteredCoins) {
+    let beneficiary: ECKey | null = null;
+    // Filter only for tokenid
+    const coinListTokenid = this.filterTokenid(tokenid, coinList);
+    
+    for (const spendableOutput of coinListTokenid) {
       const utxo = spendableOutput.getUTXO();
       if (utxo) {
-        currentAmount = currentAmount.add(spendableOutput.getValue());
-        tx.addInput(utxo.getBlockHash(), spendableOutput);
+        beneficiary = await this.getECKey(aesKey, utxo.getAddress());
+        amount = spendableOutput.getValue().add(amount);
+        multispent.addInput(utxo.getBlockHash(), spendableOutput);
         
-        if (currentAmount.getValue() >= totalAmountNeeded.getValue()) {
+        if (!amount.isNegative()) {
+          if (beneficiary) {
+            multispent.addOutputEckey(amount, beneficiary);
+          }
           break;
         }
       }
     }
     
-    // Check if we have enough funds
-    if (currentAmount.getValue() < totalAmountNeeded.getValue()) {
-      throw new InsufficientMoneyException("Not enough funds");
+    if (beneficiary == null || amount.isNegative()) {
+      throw new InsufficientMoneyException(summe.toString() + " outputs size= " + coinListTokenid.length);
     }
-    
-    // Sign the transaction
-    await this.signTransaction(tx, aesKey, 'THROW');
-    
-    // Create a block with the transaction
+
+    await this.signTransaction(multispent, aesKey, 'THROW');
     const block = new Block(this.params);
-    block.addTransaction(tx);
-    
+    block.addTransaction(multispent);
     return block;
   }
 

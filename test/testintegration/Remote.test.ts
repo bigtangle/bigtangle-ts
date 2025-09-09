@@ -1324,15 +1324,12 @@ export abstract class RemoteTest {
     // Create a coin list for the fee transaction
     // This is a simplified approach - in reality, you'd need to get actual spendable outputs
     const coinList: FreeStandingTransactionOutput[] = [];
-    const feeBlock = await w.feeTransaction(
+    const feeBlock = await w.feeTransaction1(
       aesKey,
       coinList
-    );
-    // Add null check for feeBlock transactions
-    const transactions = feeBlock.getTransactions();
-    if (transactions && transactions.length > 0) {
-        block.addTransaction(transactions[0]);
-    }
+    ); 
+   
+        block.addTransaction(feeBlock); 
 
     // save block
     const adjustedBlock = await this.adjustSolve(block);
