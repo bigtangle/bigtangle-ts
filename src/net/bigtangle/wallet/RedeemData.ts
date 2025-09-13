@@ -54,8 +54,20 @@ export class RedeemData {
      */
     public getFullKey(): ECKey | null {
         for (const key of this.keys) {
-            if (key.getPrivKeyBytes() !== null) {
-                return key;
+            // Check if the key is an instance of ECKey and has the method
+            if (key && typeof key.getPrivKeyBytes === 'function') {
+                try {
+                    // Try to call the method
+                    const privKeyBytes = key.getPrivKeyBytes();
+                    if (privKeyBytes !== null) {
+                        return key;
+                    }
+                } catch (e) {
+                    // If there's an error, continue to the next key
+                    console.warn('Error getting private key bytes from key:', e);
+                }
+            } else {
+                console.warn('Key does not have getPrivKeyBytes method or is not an ECKey instance:', key);
             }
         }
         return null;

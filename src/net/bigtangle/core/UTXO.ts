@@ -250,4 +250,18 @@ export class UTXO extends SpentBlock {
     public setMinimumsign(minimumsign: number): void {
         this.minimumsign = minimumsign;
     }
+
+    public static fromJSONObject(data: any): UTXO {
+        console.log("Creating UTXO from JSON:", JSON.stringify(data, null, 2));
+        const utxo = new UTXO();
+        Object.assign(utxo, data);
+        if (data.value) {
+            utxo.setValue(Coin.fromJSON(data.value));
+        }
+        if (data.scriptHex) {
+            utxo.setScriptHex(data.scriptHex);
+        }
+        console.log("Created UTXO:", utxo.toString());
+        return utxo;
+    }
 }

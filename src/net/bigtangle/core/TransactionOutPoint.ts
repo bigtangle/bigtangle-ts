@@ -192,7 +192,7 @@ export class TransactionOutPoint extends ChildMessage {
      *
      * @return an ECKey or null if the connected key cannot be found in the wallet.
      */
-    public getConnectedKey(keyBag: KeyBag): ECKey | null {
+    public async getConnectedKey(keyBag: KeyBag): Promise<ECKey | null> {
         const connectedOutput = this.getConnectedOutput();
         if (connectedOutput === null) {
             throw new Error("Input is not connected so cannot retrieve key");
@@ -200,25 +200,28 @@ export class TransactionOutPoint extends ChildMessage {
         const connectedScript = connectedOutput.getScriptPubKey();
         if (connectedScript.isSentToAddress()) {
             const addressBytes = connectedScript.getPubKeyHash();
-            // Assuming the method should be synchronous in TypeScript
-            return keyBag.findKeyFromPubHash(addressBytes) as any as ECKey | null;
+            // This method might return a Promise, so we need to await it
+            const key = await keyBag.findKeyFromPubHash(addressBytes);
+            return key as ECKey | null;
         } else if (connectedScript.isSentToRawPubKey()) {
             const pubkeyBytes = connectedScript.getPubKey();
-            // Assuming the method should be synchronous in TypeScript
-            return keyBag.findKeyFromPubKey(pubkeyBytes) as any as ECKey | null;
+            // This method might return a Promise, so we need to await it
+            const key = await keyBag.findKeyFromPubKey(pubkeyBytes);
+            return key as ECKey | null;
         } else if (connectedScript.isSentToMultiSig()) {
-            return this.getConnectedKeyFromMultiSig(keyBag, connectedScript.getPubKeys());
+            const key = await this.getConnectedKeyFromMultiSig(keyBag, connectedScript.getPubKeys());
+            return key;
         } else {
             throw new Error("Could not understand form of connected output script: " + connectedScript);
         }
     }
 
-    private getConnectedKeyFromMultiSig(keyBag: KeyBag, ecs: ECKey[]): ECKey | null {
+    private async getConnectedKeyFromMultiSig(keyBag: KeyBag, ecs: ECKey[]): Promise<ECKey | null> {
         for (const ec of ecs) {
-            // Assuming the method should be synchronous in TypeScript
-            const a = keyBag.findKeyFromPubKey(ec.getPubKey()) as any as ECKey | null;
+            // This method might return a Promise, so we need to await it
+            const a = await keyBag.findKeyFromPubKey(ec.getPubKey());
             if (a !== null)
-                return a;
+                return a as ECKey | null;
         }
         throw new Error("Could not understand form of connected output script: " + ecs);
     }
@@ -231,28 +234,38 @@ export class TransactionOutPoint extends ChildMessage {
      * @return a RedeemData or null if the connected data cannot be found in the
      *         wallet.
      */
-    public getConnectedRedeemData(keyBag: KeyBag): RedeemData | null {
+    public async getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
         const connectedOutput = this.getConnectedOutput();
         if (connectedOutput === null) {
             throw new Error("Input is not connected so cannot retrieve key");
         }
         const connectedScript = connectedOutput.getScriptPubKey();
+        console.log("connectedOutput  : " + connectedOutput);
+        console.log("Connected script: " + connectedScript);
+        console.log("Script program: " + Utils.HEX.encode(connectedScript.getProgram()));
+        console.log("Script type: " + connectedScript.getScriptType());
+        console.log("Is sent to address: " + connectedScript.isSentToAddress());
+        console.log("Is sent to raw pubkey: " + connectedScript.isSentToRawPubKey());
+        console.log("Is pay to script hash: " + connectedScript.isPayToScriptHash());
+        console.log("Is sent to multisig: " + connectedScript.isSentToMultiSig());
+        
         if (connectedScript.isSentToAddress()) {
             const addressBytes = connectedScript.getPubKeyHash();
-            // Assuming the method should be synchronous in TypeScript
-            const key = keyBag.findKeyFromPubHash(addressBytes) as any as ECKey | null;
+            // This method might return a Promise, so we need to await it
+            const key = await keyBag.findKeyFromPubHash(addressBytes);
             return RedeemData.of(key, connectedScript);
         } else if (connectedScript.isSentToRawPubKey()) {
             const pubkeyBytes = connectedScript.getPubKey();
-            // Assuming the method should be synchronous in TypeScript
-            const key = keyBag.findKeyFromPubKey(pubkeyBytes) as any as ECKey | null;
+            // This method might return a Promise, so we need to await it
+            const key = await keyBag.findKeyFromPubKey(pubkeyBytes);
             return RedeemData.of(key, connectedScript);
         } else if (connectedScript.isPayToScriptHash()) {
             const scriptHash = connectedScript.getPubKeyHash();
-            // Assuming the method should be synchronous in TypeScript
-            return keyBag.findRedeemDataFromScriptHash(scriptHash) as any as RedeemData | null;
+            // This method might return a Promise, so we need to await it
+            const redeemData = await keyBag.findRedeemDataFromScriptHash(scriptHash);
+            return redeemData as RedeemData | null;
         } else if (connectedScript.isSentToMultiSig()) {
-            const key = this.getConnectedKey(keyBag);
+            const key = await this.getConnectedKey(keyBag);
             // For multisig, we need to pass an array of keys, not a single key
             // This is a simplification - in reality, we'd need to get all keys
             return key ? RedeemData.of([key], connectedScript) : null;

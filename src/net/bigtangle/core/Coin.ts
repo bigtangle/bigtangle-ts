@@ -20,32 +20,35 @@ export class Coin implements IMonetary, IComparable<Coin> {
     public value: bigint;
     public tokenid: Buffer;
 
-    constructor(satoshis?: bigint, tokenid?: Buffer) {
-        this.value = satoshis || 0n; 
-        this.tokenid = tokenid ||   Buffer.from(Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING )); 
+    constructor(satoshis?: bigint, tokenid?: Buffer | string) {
+        this.value = satoshis || 0n;
+        
+        // Convert tokenid to Buffer if it's a string
+        if (typeof tokenid === 'string') {
+            // Handle base64 encoded strings
+            if (/^[A-Za-z0-9+/=]+$/.test(tokenid)) {
+                this.tokenid = Buffer.from(tokenid, 'base64');
+            } 
+            // Handle hex strings
+            else if (/^[0-9a-fA-F]+$/.test(tokenid)) {
+                this.tokenid = Buffer.from(tokenid, 'hex');
+            }
+            // Fallback to UTF-8
+            else {
+                this.tokenid = Buffer.from(tokenid);
+            }
+        } else {
+            this.tokenid = tokenid || Buffer.from(Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING));
+        }
     }
 
 @JsonCreator()
 public static fromJSON(json: any): Coin {
-    console.log('Coin JSON input:', json);
-    console.log('tokenid (base64):', json.tokenid);
-    console.log('tokenHex:', json.tokenHex);
-    
     const coin = new Coin();
     coin.value = BigInt(json.value);
-    
-    if (json.tokenid) {
-        coin.tokenid = Buffer.from(json.tokenid, 'base64');
-        console.log('Converted tokenid to hex:', coin.tokenid.toString('hex'));
-        
-        // Check if this is the BIGTANGLE_TOKENID (32 bytes of zeros)
-        // If so, replace with the actual BIGTANGLE_TOKENID constant
-        if (coin.tokenid.length === 1 && coin.tokenid[0] === 0xbc) {
-            coin.tokenid = NetworkParameters.getBIGTANGLE_TOKENID();
-            console.log('Replaced with BIGTANGLE_TOKENID constant');
-        }
+    if (json.tokenHex) {
+        coin.tokenid = Buffer.from(Utils.HEX.decode(json.tokenHex ));
     }
-    
     return coin;
 }
 
@@ -77,13 +80,14 @@ public static fromJSON(json: any): Coin {
     }
 
     public add(value: Coin): Coin {
-        if (!this.tokenid.equals(value.tokenid)) {
+        if (Buffer.compare(this.tokenid, value.tokenid) !== 0) {
             throw new Error('Token IDs must match for addition');
         }
-        const result = this.value + value.value;
-        if (result > BigInt(Number.MAX_SAFE_INTEGER) || result < BigInt(Number.MIN_SAFE_INTEGER)) {
-            throw new Error("Result out of range");
-        }
+        // Ensure both values are BigInt before addition
+        const thisVal = BigInt(this.value);
+        const valueVal = BigInt(value.value);
+        const result = thisVal + valueVal;
+        
         return new Coin(result, this.tokenid);
     }
 

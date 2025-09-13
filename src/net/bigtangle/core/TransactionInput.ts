@@ -313,8 +313,8 @@ export class TransactionInput extends ChildMessage {
      *
      * @see TransactionOutPoint#getConnectedRedeemData(net.bigtangle.wallet.KeyBag)
      */
-    public getConnectedRedeemData(keyBag: KeyBag): RedeemData | null {
-        return this.getOutpoint().getConnectedRedeemData(keyBag);
+    public async getConnectedRedeemData(keyBag: KeyBag): Promise<RedeemData | null> {
+        return await this.getOutpoint().getConnectedRedeemData(keyBag);
     }
 
     public static ConnectMode = {

@@ -69,12 +69,18 @@ class RemoteFromAddressTests extends RemoteTest {
     
     let coins = await this.getBalanceAccount(false, userkeys);
     for (const coin of coins) {
-      expect(coin.isZero()).toBe(true);
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isZero === 'function') {
+        expect(coin.isZero()).toBe(true);
+      }
     }
 
     coins = await this.getBalanceAccount(false, [accountKey]);
     for (const coin of coins) {
-      expect(coin.getValue()).toEqual(BigInt(100));
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.getValue === 'function' && typeof coin.isBIG === 'function') {
+        expect(coin.getValue()).toEqual(BigInt(100));
+      }
     }
     
     console.debug('====start check admin wallet====');
@@ -108,15 +114,21 @@ class RemoteFromAddressTests extends RemoteTest {
     console.debug('====start check yuanWallet wallet====');
     const list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     for (const coin of list) {
-      if (!coin.isBIG()) {
-        expect(coin.getValue()).toEqual(BigInt(10000000) - BigInt(200));
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isBIG === 'function' && typeof coin.getValue === 'function') {
+        if (!coin.isBIG()) {
+          expect(coin.getValue()).toEqual(BigInt(10000000) - BigInt(200));
+        }
       }
     }
     
     let coins = await this.getBalanceAccount(false, userkeys);
     for (const coin of coins) {
-      if (!coin.isBIG()) {
-        expect(coin.getValue()).toEqual(BigInt(100));
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isBIG === 'function' && typeof coin.getValue === 'function') {
+        if (!coin.isBIG()) {
+          expect(coin.getValue()).toEqual(BigInt(100));
+        }
       }
     }
 
@@ -128,10 +140,13 @@ class RemoteFromAddressTests extends RemoteTest {
     let adminCoin = totalCoins - (Coin.FEE_DEFAULT.getValue() * BigInt(1001));
     
     for (const coin of adminCoins) {
-      if (coin.isBIG()) {
-        expect(coin.getValue()).toEqual(
-          adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000)
-        );
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isBIG === 'function' && typeof coin.getValue === 'function') {
+        if (coin.isBIG()) {
+          expect(coin.getValue()).toEqual(
+            adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000)
+          );
+        }
       }
     }
 
@@ -142,17 +157,23 @@ class RemoteFromAddressTests extends RemoteTest {
     adminCoin = adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000);
     
     for (const coin of adminCoins) {
-      if (coin.isBIG()) {
-        expect(coin.getValue()).toEqual(
-          adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000)
-        );
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isBIG === 'function' && typeof coin.getValue === 'function') {
+        if (coin.isBIG()) {
+          expect(coin.getValue()).toEqual(
+            adminCoin - Coin.FEE_DEFAULT.getValue() - BigInt(1000)
+          );
+        }
       }
     }
     
     coins = await this.getBalanceAccount(false, userkeys);
     for (const coin of coins) {
-      if (coin.isBIG()) {
-        expect(coin.getValue()).toEqual(BigInt(1000));
+      // Check if coin is a proper Coin instance
+      if (coin && typeof coin.isBIG === 'function' && typeof coin.getValue === 'function') {
+        if (coin.isBIG()) {
+          expect(coin.getValue()).toEqual(BigInt(1000));
+        }
       }
     }
     

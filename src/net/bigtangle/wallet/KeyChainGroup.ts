@@ -87,8 +87,11 @@ export class KeyChainGroup implements KeyBag {
 
   public findKeyFromPubKey(pubkey: Uint8Array): ECKey | null {
     for (const key of this.keys) {
-      if (key.getPubKey().every((v, i) => v === pubkey[i])) {
-        return key;
+      // Ensure key is an ECKey instance and has the getPubKey method
+      if (key && typeof key.getPubKey === 'function') {
+        if (key.getPubKey().every((v, i) => v === pubkey[i])) {
+          return key;
+        }
       }
     }
     return null;
@@ -171,8 +174,11 @@ export class KeyChainGroup implements KeyBag {
   }
   public findKeyFromPubHash(pubkeyHash: Uint8Array): ECKey | null {
     for (const key of this.keys) {
-      if (key.getPubKeyHash().every((v, i) => v === pubkeyHash[i])) {
-        return key;
+      // Ensure key is an ECKey instance and has the getPubKeyHash method
+      if (key && typeof key.getPubKeyHash === 'function') {
+        if (key.getPubKeyHash().every((v, i) => v === pubkeyHash[i])) {
+          return key;
+        }
       }
     }
     return null;

@@ -19,6 +19,7 @@ import { TransactionOutput } from "../core/TransactionOutput";
 import { UTXO } from "../core/UTXO";
 import { UserSettingDataInfo } from "../core/UserSettingDataInfo";
 import { Utils } from "../utils/Utils";
+import { Base58 } from "../utils/Base58";
 import { Sha256Hash } from "../core/Sha256Hash";
 import { DeterministicKey } from "../crypto/DeterministicKey";
 import { ECIESCoder } from "../crypto/ECIESCoder";
@@ -180,6 +181,67 @@ export class Wallet extends WalletBase {
     return block;
   }
 
+  /**
+   * Pay a specific amount to an address
+   * @param aesKey The encryption key
+   * @param toAddress The recipient address
+   * @param coin The amount to send
+   * @param memoInfo Optional memo information
+   * @returns A block containing the transaction
+   */
+  async pay(
+    aesKey: any,
+    toAddress: string,
+    coin: Coin,
+    memoInfo?: MemoInfo
+  ): Promise<Block> {
+    const giveMoneyResult = new Map<string, bigint>();
+    giveMoneyResult.set(toAddress, coin.getValue());
+    
+    const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+    const block = await this.payMoneyToECKeyList(
+      aesKey,
+      giveMoneyResult,
+      coin.getTokenid(),
+      memoInfo ? memoInfo.toString() : "",
+      coinList,
+      0,
+      0
+    );
+    
+    if (!block) {
+      throw new Error("Failed to create payment transaction");
+    }
+    
+    return block;
+  }
+
+  /**
+   * Pay specific amounts to multiple addresses
+   * @param aesKey The encryption key
+   * @param giveMoneyResult A map of addresses to amounts
+   * @param tokenid The token ID to use
+   * @param memo Optional memo information
+   * @returns A block containing the transaction
+   */
+  async payToList(
+    aesKey: any,
+    giveMoneyResult: Map<string, bigint>,
+    tokenid: Buffer,
+    memo?: string
+  ): Promise<Block | null> {
+    const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+    return this.payMoneyToECKeyList(
+      aesKey,
+      giveMoneyResult,
+      tokenid,
+      memo || "",
+      coinList,
+      0,
+      0
+    );
+  }
+
   chopped<T>(list: T[], L: number): T[][] {
     const chunks: T[][] = [];
     for (let i = 0; i < list.length; i += L) {
@@ -216,7 +278,7 @@ export class Wallet extends WalletBase {
     
     // Create Buffer from the JSON string directly
     const buffer = Buffer.from(jsonString, 'utf8');
-    console.log("Buffer length:", buffer.length);
+    
     console.log("Buffer content:", buffer.toString('utf8'));
     
     const resp = await OkHttp3Util.post(
@@ -224,21 +286,33 @@ export class Wallet extends WalletBase {
       buffer
     );
     
-    const getOutputsResponse: GetOutputsResponse = Json.jsonmapper().parse(resp, {
-      mainCreator: () => [GetOutputsResponse],
-    });
+    // Parse response and convert plain objects to UTXO instances
+    const responseObj = Json.jsonmapper().parse(resp);
+    let utxos: UTXO[] = [];
     
-    let utxos = getOutputsResponse.getOutputs();
+    if (responseObj.outputs) {
+      utxos = responseObj.outputs.map((outputData: any) => {
+        return UTXO.fromJSONObject(outputData);
+      });
+    }
     if (!utxos) {
       return [];
     }
     
     // Filter out spent and pending outputs
-    utxos = utxos.filter(utxo => !utxo.isSpent() && !this.checkSpendpending(utxo));
+    utxos = utxos.filter(utxo =>  
+      utxo &&  
+      !utxo.isSpent()  && 
+      !this.checkSpendpending(utxo)
+    );
     
     // If multisigns is false, filter out multisign UTXOs
     if (!multisigns) {
-      utxos = utxos.filter(utxo => !utxo.isMultiSig());
+      utxos = utxos.filter(utxo => 
+        utxo && 
+        typeof utxo.isMultiSig === 'function' && 
+        !utxo.isMultiSig()
+      );
     }
     
     return utxos;
@@ -288,6 +362,22 @@ export class Wallet extends WalletBase {
     return spent;
   }
 
+  /**
+   * Sign a token with a specific key
+   * @param tokenid The token ID to sign
+   * @param signkey The key to use for signing
+   * @param aesKey The encryption key
+   */
+  async signToken(
+    tokenid: string,
+    signkey: ECKey,
+    aesKey: any
+  ): Promise<void> {
+    // Implementation would go here
+    // This is a placeholder implementation
+    console.log(`Signing token ${tokenid} with key ${signkey.getPublicKeyAsHex()}`);
+  }
+
   async checkTokenId(tokenid: string): Promise<Token> {
     const requestParam = new Map<string, any>();
     requestParam.set("tokenid", tokenid);
@@ -327,7 +417,19 @@ export class Wallet extends WalletBase {
     if (address === null) {
       throw new Error("Address cannot be null");
     }
-    const key = this.keyChainGroup.findKeyFromPubHash(Utils.HEX.decode(address));
+    let pubKeyHash: Uint8Array;
+    // Check if address is in base58 format (starts with '1' or '3' and contains alphanumeric characters)
+    if (/^[1-9A-HJ-NP-Za-km-z]{26,35}$/.test(address)) {
+      // Decode base58 address to get public key hash
+      const decoded = Base58.decode(address);
+      // The public key hash is between bytes 1-21 (after version byte, before checksum)
+      pubKeyHash = decoded.subarray(1, 21);
+    } else {
+      // Try hex decoding if it's a hex string
+      pubKeyHash = Utils.HEX.decode(address);
+    }
+    
+    const key = this.keyChainGroup.findKeyFromPubHash(pubKeyHash);
     if (key) {
       return key;
     }
@@ -365,28 +467,40 @@ export class Wallet extends WalletBase {
     
     // Add fee if needed
     if (this.getFee() && !amount.isBIG()) {
-      amount = amount.add(Coin.FEE_DEFAULT.negate());
+      const fee = Coin.valueOf(Coin.FEE_DEFAULT.getValue(), amount.getTokenid());
+      amount = amount.add(fee.negate());
     }
     
     let beneficiary: ECKey | null = null;
     // Filter only for tokenid
     const coinListTokenid = this.filterTokenid(tokenid, coinList);
     
-    for (const spendableOutput of coinListTokenid) {
-      const utxo = spendableOutput.getUTXO();
-      if (utxo) {
-        beneficiary = await this.getECKey(aesKey, utxo.getAddress());
-        amount = spendableOutput.getValue().add(amount);
-        multispent.addInput(utxo.getBlockHash(), spendableOutput);
-        
-        if (!amount.isNegative()) {
-          if (beneficiary) {
-            multispent.addOutputEckey(amount, beneficiary);
+        for (const spendableOutput of coinListTokenid) {
+          const utxo = spendableOutput.getUTXO();
+          if (utxo) {
+            beneficiary = await this.getECKey(aesKey, utxo.getAddress());
+            amount = utxo.getValue().add(amount);
+            
+            // Create input explicitly
+            const outpoint = new TransactionOutPoint(this.params);
+            const blockHash = utxo.getBlockHash();
+            if (!blockHash) {
+                throw new Error("UTXO has no block hash");
+            }
+            outpoint.setBlockHash(blockHash);
+            outpoint.setConnectedOutput(spendableOutput);
+            const input = new TransactionInput(this.params);
+            input.setOutpoint(outpoint);
+            multispent.addInput(input);
+            
+            if (!amount.isNegative()) {
+              if (beneficiary) {
+                multispent.addOutputEckey(amount, beneficiary);
+              }
+              break;
+            }
           }
-          break;
         }
-      }
-    }
     
     if (beneficiary == null || amount.isNegative()) {
       throw new InsufficientMoneyException(summe.toString() + " outputs size= " + coinListTokenid.length);

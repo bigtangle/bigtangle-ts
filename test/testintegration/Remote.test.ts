@@ -116,10 +116,7 @@ export abstract class RemoteTest {
     );
 
     // Convert token ID to Uint8Array
-    const tokenIdBytes = Buffer.from(
-      NetworkParameters.BIGTANGLE_TOKENID_STRING,
-      "hex"
-    );
+    const tokenIdBytes = Buffer.from(Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING));
     return this.payList(addedBlocks, giveMoneyResult, tokenIdBytes);
   }
 
@@ -683,7 +680,7 @@ export abstract class RemoteTest {
       console.debug(
         coin instanceof Coin
           ? coin.toString()
-          : `Non-Coin object: ${JSON.stringify(coin)}`
+          : `Coin : ${JSON.stringify(coin)}`
       );
     }
   }
@@ -692,6 +689,11 @@ export abstract class RemoteTest {
     for (const coin of list) {
       console.debug(`  ${coin.toString()}`);
     }
+  }
+  
+  // Proxy method to access wallet's checkSpendpending
+  checkSpendpending(utxo: UTXO): boolean {
+    return this.wallet.checkSpendpending(utxo);
   }
   // get balance for the walletKeys
   protected async getBalanceByAddress(address: string): Promise<UTXO[]> {
