@@ -507,15 +507,51 @@ export class Wallet extends WalletBase {
     }
 
     await this.signTransaction(multispent, aesKey, 'THROW');
-    const block = new Block(this.params);
+    const block = await this.getTip()   ;
     block.addTransaction(multispent);
-    return block;
+
+    // Add fee transaction if needed
+  /*  if (this.getFee() && !Utils.arraysEqual(NetworkParameters.getBIGTANGLE_TOKENID(), tokenid)) {
+      const feeTx = await this.feeTransaction1(aesKey, coinList);
+      block.addTransaction(feeTx);
+    }*/
+    
+    return await this.solveAndPost(block);
   }
 
-  
+  /**
+   * Solve the block and post it to the network
+   * @param block The block to solve and post
+   * @returns The solved block
+   */
+  async solveAndPost(block: Block): Promise<Block> {
+    try {
+      // Solve the block
+      block.solve();
+      
+      // Check the valid to time must be at least the block creation time
+      
+      // Post the block to the network
+      await OkHttp3Util.post(
+        this.getServerURL() + ReqCmd.saveBlock,
+        Buffer.from(block.bitcoinSerialize())
+      );
+      
+      return block;
+    } catch (error) {
+      // Handle connection errors
+      if (error instanceof Error && error.message.includes('connect')) {
+        if (this.serverPool) {
+          this.serverPool.removeServer(this.getServerURL());
+        }
+        throw error;
+      }
+      // Re-throw any other errors
+      throw error;
+    }
+  }
 
-
-  public async buyOrder(
+  async buyOrder(
     aesKey: any,
     tokenId: string,
     buyPrice: bigint,

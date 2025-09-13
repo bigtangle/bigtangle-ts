@@ -604,31 +604,46 @@ export class Block extends Message {
      * Finds a value of nonce and equihashProof if using Equihash that validates
      * correctly.
      */
-    public solve(target?: bigint): void {
+    public solveTarget(target?: bigint): void {
         // Add randomness to prevent new empty blocks from same miner with same
         // approved blocks to be the same
-        this.setNonce(Math.floor(Block.gen() * Number.MAX_SAFE_INTEGER));
+        // Constrain nonce to 32-bit unsigned integer range
+        this.setNonce(Math.floor(Block.gen() * 0xFFFFFFFF));
 
         // Use provided target or calculate from difficulty
         const powTarget = target || this.getDifficultyTargetAsInteger();
 
-        while (true) {
+        // Limit the number of iterations to prevent infinite loops
+        let iterations = 0;
+        const MAX_ITERATIONS = 1000000; // 1 million iterations should be enough
+
+        while (iterations < MAX_ITERATIONS) {
             try {
                 // Is our proof of work valid yet?
                 if (this.checkProofOfWork(false, powTarget))
                     return;
 
                 // No, so increment the nonce and try again.
-                this.setNonce(this.getNonce() + 1);
+                // Constrain nonce to 32-bit unsigned integer range
+                let newNonce = this.getNonce() + 1;
+                if (newNonce > 0xFFFFFFFF) {
+                    newNonce = 0; // Wrap around to 0
+                }
+                this.setNonce(newNonce);
+                
+                iterations++;
             } catch (e) {
                 throw new Error("Runtime exception"); // Cannot happen.
             }
         }
+        
+        // If we reach here, we couldn't find a solution within the iteration limit
+        throw new Error("Failed to solve block within iteration limit");
     }
     
     // Alias for solve to maintain backward compatibility
-    public solveDefault(): void {
-        this.solve();
+    public solve(): void {
+        this.solveTarget(this.getDifficultyTargetAsInteger());
     }
 
     /**

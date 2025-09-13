@@ -261,6 +261,15 @@ export class UTXO extends SpentBlock {
         if (data.scriptHex) {
             utxo.setScriptHex(data.scriptHex);
         }
+        // Properly convert blockHash if it's an object
+        if (data.blockHash && typeof data.blockHash === 'object' && data.blockHash.bytes) {
+            // Convert from base64 string to Buffer, then to Sha256Hash
+            const bytesBuffer = Buffer.from(data.blockHash.bytes, 'base64');
+            utxo.setBlockHash(Sha256Hash.wrap(bytesBuffer));
+        } else if (data.blockHash && typeof data.blockHash === 'string') {
+            // If it's already a hex string, convert it
+            utxo.setBlockHash(Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.blockHash))));
+        }
         console.log("Created UTXO:", utxo.toString());
         return utxo;
     }

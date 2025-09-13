@@ -499,7 +499,7 @@ export abstract class RemoteTest {
     const adjust = this.networkParameters
       .getDefaultSerializer()
       .makeBlock(Buffer.from(dataHex, "hex"));
-    adjust.solve(adjust.getDifficultyTargetAsInteger());
+    adjust.solve( );
     return adjust;
   }
 
