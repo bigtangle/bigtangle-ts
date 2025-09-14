@@ -112,7 +112,7 @@ export class TransactionOutPoint extends ChildMessage {
         a.setValues5(params, payload, offset, serializer, TransactionOutPoint.MESSAGE_LENGTH);
         a.setParent(parent);
         // Ensure cursor is set to the end position after parsing
-        a.cursor = offset + TransactionOutPoint.MESSAGE_LENGTH;
+       //  a.cursor = offset + TransactionOutPoint.MESSAGE_LENGTH;
         return a;
     }
 

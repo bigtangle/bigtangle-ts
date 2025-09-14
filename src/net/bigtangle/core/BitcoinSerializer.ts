@@ -212,7 +212,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * serialization format support.
      */
     public makeBlock(payloadBytes: Buffer): Block {
-        return Block.setBlock4(this.params, payloadBytes, this, payloadBytes.length);
+        return Block.setBlock5(this.params, payloadBytes,0, this, payloadBytes.length);
     }
 
     /**

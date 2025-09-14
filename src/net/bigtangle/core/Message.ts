@@ -101,8 +101,8 @@ export abstract class Message {
             for (let i = 0; i < end; i++) {
                 bytesStr += payload[i].toString(16).padStart(2, '0') + " ";
             }
-            console.log(`Message.setValues5: payload[0..${end-1}]=${bytesStr}`);
-            console.log(`Message.setValues5: payload.length=${payload.length}`);
+        //    console.log(`Message.setValues5: payload[0..${end-1}]=${bytesStr}`);
+        //    console.log(`Message.setValues5: payload.length=${payload.length}`);
         }
 
         this.parse();
@@ -236,24 +236,23 @@ export abstract class Message {
 
         // Prefer to avoid caching truncated or partial buffers. Only recache into this.payload
         // when the serialized buffer length matches the expected this.length (if known).
-        const buf = stream.toByteArray();
+       
         if (this.serializer && this.serializer.isParseRetainMode()) {
-            if (this.length !== Message.UNKNOWN_LENGTH && buf.length === this.length) {
+           
                 // Safe to recache: the produced byte array matches expected length.
-                this.payload = buf;
+                this.payload =  stream.toByteArray();;
                 this.cursor = this.cursor - this.offset;
                 this.offset = 0;
                 this.recached = true;
                 this.length = this.payload.length;
                 return this.payload;
-            }
-            // If lengths don't match, do not recache to avoid storing a truncated representation.
-            // Fall through and return the produced buffer as-is.
+   
         }
 
         // Record length. If this Message wasn't parsed from a byte stream it won't have length field
         // set (except for static length message types).  Setting it makes future streaming more efficient
         // because we can preallocate the ByteArrayOutputStream buffer and avoid resizing.
+         const buf = stream.toByteArray();
         this.length = buf.length;
 
           console.log(`UnsafeByteArrayOutputStream.toByteArray: cursor=${this.cursor }, offset =${ this.offset}, buf.length=${ buf.length}`);

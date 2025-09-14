@@ -175,22 +175,7 @@ export class Block extends Message {
         return a;
     }
 
-    /**
-     * Construct a block object from the Bitcoin wire format.
-     * 
-     * @param params       NetworkParameters object.
-     * @param payloadBytes the payload to extract the block from.
-     * @param serializer   the serializer to use for this message.
-     * @param length       The length of message if known. Usually this is provided
-     *                     when deserializing of the wire as the length will be
-     *                     provided as part of the header. If unknown then set to
-     *                     Message.UNKNOWN_LENGTH
-     */
-    public static setBlock4(params: NetworkParameters, payloadBytes: Uint8Array, serializer: MessageSerializer<NetworkParameters>,
-        length: number): Block {
-        return Block.setBlock5(params, payloadBytes, 0, serializer, length);
-    }
-
+    
     /**
      * Construct a block object from the Bitcoin wire format.
      * 

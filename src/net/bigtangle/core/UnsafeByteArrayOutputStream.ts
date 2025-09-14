@@ -98,7 +98,7 @@ export class UnsafeByteArrayOutputStream {
     public toByteArray(): Buffer {
     // Diagnostic: log internal state to detect truncation/return issues
   
-    return this.count === this.buf.length ? this.buf : Utils.copyOf(this.buf, this.count);
+    return   Utils.copyOf(this.buf, this.count);
     }
 
     /**
