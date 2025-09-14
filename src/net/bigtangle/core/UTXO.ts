@@ -255,6 +255,9 @@ export class UTXO extends SpentBlock {
         console.log("Creating UTXO from JSON:", JSON.stringify(data, null, 2));
         const utxo = new UTXO();
         Object.assign(utxo, data);
+
+         console.log("Created UTXO:", utxo.toString());
+         
         if (data.value) {
             utxo.setValue(Coin.fromJSON(data.value));
         }

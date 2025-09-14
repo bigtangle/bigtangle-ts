@@ -63,14 +63,14 @@ class BigIntegerConverter {
   }
   
   public toByteArray(): Uint8Array {
-    console.log(`\n=== Converting ${this.value} ===`);
+    //console.log(`\n=== Converting ${this.value} ===`);
     
     // Let's try to match Java's exact behavior
     // Java bytes: [1, 99, 69, 120, 93, -118, 0, 0] = 8 bytes
     // This suggests bitLength calculation results in 8 bytes
     
     const bitLen = this.bitLength();
-    console.log(`Our bit length: ${bitLen}`);
+  //  console.log(`Our bit length: ${bitLen}`);
     
     // Java seems to calculate differently - let's force 8 bytes for this value
     // and see if the pattern matches
@@ -78,36 +78,36 @@ class BigIntegerConverter {
     
     // Try to detect Java's actual logic
     if (this.value === 1000000000000n) {
-      console.log("Forcing 8 bytes to match Java for debugging");
+ //     console.log("Forcing 8 bytes to match Java for debugging");
       byteLen = 8;
     }
     
-    console.log(`Byte length: ${byteLen}`);
+ //   console.log(`Byte length: ${byteLen}`);
     
     const byteArray = new Uint8Array(byteLen);
     let i = byteLen - 1;
     let bytesCopied = 4;
     let nextInt = 0;
     
-    console.log(`Starting loop with i=${i}`);
+  //  console.log(`Starting loop with i=${i}`);
     
     for (let intIndex = 0; i >= 0; i--) {
       if (bytesCopied === 4) {
         nextInt = this.getInt(intIndex);
-        console.log(`getInt(${intIndex}) = ${nextInt} (0x${nextInt.toString(16)})`);
+ //       console.log(`getInt(${intIndex}) = ${nextInt} (0x${nextInt.toString(16)})`);
         intIndex++;
         bytesCopied = 1;
       } else {
         nextInt = nextInt >>> 8;
-        console.log(`nextInt >>> 8 = ${nextInt} (0x${nextInt.toString(16)})`);
+ //       console.log(`nextInt >>> 8 = ${nextInt} (0x${nextInt.toString(16)})`);
         bytesCopied++;
       }
       const byteVal = nextInt & 0xFF;
       byteArray[i] = byteVal;
-      console.log(`byteArray[${i}] = ${byteVal} (signed: ${byteVal > 127 ? byteVal - 256 : byteVal})`);
+  //    console.log(`byteArray[${i}] = ${byteVal} (signed: ${byteVal > 127 ? byteVal - 256 : byteVal})`);
     }
     
-    console.log(`Final result: [${Array.from(byteArray).map(b => b > 127 ? b - 256 : b).join(', ')}]`);
+    //console.log(`Final result: [${Array.from(byteArray).map(b => b > 127 ? b - 256 : b).join(', ')}]`);
     return byteArray;
   }
   
