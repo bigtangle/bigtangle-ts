@@ -296,14 +296,12 @@ export class ECKey {
   }
 
   public equals(other: any): boolean {
-    if (this === other) return true;
-    if (other === null || !(other instanceof ECKey)) return false;
-    const o = other as ECKey;
+    if (!(other instanceof ECKey)) return false;
     return (
       (this.priv === null ||
-        o.priv === null ||
-        this.priv.toString() === o.priv.toString()) &&
-      (this.pub === null || o.pub === null || this.pub.equals(o.pub))
+        other.priv === null ||
+        this.priv.toString() === other.priv.toString()) &&
+      (this.pub === null || other.pub === null || this.pub.equals(other.pub))
     );
   }
 
@@ -363,7 +361,8 @@ export class ECKey {
 
   public async signMessage(message: string): Promise<Uint8Array> {
     // Sign a message following Bitcoin's message signing standard
-    const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");
+    const prefix = Buffer.from("\\x18Bitcoin Signed Message:\
+");
     const messageBuffer = Buffer.from(message, "utf-8");
 
     // Create a buffer to write the VarInt
@@ -380,13 +379,7 @@ export class ECKey {
     return signature.encodeDER();
   }
 
-  public static signedMessageToKey(
-    message: string,
-    signatureBase64: string
-  ): ECKey {
-    // Implementation of message recovery
-    const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");
-    const messageBuffer = Buffer.from(message, "utf-8");
+  public static signedMessageToKey(\n    message: string,\n    signatureBase64: string\n  ): ECKey {\n    // Implementation of message recovery\n    const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");\n    const messageBuffer = Buffer.from(message, "utf-8");
 
     // Create a buffer to write the VarInt
     const varInt = new VarInt(messageBuffer.length);

@@ -79,10 +79,8 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                     continue;
                 }
                 const signature = await key.sign(sighash.getBytes());
-                // Create a DER-encoded signature
-                const derSignature = await signature.encodeDER();
-                // Create a new script with the signature
-                const scriptSig = Script.createInputScript(Buffer.from(derSignature), Buffer.from(key.getPubKey()));
+                // Signature is already DER-encoded, so use it directly
+                const scriptSig = Script.createInputScript(Buffer.from(signature.encodeDER()), Buffer.from(key.getPubKey()));
                 txIn.setScriptSig(scriptSig);
             } catch (e: any) {
                 console.warn(`Error signing input ${i}: ${e.message}`);

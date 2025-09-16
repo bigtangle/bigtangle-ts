@@ -47,5 +47,16 @@ export class FreeStandingTransactionOutput extends TransactionOutput {
   // Use the parent class implementation for getValue and getScriptBytes
   // since we already set them properly in the constructor
 
+  /**
+   * Creates a TransactionOutPoint for this output.
+   * @param blockHash The block hash.
+   * @return A TransactionOutPoint referencing this output.
+   */
+  public getOutPointFor(blockHash: Sha256Hash): TransactionOutPoint {
+    const txId = this.getParentTransactionHash();
+    const outputIndex = this.getIndex();
+    return TransactionOutPoint.fromTransactionOutPoint4(this.networkParams, outputIndex, blockHash, txId);
+  }
+
   
 }

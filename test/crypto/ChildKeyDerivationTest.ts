@@ -191,7 +191,7 @@ describe('ChildKeyDerivationTest', () => {
             // Ignored.
         }
         const signature = await derivedKey2.sign(hash.getBytes(), aesKey); // Pass bytes
-        expect(await derivedKey2.verify(hash.getBytes(), signature)).toBe(true); // Pass bytes
+        expect(await derivedKey2.verify(hash.getBytes(), signature.encodeDER())).toBe(true); // Pass bytes
     });
 
     test('pubOnlyDerivation', () => {

@@ -522,4 +522,15 @@ export class TransactionOutput extends ChildMessage {
   public setDescription(description: string): void {
     this.description = description;
   }
+
+  /**
+   * Creates a TransactionOutPoint for this output.
+   * @param blockHash The block hash.
+   * @return A TransactionOutPoint referencing this output.
+   */
+  public getOutPointFor(blockHash: Sha256Hash): TransactionOutPoint {
+    const txId = this.getParentTransaction().getHash();
+    const outputIndex = this.getParentTransaction().getOutputs().findIndex(output => output === this);
+    return TransactionOutPoint.fromTransactionOutPoint4(this.params!, outputIndex, blockHash, txId);
+  }
 }

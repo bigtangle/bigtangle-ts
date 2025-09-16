@@ -27,7 +27,7 @@ describe("ECKeyTest", () => {
     const sig = await key.sign(input);
 
     // Verify the signature is valid
-    expect(key.verify(input, sig)).toBe(true);
+    expect(key.verify(input, sig.encodeDER())).toBe(true);
 
     // Verify s-value is within valid range (0 < s <= n/2)
     const n = ECKey.CURVE.n;
@@ -42,7 +42,7 @@ describe("ECKeyTest", () => {
     );
     const key = ECKey.fromPrivate(privkey);
     const output = await key.sign(Sha256Hash.ZERO_HASH.getBytes());
-    expect(key.verify(Sha256Hash.ZERO_HASH.getBytes(), output)).toBe(true);
+    expect(key.verify(Sha256Hash.ZERO_HASH.getBytes(), output.encodeDER())).toBe(true);
   });
 
   test("testAddress", async () => {

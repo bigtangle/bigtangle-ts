@@ -5,6 +5,7 @@ import { Sha256Hash } from './Sha256Hash.js';
 import { AddressFormatException } from '../exception/AddressFormatException';
 import { WrongNetworkException } from '../exception/WrongNetworkException';
 import { ECKey } from './ECKey';
+import { Script } from '../script/Script';
 
 export class Address {
     private readonly params: NetworkParameters;
@@ -98,5 +99,18 @@ export class Address {
         }
     }
     return thisBytes.length - otherBytes.length;
+  }
+
+  static fromP2PKHScript(params: NetworkParameters, script: Uint8Array): Address | null {
+    try {
+        const scriptObj = new Script(script);
+        if (scriptObj.isSentToAddress()) {
+            const pubKeyHash = scriptObj.getPubKeyHash();
+            return Address.fromP2PKH(params, Buffer.from(pubKeyHash));
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
   }
 }

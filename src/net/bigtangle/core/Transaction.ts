@@ -784,10 +784,15 @@ export class Transaction extends ChildMessage {
    * @return the newly created input.
    */
   public addInput2(blockHash: Sha256Hash | null, from: TransactionOutput): TransactionInput { 
-    if (this.params==null || blockHash == null) {
-      throw new ProtocolException("Network parameters not set");
-    }
-    return this.addInput1(TransactionInput.fromTransactionInput4(this.params, this, from, blockHash ));
+      if (this.params==null || blockHash == null) {
+        throw new ProtocolException("Network parameters not set");
+      }
+      return this.addInput1(TransactionInput.fromTransactionInput4(this.params, this, from, blockHash ));
+  }
+  
+  // Alias for backward compatibility
+  public addInput(input: TransactionInput): TransactionInput {
+      return this.addInput1(input);
   }
 
   public addInput1(input: TransactionInput): TransactionInput {
@@ -1053,11 +1058,92 @@ export class Transaction extends ChildMessage {
     connectedScript: Uint8Array,
     sigHashType: number
   ): Sha256Hash {
-    // TODO: Implement the complete hashForSignature logic
-    // This is a complex method that involves creating transaction copies,
-    // modifying scripts, and handling different sighash types
-    // For now, return a placeholder
-    return Sha256Hash.ZERO_HASH;
+    if (!this.params) {
+      throw new Error("Network parameters not set");
+    }
+
+    // Create a copy of the transaction
+    const txCopy = new Transaction(this.params);
+    txCopy.version = this.version;
+    txCopy.lockTime = this.lockTime;
+
+    // Copy inputs - clear all scripts except for the input being signed
+    for (let i = 0; i < this.inputs.length; i++) {
+      const input = this.inputs[i];
+      // Create new input without serialization
+      const newInput = new TransactionInput(this.params);
+      newInput.getOutpoint().setBlockHash(input.getOutpoint().getBlockHash());
+      newInput.getOutpoint().setTxHash(input.getOutpoint().getTxHash());
+      newInput.getOutpoint().setIndex(input.getOutpoint().getIndex());
+      newInput.setSequenceNumber(input.getSequenceNumber());
+      
+      if (i === inputIndex) {
+        newInput.setScriptBytes(connectedScript);
+      } else {
+        newInput.setScriptBytes(new Uint8Array(0));
+        // Clear sequence number for other inputs
+        newInput.setSequenceNumber(0);
+      }
+      txCopy.addInput1(newInput);
+    }
+
+    // Handle outputs based on sighash type
+    const baseType = sigHashType & 0x1f;
+    const anyoneCanPay = (sigHashType & 0x80) !== 0;
+
+    // Use numeric constants for sighash types
+    const SIGHASH_ALL = 1;
+    const SIGHASH_NONE = 2;
+    const SIGHASH_SINGLE = 3;
+
+    if (baseType === SIGHASH_NONE) {
+      // Clear all outputs
+      txCopy.outputs = [];
+    } else if (baseType === SIGHASH_SINGLE) {
+      // Keep only the output with the same index as input
+      txCopy.outputs = [];
+      if (inputIndex < this.outputs.length) {
+        const output = this.outputs[inputIndex];
+        txCopy.addOutput(new TransactionOutput(
+          this.params,
+          txCopy,
+          output.getValue(),
+          output.getScriptBytes()
+        ));
+      }
+    } else {
+      // SIGHASH_ALL (default) - keep all outputs
+      for (const output of this.outputs) {
+        txCopy.addOutput(new TransactionOutput(
+          this.params,
+          txCopy,
+          output.getValue(),
+          output.getScriptBytes()
+        ));
+      }
+    }
+
+    // If ANYONECANPAY, only keep current input
+    if (anyoneCanPay) {
+      const currentInput = txCopy.inputs[inputIndex];
+      txCopy.inputs = [currentInput];
+    }
+
+    // Serialize and hash the transaction
+    const serialized = txCopy.unsafeBitcoinSerialize();
+    
+    // Create buffer without using Node.js Buffer
+    const sigHashTypeBytes = new Uint8Array(4);
+    const view = new DataView(sigHashTypeBytes.buffer);
+    view.setUint32(0, sigHashType, true);
+    
+    // Convert to Buffer for compatibility with Sha256Hash.hashTwice
+    const buffer = Buffer.concat([
+        Buffer.from(serialized),
+        Buffer.from(sigHashTypeBytes)
+    ]);
+
+    return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(buffer));
   }
 
   protected bitcoinSerializeToStream(stream: any): void {

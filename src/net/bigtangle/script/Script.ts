@@ -537,19 +537,15 @@ export class Script {
     private findSigInRedeem(signatureBytes: Uint8Array, hash: Sha256Hash): number {
         if (!this.chunks[0].isOpCode()) throw new Error("P2SH scriptSig expected to start with opcode"); // P2SH scriptSig
         const numKeys = Script.decodeFromOpN(this.chunks[this.chunks.length - 2].opcode);
-        const signature = TransactionSignature.decodeFromBitcoin(signatureBytes, true, false); // TransactionSignature extends ECDSASignature
-
-        // Import the correct ECDSASignature class from core
-        const sigForVerify = new ECDSASignature(BigInt(signature.r.toString()), BigInt(signature.s.toString()));
-
-        for (let i = 0 ; i < numKeys ; i++) {
-            if (!this.chunks[i + 1].data) throw new Error("Pubkey chunk has no data");
-            // Use ECKey.fromPublic to create a key and call verify
-            const pubKey = ECKey.fromPublic(this.chunks[i + 1].data!);
-            // Pass the correct ECDSASignature instance
-            if (pubKey.verify(hash.getBytes(), sigForVerify)) {
-                return i;
-            }
+            for (let i = 0; i < numKeys; i++) {
+                if (!this.chunks[i + 1].data) throw new Error("Pubkey chunk has no data");
+                // Use ECKey.fromPublic to create a key and call verify
+                const pubKey = ECKey.fromPublic(this.chunks[i + 1].data!);
+                // Create ECDSASignature from the raw signature bytes
+                const sig = ECDSASignature.decodeDER(Buffer.from(signatureBytes));
+                if (pubKey.verify(hash.getBytes(), sig.encodeDER())) {
+                    return i;
+                }
         }
 
         throw new Error(`Could not find matching key for signature on ${hash.toString()} sig ${Utils.HEX.encode(signatureBytes)}`);
@@ -1343,19 +1339,24 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hash(Buffer.from(stack.pop()!)));
+                    const dataToHash = stack.pop()!;
+                    const hashResult = Sha256Hash.hash(Buffer.from(dataToHash));
+                    stack.push(hashResult);
                     break;
                 case OP_HASH160:
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_HASH160 on an empty stack");
                     }
-                    stack.push(Utils.sha256hash160(stack.pop()!));
+                    const dataToHash160 = stack.pop()!;
+                    stack.push(Utils.sha256hash160(dataToHash160));
                     break;
                 case OP_HASH256:
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
-                    stack.push(Sha256Hash.hashTwice(Buffer.from(stack.pop()!)));
+                    const dataToHash256 = stack.pop()!;
+                    const hash256Result = Sha256Hash.hashTwice(Buffer.from(dataToHash256));
+                    stack.push(hash256Result);
                     break;
                 case OP_CODESEPARATOR:
                     lastCodeSepLocation = chunk.getStartLocationInProgram() + 1;
@@ -1478,7 +1479,9 @@ export class Script {
 
         const outStream = new UnsafeByteArrayOutputStream();
         Script.writeBytes(outStream, sigBytes);
-        connectedScript = Script.removeAllInstancesOf(connectedScript, outStream.toByteArray());
+        // Create a copy to ensure the Uint8Array has an ArrayBuffer
+        const byteArray = new Uint8Array(outStream.toByteArray());
+        connectedScript = Script.removeAllInstancesOf(connectedScript, byteArray);
 
         // TODO: Use int for indexes everywhere, we can't have that many inputs/outputs
         let sigValid = false;
@@ -1486,20 +1489,14 @@ export class Script {
             const sig = TransactionSignature.decodeFromBitcoin(sigBytes, requireCanonical,
                 verifyFlags.has(Script.VerifyFlag.LOW_S));
 
-            // TODO: Should check hash type is known
-                const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sigHashMode(), sig.anyoneCanPay());
-            // Convert to core ECDSASignature for verification
-            const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
+            const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sigHashMode(), sig.anyoneCanPay());
+            
+            // Use the raw signature bytes for verification
             if (hash !== null) {
-                sigValid = ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify);
+                sigValid = ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigBytes);
             }
-        } catch (e: any) {
-            // There is (at least) one exception that could be hit here (EOFException, if the sig is too short)
-            // Because I can't verify there aren't more, we use a very generic Exception catch
-
-            // This RuntimeException occurs when signing as we run partial/invalid scripts to see if they need more
-            // signing work to be done inside LocalTransactionSigner.signInputs.
-            if (!e.message.includes("Reached past end of ASN.1 stream")) {
+        } catch (e) {
+            if (e instanceof Error && !e.message.includes("Reached past end of ASN.1 stream")) {
                 Script.log.warn("Signature checking failed!", e);
             }
         }
@@ -1571,12 +1568,12 @@ export class Script {
             try {
                 const sig = TransactionSignature.decodeFromBitcoin(sigs[0], requireCanonical, false);
                 const hash = txContainingThis.hashForSignature(index, connectedScript, sig.sigHashMode(), sig.anyoneCanPay());
-                // Convert to core ECDSASignature for verification
-                const sigForVerify = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
-                if (hash !== null && ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigForVerify)) {
+                
+                // Use the raw signature bytes for verification
+                if (hash !== null && ECKey.fromPublic(pubKey).verify(hash.getBytes(), sigs[0])) {
                     sigs.shift(); // Remove the used signature
                 }
-            } catch (e: any) {
+            } catch (e) {
                 // There is (at least) one exception that could be hit here (EOFException, if the sig is too short)
                 // Because I can't verify there aren't more, we use a very generic Exception catch
             }
@@ -1613,9 +1610,9 @@ export class Script {
      *                    which sets all flags.
      */
     correctlySpends(txContainingThis: Transaction, scriptSigIndex: number, scriptPubKey: Script,
-                                verifyFlags: Set<Script.VerifyFlag>): void {
+                    verifyFlags: Set<Script.VerifyFlag>): void {
         // Clone the transaction because executing the script involves editing it, and if we die, we'll leave
-        // the tx half broken (also it's not so thread safe to work on it directly.
+        // the tx half broken (also it's not so thread safe to work on it directly)
         let clonedTx: Transaction;
         try {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
@@ -1689,14 +1686,14 @@ export class Script {
 
     // Utility that doesn't copy for internal use
     private getQuickProgram(): Uint8Array {
-        if (this.program != null && this.program.length > 0) {
+        if (this.program !== null && this.program.length > 0) {
             return this.program;
         }
         return this.getProgram();
     }
 
     /**
-     * Get the {@link net.bigtangle.script.Script.ScriptType}.
+     * Get the script type.
      * @return The script type.
      */
     getScriptType(): Script.ScriptType {
