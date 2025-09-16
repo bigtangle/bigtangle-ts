@@ -256,7 +256,7 @@ export class UTXO extends SpentBlock {
         const utxo = new UTXO();
         Object.assign(utxo, data);
 
-         console.log("Created UTXO:", utxo.toString());
+        console.log("Created UTXO:", utxo.toString());
          
         if (data.value) {
             utxo.setValue(Coin.fromJSON(data.value));
@@ -264,14 +264,14 @@ export class UTXO extends SpentBlock {
         if (data.scriptHex) {
             utxo.setScriptHex(data.scriptHex);
         }
-        // Properly convert blockHash if it's an object
-        if (data.blockHash && typeof data.blockHash === 'object' && data.blockHash.bytes) {
-            // Convert from base64 string to Buffer, then to Sha256Hash
-            const bytesBuffer = Buffer.from(data.blockHash.bytes, 'base64');
-            utxo.setBlockHash(Sha256Hash.wrap(bytesBuffer));
-        } else if (data.blockHash && typeof data.blockHash === 'string') {
-            // If it's already a hex string, convert it
-            utxo.setBlockHash(Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.blockHash))));
+        // Handle hashHex property
+        if (data.hashHex) {
+            utxo.setHashHex(data.hashHex);
+            utxo.hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.hashHex)));
+        }
+          // Handle hashHex property
+        if (data.blockHashHex) { 
+            utxo.setBlockHash( Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.blockHashHex))));
         }
         console.log("Created UTXO:", utxo.toString());
         return utxo;

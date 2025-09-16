@@ -119,6 +119,28 @@ export class TransactionInput extends ChildMessage {
         return a;
     }
 
+    /**
+     * Creates an UNSIGNED input that links to the given output
+     */
+    public static fromTransactionInput4(params: NetworkParameters, parentTransaction: Transaction,
+        output: TransactionOutput, blockHash: Sha256Hash): TransactionInput {
+        const a = new TransactionInput(params);
+        const outputIndex = output.getIndex();
+        if (output.getParentTransaction() != null) {
+            a.outpoint = TransactionOutPoint.fromTx4(params, outputIndex, blockHash, output.getParentTransaction());
+        } else {
+            a.outpoint = TransactionOutPoint.fromOutput3(params, blockHash, output);
+        }
+         a.outpoint .toString();
+        a.scriptBytes = TransactionInput.EMPTY_ARRAY;
+        a.sequence = TransactionInput.NO_SEQUENCE;
+        a.setParent(parentTransaction);
+        a.value = output.getValue();
+        a.length = 41;
+        return a;
+    }
+
+
     public constructor(params: NetworkParameters) {
         super(params);
         this.outpoint = new TransactionOutPoint(params);

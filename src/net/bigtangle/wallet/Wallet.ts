@@ -340,7 +340,7 @@ export class Wallet extends WalletBase {
       if (utxo) {
         beneficiary = await this.getECKey(aesKey, utxo.getAddress());
         amount = spendableOutput.getValue().add(amount);
-        spent.addInput(utxo.getBlockHash(), spendableOutput);
+        spent.addInput2(utxo.getBlockHash(), spendableOutput);
         
         if (!amount.isNegative()) {
           if (beneficiary) {
@@ -449,9 +449,9 @@ export class Wallet extends WalletBase {
       return null;
     }
     
-    const summe = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
+    let summe = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
     const multispent = new Transaction(this.params);
-    multispent.setMemo(new MemoInfo(memo).toString());
+    multispent.setMemo(memo);
     
     // Add outputs for each recipient
     const entries = Array.from(giveMoneyResult.entries());
@@ -460,7 +460,7 @@ export class Wallet extends WalletBase {
       const coin = new Coin(amount, Buffer.from(tokenid));
       const address = Address.fromBase58(this.params, addressStr);
       multispent.addOutputAddress(coin, address);
-      summe.add(coin);
+     summe= summe.add(coin);
     }
     
     let amount = summe.negate();
@@ -479,19 +479,8 @@ export class Wallet extends WalletBase {
           const utxo = spendableOutput.getUTXO();
           if (utxo) {
             beneficiary = await this.getECKey(aesKey, utxo.getAddress());
-            amount = utxo.getValue().add(amount);
-            
-            // Create input explicitly
-            const outpoint = new TransactionOutPoint(this.params);
-            const blockHash = utxo.getBlockHash();
-            if (!blockHash) {
-                throw new Error("UTXO has no block hash");
-            }
-            outpoint.setBlockHash(blockHash);
-            outpoint.setConnectedOutput(spendableOutput);
-            const input = new TransactionInput(this.params);
-            input.setOutpoint(outpoint);
-            multispent.addInput(input);
+            amount = utxo.getValue().add(amount);  
+            multispent.addInput2(spendableOutput.getUTXO().getBlockHash(), spendableOutput);
             
             if (!amount.isNegative()) {
               if (beneficiary) {

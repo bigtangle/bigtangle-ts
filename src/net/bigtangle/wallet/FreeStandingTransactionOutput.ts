@@ -40,15 +40,12 @@ export class FreeStandingTransactionOutput extends TransactionOutput {
     return this.output.getIndex();
   }
 
+  
+    public  getParentTransactionHash() : Sha256Hash{
+        return this.output.getTxHash();
+    }
   // Use the parent class implementation for getValue and getScriptBytes
   // since we already set them properly in the constructor
 
-  public getOutPointFor(containingBlockHash: Sha256Hash): TransactionOutPoint {
-    return TransactionOutPoint.fromTx4(
-      this.networkParams, // Use locally stored params
-      this.getIndex(),
-      containingBlockHash,
-      null // fromTx is null for free standing outputs
-    );
-  }
+  
 }

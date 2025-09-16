@@ -549,7 +549,7 @@ export abstract class RemoteTest {
       tx,
       outPoint.bitcoinSerialize()
     );
-    tx.addInput(input);
+    tx.addInput1(input);
 
     // Sign the transaction
         const inputIndex = 0;

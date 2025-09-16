@@ -470,20 +470,7 @@ export class TransactionOutput extends ChildMessage {
     return this.parent === null ? Sha256Hash.ZERO_HASH : this.parent.getHash();
   }
 
-  /**
-   * Returns a new {@link TransactionOutPoint}, which is essentially a
-   * structure pointing to this output. Requires that this output is not
-   * detached.
-   */
-  public getOutPointFor(containingBlockHash: Sha256Hash): TransactionOutPoint {
-    return TransactionOutPoint.fromTx4(
-      this.params!,
-      this.getIndex(),
-      containingBlockHash,
-      this.getParentTransaction()
-    );
-  }
-
+ 
   /**
    * Returns a copy of the output detached from its containing transaction, if
    * need be.

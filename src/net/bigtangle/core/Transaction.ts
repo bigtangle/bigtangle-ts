@@ -783,52 +783,26 @@ export class Transaction extends ChildMessage {
    *
    * @return the newly created input.
    */
-  public addInput(...args: any[]): TransactionInput {
-    let input: TransactionInput;
-
-    if (
-      args.length === 2 &&
-      args[0] instanceof Sha256Hash &&
-      args[1] instanceof TransactionOutput
-    ) {
-      // Case 1: blockHash and TransactionOutput
-      const blockHash = args[0];
-      const from = args[1];
-      const outpoint = new TransactionOutPoint(this.params!);
-      outpoint.setBlockHash(blockHash);
-      outpoint.setConnectedOutput(from);
-      input = new TransactionInput(this.params!);
-      input.setOutpoint(outpoint);
-    } else if (args.length === 1 && args[0] instanceof TransactionInput) {
-      // Case 2: Existing TransactionInput
-      input = args[0];
-    } else if (
-      args.length === 4 &&
-      args[0] instanceof Sha256Hash &&
-      args[1] instanceof Sha256Hash &&
-      typeof args[2] === "number" &&
-      args[3] instanceof Script
-    ) {
-      // Case 3: spendBlockHash, spendTxHash, outputIndex, script
-      const spendBlockHash = args[0];
-      const spendTxHash = args[1];
-      const outputIndex = args[2];
-      const script = args[3];
-      const outpoint = new TransactionOutPoint(this.params!);
-      outpoint.setBlockHash(spendBlockHash);
-      outpoint.setTxHash(spendTxHash);
-      outpoint.setIndex(outputIndex);
-      input = new TransactionInput(this.params!);
-      input.setOutpoint(outpoint);
-      input.setScriptBytes(script.getProgram());
-    } else {
-      throw new Error("Invalid arguments for addInput");
+  public addInput2(blockHash: Sha256Hash | null, from: TransactionOutput): TransactionInput { 
+    if (this.params==null || blockHash == null) {
+      throw new ProtocolException("Network parameters not set");
     }
+    return this.addInput1(TransactionInput.fromTransactionInput4(this.params, this, from, blockHash ));
+  }
 
+  public addInput1(input: TransactionInput): TransactionInput {
     this.unCache();
     input.setParent(this);
     this.inputs.push(input);
+    this.adjustLength2(this.inputs.length, 0);
     return input;
+  }
+
+  protected adjustLength2(newArraySize: number, adjustment: number): void {
+    // The super class might not have this method, so we'll skip calling it
+    if (this.parent !== null && (this.parent as any).adjustLength2) {
+      (this.parent as any).adjustLength2(newArraySize, adjustment);
+    }
   }
 
   /**

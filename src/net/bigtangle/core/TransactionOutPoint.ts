@@ -31,6 +31,7 @@ import { Transaction } from './Transaction';
 import { TransactionOutput } from './TransactionOutput';
 import { RedeemData } from '../wallet/RedeemData';
 import { Buffer } from 'buffer';
+import { FreeStandingTransactionOutput } from '../wallet/FreeStandingTransactionOutput';
 
 /**
  * <p>
@@ -92,8 +93,12 @@ export class TransactionOutPoint extends ChildMessage {
 
     public static fromOutput3(params: NetworkParameters, blockHash: Sha256Hash | null,
         connectedOutput: TransactionOutput): TransactionOutPoint {
-        const a = TransactionOutPoint.fromTransactionOutPoint4(params, connectedOutput.getIndex(), blockHash || Sha256Hash.ZERO_HASH,
-            connectedOutput.getParentTransactionHash());
+        const a = TransactionOutPoint.fromTransactionOutPoint4(
+            params, 
+            connectedOutput.getIndex(), 
+            blockHash || Sha256Hash.ZERO_HASH,
+            (connectedOutput as FreeStandingTransactionOutput).getParentTransactionHash()
+        );
         a.connectedOutput = connectedOutput;
         return a;
     }
