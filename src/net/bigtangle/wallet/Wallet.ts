@@ -466,7 +466,7 @@ export class Wallet extends WalletBase {
     let amount = summe.negate();
     
     // Add fee if needed
-    if (this.getFee() && !amount.isBIG()) {
+    if (this.getFee() && amount.isBIG()) {
       const fee = Coin.valueOf(Coin.FEE_DEFAULT.getValue(), amount.getTokenid());
       amount = amount.add(fee.negate());
     }
@@ -498,13 +498,7 @@ export class Wallet extends WalletBase {
     await this.signTransaction(multispent, aesKey, 'THROW');
     const block = await this.getTip()   ;
     block.addTransaction(multispent);
-
-    // Add fee transaction if needed
-  /*  if (this.getFee() && !Utils.arraysEqual(NetworkParameters.getBIGTANGLE_TOKENID(), tokenid)) {
-      const feeTx = await this.feeTransaction1(aesKey, coinList);
-      block.addTransaction(feeTx);
-    }*/
-    
+ 
     return await this.solveAndPost(block);
   }
 

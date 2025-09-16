@@ -189,7 +189,7 @@ export class ECKey {
   public async sign(
     messageHash: Uint8Array |null,
     aesKey?: KeyParameter
-  ): Promise<ECDSASignature> {
+  ): Promise<Uint8Array> {
      if (messageHash== null) {
       throw new Error("Message hash cannot be null");
      }
@@ -219,12 +219,12 @@ export class ECKey {
     }
   }
 
-  public doSign(messageHash: Uint8Array, privKey: bigint): ECDSASignature {
+  public doSign(messageHash: Uint8Array, privKey: bigint): Uint8Array {
     // Convert to Uint8Array for signing
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);
     const signature = secp256k1.sign(messageHash, privKeyBytes);
-    // Use native bigint values directly
-    return new ECDSASignature(signature.r, signature.s);
+    // Return DER-encoded signature
+    return signature.toDERRawBytes();
   }
 
   public verify(messageHash: Uint8Array, signature: ECDSASignature): boolean {
@@ -373,7 +373,7 @@ export class ECKey {
     return DumpedPrivateKey.encodePrivateKey(params, privBytes, compressed);
   }
 
-  public async signMessage(message: string): Promise<ECDSASignature> {
+  public async signMessage(message: string): Promise<Uint8Array> {
     // Sign a message following Bitcoin's message signing standard
     const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");
     const messageBuffer = Buffer.from(message, "utf-8");
