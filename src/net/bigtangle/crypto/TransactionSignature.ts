@@ -137,8 +137,7 @@ export class TransactionSignature extends ECDSASignature {
         }
     }
 
-    /**
-     * What we get back from the signer are the two components of a signature, r and s. To get a flat byte stream
+    /** What we get back from the signer are the two components of a signature, r and s. To get a flat byte stream
      * of the type used by Bitcoin we have to encode them using DER encoding, which is just a way to pack the two
      * components into a structure, and then we append a byte to the end for the sighash flags.
      */
