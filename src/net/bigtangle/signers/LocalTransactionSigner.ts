@@ -3,6 +3,7 @@ import { Transaction } from '../core/Transaction';
 import { ECKey } from '../core/ECKey';
 import { Script } from '../script/Script';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
+import { MissingPrivateKeyException } from '../crypto/MissingPrivateKeyException';
 // Placeholder
 import { DeterministicKey } from '../crypto/DeterministicKey';
 import { SigHash } from '../core/SigHash';
@@ -70,20 +71,24 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 console.warn(`No local key found for input ${i}`);
                 continue;
             }
-
+           let inputScript = txIn.getScriptSig();
             const script = redeemData.redeemScript.getProgram();
             try {
-                const sighash = tx.hashForSignature(i, script, SigHash.ALL, false);
-                if (sighash === null) {
-                    console.warn(`Unable to create sighash for input ${i}`);
-                    continue;
-                }
-                const signature = await key.sign(sighash.getBytes());
-                // Signature is already DER-encoded, so use it directly
-                const scriptSig = Script.createInputScript(Buffer.from(signature.encodeDER()), Buffer.from(key.getPubKey()));
-                txIn.setScriptSig(scriptSig);
+                const signature = await tx.calculateSignature(i, key, script,  SigHash.ALL, false);
+           
+                 console.log(signature.toString());
+                  const sigIndex = 0;
+                 inputScript = scriptPubKey.getScriptSigWithSignature(inputScript,  signature.encodeToBitcoin() , sigIndex);
+                    console.log(inputScript.toString());
+                txIn.setScriptSig(inputScript);
             } catch (e: any) {
-                console.warn(`Error signing input ${i}: ${e.message}`);
+                if (e instanceof MissingPrivateKeyException) {
+                    console.warn(`No private key in keypair for input ${i}`);
+                } else {
+                    // For other errors, rethrow after logging
+                    console.error(`Error signing input ${i}:`, e);
+                    throw e;
+                }
             }
         }
         return true;

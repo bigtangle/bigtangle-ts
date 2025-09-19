@@ -20,6 +20,7 @@ import {
     OP_CHECKLOCKTIMEVERIFY, OP_NOP1, OP_NOP3, OP_NOP4, OP_NOP5, OP_NOP6, OP_NOP7, OP_NOP8, OP_NOP9, OP_NOP10, OP_INVALIDOPCODE,
 } from './ScriptOpCodes.js';
 import { UnsafeByteArrayOutputStream } from '../core/UnsafeByteArrayOutputStream.js';
+import { ScriptBuilder } from './ScriptBuilder.js';
  
 
 /**
@@ -471,7 +472,7 @@ export class Script {
         }
         // This needs ScriptBuilder.updateScriptWithSignature, which is not yet translated.
         // For now, return a dummy script.
-        return new Script(new Uint8Array()); // Placeholder
+     return ScriptBuilder.updateScriptWithSignature(scriptSig, sigBytes, index, sigsPrefixCount, sigsSuffixCount);
     }
 
 

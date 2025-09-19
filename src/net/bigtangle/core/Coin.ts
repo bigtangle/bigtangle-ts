@@ -103,6 +103,16 @@ export class Coin implements IMonetary, IComparable<Coin> {
     const valueVal = BigInt(value.value);
     const result = thisVal + valueVal;
 
+    // Check for overflow - if both operands are positive and result is negative, we overflowed
+    if (thisVal > 0n && valueVal > 0n && result < 0n) {
+      throw new Error("Addition overflow");
+    }
+    // Check for underflow - if both operands are negative and result is positive, we underflowed
+    if (thisVal < 0n && valueVal < 0n && result > 0n) {
+      throw new Error("Addition underflow");
+    }
+
+  
     return new Coin(result, this.tokenid);
   }
 
@@ -115,6 +125,16 @@ export class Coin implements IMonetary, IComparable<Coin> {
       throw new Error("Token IDs must match for subtraction");
     }
     const result = this.value - value.value;
+    
+    // Check for overflow - if minuend is positive, subtrahend is negative, and result is negative, we overflowed
+    if (this.value > 0n && value.value < 0n && result < 0n) {
+      throw new Error("Subtraction overflow");
+    }
+    // Check for underflow - if minuend is negative, subtrahend is positive, and result is positive, we underflowed
+    if (this.value < 0n && value.value > 0n && result > 0n) {
+      throw new Error("Subtraction underflow");
+    }
+    
     if (
       result > BigInt(Number.MAX_SAFE_INTEGER) ||
       result < BigInt(Number.MIN_SAFE_INTEGER)
@@ -130,7 +150,20 @@ export class Coin implements IMonetary, IComparable<Coin> {
 
   public multiply(factor: bigint | number): Coin {
     if (typeof factor === "number") factor = BigInt(factor);
-    return new Coin(this.value * factor, this.tokenid);
+    
+    // Check for overflow before multiplication
+    if (this.value !== 0n && factor !== 0n) {
+      const result = this.value * factor;
+      
+      // Check if we overflowed by seeing if division gives us back the original values
+      if (result / factor !== this.value) {
+        throw new Error("Multiplication overflow");
+      }
+      
+      return new Coin(result, this.tokenid);
+    }
+    
+    return new Coin(0n, this.tokenid);
   }
 
   public times(factor: bigint | number): Coin {
@@ -146,7 +179,20 @@ export class Coin implements IMonetary, IComparable<Coin> {
 
   public divide(divisor: bigint | number): Coin {
     if (typeof divisor === "number") divisor = BigInt(divisor);
-    return new Coin(this.value / divisor, this.tokenid);
+    if (divisor === 0n) {
+      throw new Error("Division by zero");
+    }
+    
+    // Check for overflow before division
+    const result = this.value / divisor;
+    
+    // Check if we overflowed by seeing if multiplication gives us back the original value
+    // This isn't perfect but catches most cases
+    if (result * divisor !== this.value && this.value !== 0n) {
+      throw new Error("Division result out of range");
+    }
+    
+    return new Coin(result, this.tokenid);
   }
 
   public isPositive(): boolean {

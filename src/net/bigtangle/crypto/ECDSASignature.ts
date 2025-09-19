@@ -1,5 +1,6 @@
 import bigInt, { BigInteger } from 'big-integer';
 import { secp256k1 } from '@noble/curves/secp256k1';
+import asn1 from 'asn1.js';
 
 /**
  * An ECKey.ECDSASignature contains the two components of an ECDSA signature (R and S).
@@ -59,22 +60,33 @@ export class ECDSASignature {
      * The format is: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S]
      */
     public derByteStream(): Uint8Array {
+        // Manual DER encoding for ECDSA signature
         const rBytes = ECDSASignature.bigIntToMinimalBytes(this.r);
         const sBytes = ECDSASignature.bigIntToMinimalBytes(this.s);
-        const totalLen = 2 + rBytes.length + 2 + sBytes.length;
-        const out = new Uint8Array(2 + totalLen);
+        
+        // Calculate total length
+        const totalLength = 2 + rBytes.length + 2 + sBytes.length;
+        
+        // Create buffer for DER encoding
+        const der = new Uint8Array(1 + 1 + totalLength); // 0x30 + length byte + total content
         let offset = 0;
-        out[offset++] = 0x30;
-        out[offset++] = totalLen;
-        out[offset++] = 0x02;
-        out[offset++] = rBytes.length;
-        out.set(rBytes, offset);
+        
+        // Add sequence tag and length
+        der[offset++] = 0x30; // SEQUENCE tag
+        der[offset++] = totalLength; // Total length
+        
+        // Add r value
+        der[offset++] = 0x02; // INTEGER tag
+        der[offset++] = rBytes.length; // Length of r
+        der.set(rBytes, offset);
         offset += rBytes.length;
-        out[offset++] = 0x02;
-        out[offset++] = sBytes.length;
-        out.set(sBytes, offset);
-        offset += sBytes.length;
-        return out.slice(0, offset);
+        
+        // Add s value
+        der[offset++] = 0x02; // INTEGER tag
+        der[offset++] = sBytes.length; // Length of s
+        der.set(sBytes, offset);
+        
+        return der;
     }
 
     /**

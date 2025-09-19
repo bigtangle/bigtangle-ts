@@ -152,7 +152,32 @@ export class Transaction extends ChildMessage {
   }
 
   public verify(): void {
-    // Implementation would go here
+    // Check for duplicate outpoints
+    const outpointSet = new Set<string>();
+    for (const input of this.inputs) {
+      const outpointKey = input.getOutpoint().toString();
+      if (outpointSet.has(outpointKey)) {
+        throw new VerificationException("Duplicated outpoint");
+      }
+      outpointSet.add(outpointKey);
+    }
+
+    // Check for coinbase input in non-coinbase transaction
+    if (!this.isCoinBase()) {
+      for (const input of this.inputs) {
+        if (input.isCoinBase()) {
+          throw new VerificationException("Unexpected coinbase input");
+        }
+      }
+    } else {
+      // For coinbase transactions, check script size
+      if (this.inputs.length > 0) {
+        const scriptBytes = this.inputs[0].getScriptBytes();
+        if (scriptBytes.length < 2 || scriptBytes.length > 100) {
+          throw new VerificationException("Coinbase script size out of range");
+        }
+      }
+    }
   }
 
   public isTimeLocked(): boolean {
@@ -944,37 +969,17 @@ export class Transaction extends ChildMessage {
     hashType: SigHash,
     anyoneCanPay: boolean
   ): Promise<TransactionSignature> {
-    // TODO: Implement this method properly
-    throw new Error("calculateSignature not implemented");
+    const hash = this.hashForSignature(inputIndex, redeemScript, hashType, anyoneCanPay);
+    const signature = await key.sign(hash.getBytes(), undefined);
+    // Convert core ECDSASignature to crypto ECDSASignature
+    const cryptoSignature = new CryptoECDSASignature(
+        bigInt(signature.r.toString()),
+        bigInt(signature.s.toString())
+    );
+    return new TransactionSignature(cryptoSignature, hashType, anyoneCanPay);
   }
 
-  /**
-   * Calculates a signature that is valid for being inserted into the input at the
-   * given position. This is simply a wrapper around calling
-   * {@link Transaction#hashForSignature(int, byte[], net.bigtangle.core.Transaction.SigHash, boolean)}
-   * followed by {@link ECKey#sign(Sha256Hash)} and then returning a new
-   * {@link TransactionSignature}.
-   *
-   * @param inputIndex   Which input to calculate the signature for, as an index.
-   * @param key          The private key used to calculate the signature.
-   * @param redeemScript The scriptPubKey that is being satisified, or the P2SH
-   *                     redeem script.
-   * @param hashType     Signing mode, see the enum for documentation.
-   * @param anyoneCanPay Signing mode, see the SigHash enum for documentation.
-   * @return A newly calculated signature object that wraps the r, s and sighash
-   *         components.
-   */
-  public async calculateSignature2(
-    inputIndex: number,
-    key: ECKey,
-    redeemScript: Script,
-    hashType: SigHash,
-    anyoneCanPay: boolean
-  ): Promise<TransactionSignature> {
-    // TODO: Implement this method properly
-    throw new Error("calculateSignature2 not implemented");
-  }
-
+ 
   /**
    * <p>
    * Calculates a signature hash, that is, a hash of a simplified form of the

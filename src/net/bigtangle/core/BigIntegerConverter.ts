@@ -65,78 +65,88 @@ class BigIntegerConverter {
   public toByteArray(): Uint8Array {
     //console.log(`\n=== Converting ${this.value} ===`);
     
-    // Let's try to match Java's exact behavior
-    // Java bytes: [1, 99, 69, 120, 93, -118, 0, 0] = 8 bytes
-    // This suggests bitLength calculation results in 8 bytes
-    
-    const bitLen = this.bitLength();
-  //  console.log(`Our bit length: ${bitLen}`);
-    
-    // Java seems to calculate differently - let's force 8 bytes for this value
-    // and see if the pattern matches
-    let byteLen = Math.floor(bitLen / 8) + 1;
-    
-    // Try to detect Java's actual logic
-    if (this.value === 1000000000000n) {
- //     console.log("Forcing 8 bytes to match Java for debugging");
-      byteLen = 8;
+    if (this.value === 0n) {
+      return new Uint8Array([0]);
     }
     
- //   console.log(`Byte length: ${byteLen}`);
+    // Handle negative numbers correctly
+    const isNegative = this.value < 0n;
+    const absValue = isNegative ? -this.value : this.value;
     
-    const byteArray = new Uint8Array(byteLen);
-    let i = byteLen - 1;
-    let bytesCopied = 4;
-    let nextInt = 0;
+    // Convert to byte array (big-endian)
+    let temp = absValue;
+    const bytes: number[] = [];
     
-  //  console.log(`Starting loop with i=${i}`);
+    while (temp > 0n) {
+      bytes.push(Number(temp & 0xFFn));
+      temp >>= 8n;
+    }
     
-    for (let intIndex = 0; i >= 0; i--) {
-      if (bytesCopied === 4) {
-        nextInt = this.getInt(intIndex);
- //       console.log(`getInt(${intIndex}) = ${nextInt} (0x${nextInt.toString(16)})`);
-        intIndex++;
-        bytesCopied = 1;
-      } else {
-        nextInt = nextInt >>> 8;
- //       console.log(`nextInt >>> 8 = ${nextInt} (0x${nextInt.toString(16)})`);
-        bytesCopied++;
+    // Reverse to get big-endian
+    bytes.reverse();
+    
+    // For negative numbers, we need to ensure two's complement representation
+    if (isNegative) {
+      // If the most significant bit is set, we need to add a leading zero byte
+      // to indicate that the number is negative
+      if ((bytes[0] & 0x80) !== 0) {
+        bytes.unshift(0);
       }
-      const byteVal = nextInt & 0xFF;
-      byteArray[i] = byteVal;
-  //    console.log(`byteArray[${i}] = ${byteVal} (signed: ${byteVal > 127 ? byteVal - 256 : byteVal})`);
+      
+      // Convert to two's complement
+      let carry = 1;
+      for (let i = bytes.length - 1; i >= 0; i--) {
+        const inverted = (~bytes[i] & 0xFF) + carry;
+        bytes[i] = inverted & 0xFF;
+        carry = inverted >> 8;
+      }
     }
     
-    //console.log(`Final result: [${Array.from(byteArray).map(b => b > 127 ? b - 256 : b).join(', ')}]`);
-    return byteArray;
+    //console.log(`Final result: [${bytes.map(b => b > 127 ? b - 256 : b).join(', ')}]`);
+    return new Uint8Array(bytes);
   }
   
   static fromByteArray(bytes: Uint8Array): BigIntegerConverter {
     if (bytes.length === 0) return new BigIntegerConverter(0n);
     
-    // Handle sign extension for negative numbers
-    let result = 0n;
+    // Check if the number is negative (MSB set)
     const isNegative = (bytes[0] & 0x80) !== 0;
     
     if (isNegative) {
-      // Two's complement conversion for negative numbers
+      // Convert from two's complement to positive value
+      // First, invert all bits
+      const invertedBytes = new Uint8Array(bytes.length);
       for (let i = 0; i < bytes.length; i++) {
-        result = (result << 8n) | BigInt(bytes[i]);
+        invertedBytes[i] = ~bytes[i] & 0xFF;
       }
-      // Convert from unsigned to signed
-      const bitLength = BigInt(bytes.length * 8);
-      const maxValue = 1n << bitLength;
-      if (result >= (maxValue >> 1n)) {
-        result = result - maxValue;
+      
+      // Then add 1
+      let carry = 1;
+      for (let i = invertedBytes.length - 1; i >= 0 && carry > 0; i--) {
+        const sum = invertedBytes[i] + carry;
+        invertedBytes[i] = sum & 0xFF;
+        carry = sum >> 8;
       }
+      
+      // Convert to bigint
+      let result = 0n;
+      for (let i = 0; i < invertedBytes.length; i++) {
+        result = (result << 8n) | BigInt(invertedBytes[i]);
+      }
+      
+      // Make negative
+      result = -result;
+      
+      return new BigIntegerConverter(result);
     } else {
       // Positive number
+      let result = 0n;
       for (let i = 0; i < bytes.length; i++) {
         result = (result << 8n) | BigInt(bytes[i]);
       }
+      
+      return new BigIntegerConverter(result);
     }
-    
-    return new BigIntegerConverter(result);
   }
   
   public getValue(): bigint {

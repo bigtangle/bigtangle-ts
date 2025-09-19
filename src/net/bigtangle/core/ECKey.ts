@@ -3,6 +3,9 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { ECDSASignature } from "../core/ECDSASignature";
+
+// Define HALF_CURVE_ORDER constant
+const HALF_CURVE_ORDER = bigInt(secp256k1.CURVE.n).shiftRight(1);
 import { ECPoint } from "./ECPoint";
 import { NetworkParameters } from "../params/NetworkParameters";
 import * as Address from "./Address";
@@ -11,7 +14,13 @@ import { EncryptedData } from "../crypto/EncryptedData";
 import { DumpedPrivateKey } from "./DumpedPrivateKey";
 import { VarInt } from "./VarInt";
 import { Utils } from "../utils/Utils";
+// Export ECDSASignature from this module
+export { ECDSASignature };
+
 export class ECKey {
+    // Add HALF_CURVE_ORDER as static property
+    static readonly HALF_CURVE_ORDER = HALF_CURVE_ORDER;
+    
   public static readonly CURVE = secp256k1.CURVE;
 
   public static createNewKey(compressed: boolean = true): ECKey {

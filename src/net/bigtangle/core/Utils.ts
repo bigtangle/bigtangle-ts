@@ -75,10 +75,9 @@ export class Utils {
       throw new Error("Buffer is empty");
     }
     if (offset < 0 || offset + 4 > buffer.length) {
-      console.warn(
-        `Utils.readUint32: not enough bytes to read uint32 at offset=${offset}, buffer length=${buffer.length}. Returning 0`
+      throw new Error(
+        `Utils.readUint32: not enough bytes to read uint32 at offset=${offset}, buffer length=${buffer.length}`
       );
-      return 0;
     }
     return buffer.readUInt32LE(offset);
   }

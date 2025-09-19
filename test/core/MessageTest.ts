@@ -20,7 +20,7 @@ describe('MessageTest', () => {
             writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarStrMessage(params, payload);
-        }).toThrow('Claimed value length too large: 9007190664806399');
+        }).toThrow('Claimed value length too large: 9007194959773695');
     });
 
     class VarStrMessage extends Message {
@@ -50,7 +50,7 @@ describe('MessageTest', () => {
             writer.write(varIntBuffer);
             const payload = Buffer.concat(chunks);
             new VarBytesMessage(params, payload);
-        }).toThrow('Claimed value length too large: 9007190664806399');
+        }).toThrow('Claimed value length too large: 9007194959773695');
     });
 
     class VarBytesMessage extends Message {

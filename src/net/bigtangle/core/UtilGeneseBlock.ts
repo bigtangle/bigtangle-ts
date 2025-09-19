@@ -33,6 +33,10 @@ export class UtilGeneseBlock {
 
         const coinbase: Transaction = new Transaction(params);
         const inputBuilder: ScriptBuilder = new ScriptBuilder();
+        // Add block height to coinbase input script (required by Bitcoin protocol)
+        inputBuilder.number(0);  // Genesis block has height 0
+        // Add dummy OP_NOP to meet minimum 2-byte script requirement
+        inputBuilder.op(0x61); // OP_NOP (0x61)
         coinbase.addInput(TransactionInput.fromScriptBytes(params, coinbase, inputBuilder.build().getProgram()));
 
         const rewardInfo: RewardInfo = new RewardInfo(

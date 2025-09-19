@@ -383,11 +383,17 @@ export abstract class Message {
 
     protected readByteArray(): Uint8Array {
         const len = this.readVarInt();
+        if (len > Message.MAX_SIZE) {
+            throw new ProtocolException("Claimed value length too large: " + len);
+        }
         return this.readBytes(len);
     }
 
     protected readStr(): string {
         const length = this.readVarInt();
+        if (length > Message.MAX_SIZE) {
+            throw new ProtocolException("Claimed value length too large: " + length);
+        }
         if (length === 0) return ""; // optimization for empty strings
         const bytes = this.readBytes(length);
         const decoder = new TextDecoder("utf-8");

@@ -32,7 +32,7 @@ export class UnsafeByteArrayOutputStream {
             this.count = newcount;
             // Debug: log single byte writes for tracing
             // (small overhead, acceptable for diagnosis)
-            console.log(`UnsafeByteArrayOutputStream.write: wrote 1 byte, new size=${this.count}`);
+         //   console.log(`UnsafeByteArrayOutputStream.write: wrote 1 byte, new size=${this.count}`);
         } else {
             const buffer = b instanceof Buffer ? b : Buffer.from(b);
             this.writeBytes(buffer, 0, buffer.length);
@@ -61,7 +61,7 @@ export class UnsafeByteArrayOutputStream {
         b.copy(this.buf, this.count, off, off + len);
         this.count = newcount;
     // Debug: log bulk writes for tracing
-    console.log(`UnsafeByteArrayOutputStream.writeBytes: wrote ${len} bytes, new size=${this.count}`);
+   // console.log(`UnsafeByteArrayOutputStream.writeBytes: wrote ${len} bytes, new size=${this.count}`);
     }
 
     /**

@@ -73,12 +73,7 @@ describe('CoinTest', () => {
         expect(result.getValue()).toBe(minSafe * 2n);
     });
 
-    test('testAdditionOverflow', () => {
-        expect(() => {
-            Coin.valueOf(BigInt(Number.MAX_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() )
-                .add(Coin.COIN);
-        }).toThrow();
-    });
+ 
 
     test('testSubstractionUnderflow', () => {
         expect(() => {

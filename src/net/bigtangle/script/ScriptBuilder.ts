@@ -194,42 +194,60 @@ export class ScriptBuilder {
         const inputChunks = scriptSig.getChunks();
         const totalChunks = inputChunks.length;
 
-        const hasMissingSigs = inputChunks[totalChunks - sigsSuffixCount - 1].equalsOpCode(ScriptOpCodes.OP_0);
-        if (!hasMissingSigs) {
-            throw new Error("ScriptSig is already filled with signatures");
-        }
-
-        for (let i = 0; i < sigsPrefixCount; i++) {
+        // Handle prefix chunks
+        for (let i = 0; i < sigsPrefixCount && i < totalChunks; i++) {
             builder.addChunk(inputChunks[i]);
         }
 
         let pos = 0;
         let inserted = false;
-        for (let i = sigsPrefixCount; i < totalChunks - sigsSuffixCount; i++) {
+        const signatureInsertionStart = Math.min(sigsPrefixCount, totalChunks);
+        const signatureInsertionEnd = Math.min(totalChunks, Math.max(signatureInsertionStart, totalChunks - sigsSuffixCount));
+        
+        for (let i = signatureInsertionStart; i < signatureInsertionEnd; i++) {
             const chunk = inputChunks[i];
             if (pos === targetIndex) {
+                // Check if we're trying to replace a non-placeholder signature
+                if (chunk.data && chunk.data.length > 0) {
+                    throw new Error("Cannot update a non-placeholder signature");
+                }
                 inserted = true;
                 builder.data(signature);
                 pos++;
             }
-            if (!chunk.equalsOpCode(ScriptOpCodes.OP_0)) {
+            // Skip placeholder OP_0 chunks
+            if (chunk && !chunk.equalsOpCode(ScriptOpCodes.OP_0)) {
                 builder.addChunk(chunk);
                 pos++;
             }
         }
 
-        while (pos < totalChunks - sigsPrefixCount - sigsSuffixCount) {
-            if (pos === targetIndex) {
-                inserted = true;
+        // Add the signature if we haven't inserted it yet
+        if (!inserted) {
+            // We might be in a situation where we need to add a new signature slot
+            if (targetIndex >= pos) {
+                // Add placeholders until we reach the target index
+                while (pos < targetIndex) {
+                    builder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
+                    pos++;
+                }
                 builder.data(signature);
-            } else {
-                builder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
+                inserted = true;
+                pos++;
             }
+        }
+
+        // Add any remaining placeholders
+        while (pos < totalChunks - sigsPrefixCount - sigsSuffixCount) {
+            builder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
             pos++;
         }
 
+        // Handle suffix chunks
         for (let i = totalChunks - sigsSuffixCount; i < totalChunks; i++) {
-            builder.addChunk(inputChunks[i]);
+            if (i >= 0 && i < totalChunks) {
+                builder.addChunk(inputChunks[i]);
+            }
         }
 
         if (!inserted) {
