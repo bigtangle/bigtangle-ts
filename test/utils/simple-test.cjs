@@ -1,9 +1,9 @@
 // Simple test to verify TransactionOutput serialization/deserialization
 const { Buffer } = require('buffer');
 const bigInt = require('big-integer');
-const { Coin } = require('./dist/src/net/bigtangle/core/Coin');
-const { TransactionOutput } = require('./dist/src/net/bigtangle/core/TransactionOutput');
-const { TestParams } = require('./dist/src/net/bigtangle/params/TestParams');
+const { Coin } = require('../../dist/src/net/bigtangle/core/Coin');
+const { TransactionOutput } = require('../../dist/src/net/bigtangle/core/TransactionOutput');
+const { TestParams } = require('../../dist/src/net/bigtangle/params/TestParams');
 
 // Test with zero value
 const params = TestParams.get();

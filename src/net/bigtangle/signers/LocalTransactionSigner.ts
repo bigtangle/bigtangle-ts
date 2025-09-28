@@ -7,6 +7,7 @@ import { MissingPrivateKeyException } from '../crypto/MissingPrivateKeyException
 // Placeholder
 import { DeterministicKey } from '../crypto/DeterministicKey';
 import { SigHash } from '../core/SigHash';
+import { ScriptBuilder } from '../script/ScriptBuilder';
 
 /**
  * <p>{@link TransactionSigner} implementation for signing inputs using keys from provided {@link net.bigtangle.wallet.KeyBag}.</p>
@@ -72,15 +73,14 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 continue;
             }
            let inputScript = txIn.getScriptSig();
-            const script = redeemData.redeemScript.getProgram();
+            const scriptPubKeyBytes = txIn.getConnectedOutput()!.getScriptPubKey().getProgram();
             try {
-                const signature = await tx.calculateSignature(i, key, script,  SigHash.ALL, false);
-           
+                const signature = await tx.calculateSignature(i, key, scriptPubKeyBytes,  SigHash.ALL, false);
+       
                  console.log(signature.toString());
-                  const sigIndex = 0;
-                 inputScript = scriptPubKey.getScriptSigWithSignature(inputScript,  signature.encodeToBitcoin() , sigIndex);
-                    console.log(inputScript.toString());
-                txIn.setScriptSig(inputScript);
+                 // Create input script with signature and public key using ScriptBuilder
+                 const newInputScript = ScriptBuilder.createInputScript(signature, key);
+                 txIn.setScriptSig(newInputScript);
             } catch (e: any) {
                 if (e instanceof MissingPrivateKeyException) {
                     console.warn(`No private key in keypair for input ${i}`);
