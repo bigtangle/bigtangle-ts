@@ -1,4 +1,3 @@
-import bigInt from 'big-integer';
 import { ECDSASignature } from './ECDSASignature';
 import { Transaction } from '../core/Transaction';
 import { SigHash } from '../core/SigHash';
@@ -19,9 +18,9 @@ export class TransactionSignature extends ECDSASignature {
     public readonly sighashFlags: number;
 
     /** Constructs a signature with the given components and SIGHASH_ALL. */
-    constructor(r: import('big-integer').BigInteger, s: import('big-integer').BigInteger);
+    constructor(r: bigint, s: bigint);
     /** Constructs a signature with the given components and raw sighash flag bytes (needed for rule compatibility). */
-    constructor(r: import('big-integer').BigInteger, s: import('big-integer').BigInteger, sighashFlags: number);
+    constructor(r: bigint, s: bigint, sighashFlags: number);
     /** Constructs a transaction signature based on the ECDSA signature. */
     constructor(signature: ECDSASignature, mode: SigHash, anyoneCanPay: boolean);
     constructor(...args: any[]) {
@@ -50,8 +49,8 @@ export class TransactionSignature extends ECDSASignature {
     public static dummy(): TransactionSignature {
         // In the original Java code, HALF_CURVE_ORDER is used. We need to find an equivalent in noble-curves.
         // secp256k1.CURVE.n is the order of the curve.
-        const halfCurveOrder = bigInt(secp256k1.CURVE.n.toString()).divide(bigInt("2"));
-        return new TransactionSignature(halfCurveOrder, halfCurveOrder);
+        const halfCurveOrder = BigInt(secp256k1.CURVE.n.toString()) / 2n;
+        return new TransactionSignature(BigInt(halfCurveOrder), BigInt(halfCurveOrder));
     }
 
     /** Calculates the byte used in the protocol to represent the combination of mode and anyoneCanPay. */
@@ -142,7 +141,7 @@ export class TransactionSignature extends ECDSASignature {
      * components into a structure, and then we append a byte to the end for the sighash flags.
      */
     public encodeToBitcoin(): Uint8Array {
-        const derBytes = this.derByteStream();
+        const derBytes = this.encodeDER();
         const output = new Uint8Array(derBytes.length + 1);
         output.set(derBytes, 0);
         output[derBytes.length] = this.sighashFlags;
@@ -177,7 +176,7 @@ export class TransactionSignature extends ECDSASignature {
 
         let sig: ECDSASignature;
         try {
-            sig = ECDSASignature.decodeFromDER(derBytes);
+            sig = ECDSASignature.decodeDER(Buffer.from(derBytes));
         } catch (e: any) {
             throw new VerificationException("Could not decode DER: " + e.message, e);
         }

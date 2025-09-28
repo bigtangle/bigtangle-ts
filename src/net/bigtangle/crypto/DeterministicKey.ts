@@ -11,7 +11,6 @@ import { HDUtils } from './HDUtils';
 import { MissingPrivateKeyException } from './MissingPrivateKeyException';
 import { KeyCrypter, KeyParameter } from './KeyCrypter';
 import { EncryptedData } from './EncryptedData';
-import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
 
 /**
  * A deterministic key is a node in a {@link DeterministicHierarchy}. As per
@@ -40,8 +39,8 @@ export class DeterministicKey extends ECKey {
         }
         return true;
     }
-    // Helper to convert BigInteger to Uint8Array (32 bytes)
-    private static bigIntegerToBytes(bi: BigInteger, length: number = 32): Uint8Array {
+    // Helper to convert bigint to Uint8Array (32 bytes)
+    private static bigIntegerToBytes(bi: bigint, length: number = 32): Uint8Array {
         // big-integer's toArray(256) returns { value: number[], isNegative: boolean }
         const biArrayResult = bi.toArray(256);
         let bytes = new Uint8Array(biArrayResult.value).reverse(); // Convert to Uint8Array and then reverse
@@ -326,10 +325,10 @@ export class DeterministicKey extends ECKey {
 
     // For when a key is encrypted, either decrypt our encrypted private key bytes, or work up the tree asking parents
     // to decrypt and re-derive.
-    private async findOrDeriveEncryptedPrivateKey(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<BigInteger> {
+    private async findOrDeriveEncryptedPrivateKey(keyCrypter: KeyCrypter, aesKey: KeyParameter): Promise<bigint> {
         if (this.encryptedPrivateKey !== null) {
             const decrypted = await keyCrypter.decrypt(this.encryptedPrivateKey, aesKey);
-            return bigInt(Utils.HEX.encode(decrypted), 16); // Use bigInt()
+            return BigInt('0x' + Utils.HEX.encode(decrypted));
         }
         let cursor: DeterministicKey | null = this.parent;
         while (cursor !== null) {
@@ -352,7 +351,7 @@ export class DeterministicKey extends ECKey {
         return cursor;
     }
 
-    private findOrDerivePrivateKey(): BigInteger | null {
+    private findOrDerivePrivateKey(): bigint | null {
         const cursor = this.findParentWithPrivKey();
         if (cursor === null) {
             return null;
@@ -363,8 +362,8 @@ export class DeterministicKey extends ECKey {
         return this.derivePrivateKeyDownwards(cursor, DeterministicKey.bigIntegerToBytes(cursor.priv!, 32));
     }
 
-    private derivePrivateKeyDownwards(cursor: DeterministicKey, parentalPrivateKeyBytes: Uint8Array): BigInteger {
-        const parentalPrivateKey = bigInt(Utils.HEX.encode(parentalPrivateKeyBytes), 16); // Use bigInt()
+    private derivePrivateKeyDownwards(cursor: DeterministicKey, parentalPrivateKeyBytes: Uint8Array): bigint {
+        const parentalPrivateKey = BigInt('0x' + Utils.HEX.encode(parentalPrivateKeyBytes));
         const downCursor = new DeterministicKey(
             cursor.childNumberPath,
             cursor.chainCode,
@@ -395,7 +394,7 @@ export class DeterministicKey extends ECKey {
      * it can be re-derived by walking up to the parents if necessary and this will happen.
      * @throws java.lang.IllegalStateException if the parents are encrypted or a watching chain.
      */
-    public getPrivKey(): BigInteger {
+    public getPrivKey(): bigint {
         const key = this.findOrDerivePrivateKey();
         if (key === null) {
             throw new Error("Private key bytes not available");
@@ -557,7 +556,7 @@ export class DeterministicKey extends ECKey {
             return new DeterministicKey(path, chainCode, ECPoint.decodePoint(keyData), null, parent, depth, parentFingerprint);
         } else {
             // Convert keyData to BigInteger
-            const privBI = bigInt(Utils.HEX.encode(keyData), 16); // Use bigInt()
+            const privBI = BigInt('0x' + Utils.HEX.encode(keyData));
             return new DeterministicKey(path, chainCode, null, privBI, parent, depth, parentFingerprint);
         }
     }

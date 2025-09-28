@@ -1,7 +1,5 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
-import bigInt from "big-integer"; // Use big-integer
-import type { BigInteger } from "big-integer";
 import { VerificationException } from "../exception/VerificationException";
 import * as tools from "uint8array-tools";
 
@@ -28,45 +26,38 @@ export class Utils {
 
 
     /**
-     * Converts a BigInteger to a byte array that matches Java's BigInteger.toByteArray() method.
-     * This method returns a byte array containing the two's-complement representation of this BigInteger.
+     * Converts a BigInt to a byte array that matches Java's BigInteger.toByteArray() method.
+     * This method returns a byte array containing the two's-complement representation of this BigInt.
      * The byte array will be in big-endian byte-order: the most significant byte is in the zeroth element.
-     * The array will contain the minimum number of bytes required to represent this BigInteger,
+     * The array will contain the minimum number of bytes required to represent this BigInt,
      * including at least one sign bit, which is (ceil((this.bitLength() + 1)/8)).
      *
-     * @param b The BigInteger to convert
-     * @returns A byte array representing the BigInteger in two's-complement form
+     * @param b The BigInt to convert
+     * @returns A byte array representing the BigInt in two's-complement form
      */
-    public static bigIntToBytes(b: BigInteger | bigint): Uint8Array {
-        if (b === null) {
+    public static bigIntToBytes(b: bigint | number): Uint8Array {
+        if (b === null || b === undefined) {
             return new Uint8Array(0);
         }
 
-        // Convert native bigint to BigInteger if needed
-        let bigIntValue: BigInteger;
-        if (typeof b === 'bigint') {
-            bigIntValue = bigInt(b.toString());
-        } else {
-            bigIntValue = b;
-        }
+        // Convert to bigint if needed
+        let value = typeof b === 'number' ? BigInt(b) : b;
 
         // Handle zero case
-        if (bigIntValue.isZero()) {
+        if (value === 0n) {
             return new Uint8Array([0]);
         }
 
         // Get the absolute value as bytes
-        const isNegative = bigIntValue.isNegative();
-        let absValue = isNegative ? bigIntValue.abs() : bigIntValue;
+        const isNegative = value < 0n;
+        let absValue = isNegative ? -value : value;
 
         // Convert to byte array by repeatedly dividing by 256
         const bytes: number[] = [];
-        const big256 = bigInt(256);
         
-        while (absValue.greater(bigInt(0))) {
-            const divmod = absValue.divmod(big256);
-            bytes.push(divmod.remainder.toJSNumber());
-            absValue = divmod.quotient;
+        while (absValue > 0n) {
+            bytes.push(Number(absValue % 256n));
+            absValue = absValue / 256n;
         }
         
         // Reverse to get big-endian format (most significant byte first)
@@ -116,14 +107,14 @@ export class Utils {
 
 
   /**
-   * Converts a BigInteger to a fixed-size byte array.
+   * Converts a BigInt to a fixed-size byte array.
    *
-   * @param value The BigInteger to convert
+   * @param value The BigInt to convert
    * @param length The fixed length of the output array
-   * @returns A byte array of the specified length representing the BigInteger
+   * @returns A byte array of the specified length representing the BigInt
    */
   public static bigIntToBytesFixed(
-    value: BigInteger,
+    value: bigint | number,
     length: number
   ): Uint8Array {
     const bytes = Utils.bigIntToBytes(value);
@@ -138,7 +129,7 @@ export class Utils {
     }
 
     // If the number is negative, fill the leading bytes with 0xFF
-    if (value.isNegative()) {
+    if (typeof value === 'bigint' ? value < 0n : value < 0) {
       for (let i = 0; i < copyStart; i++) {
         result[i] = 0xff;
       }
@@ -148,16 +139,16 @@ export class Utils {
   }
 
   /**
-   * Converts a byte array to a BigInteger, matching Java's BigInteger(byte[]) constructor.
-   * This method interprets the byte array as a two's-complement representation of a BigInteger.
+   * Converts a byte array to a BigInt, matching Java's BigInteger(byte[]) constructor.
+   * This method interprets the byte array as a two's-complement representation of a BigInt.
    * The first byte's most significant bit indicates the sign (1 for negative, 0 for positive).
    *
    * @param bytes The byte array to convert
-   * @returns A BigInteger representing the value in the byte array
+   * @returns A BigInt representing the value in the byte array
    */
-  public static bytesToBigInt(bytes: Uint8Array): BigInteger {
+  public static bytesToBigInt(bytes: Uint8Array): bigint {
     if (bytes.length === 0) {
-      return bigInt(0);
+      return 0n;
     }
 
     // Check if the number is negative (MSB of first byte is 1)
@@ -166,9 +157,9 @@ export class Utils {
     if (!isNegative) {
       // Positive number - straightforward conversion
       // Convert each byte to its contribution to the total value
-      let result = bigInt(0);
+      let result = 0n;
       for (let i = 0; i < bytes.length; i++) {
-        result = result.multiply(256).add(bytes[i]);
+        result = result * 256n + BigInt(bytes[i]);
       }
       return result;
     } else {
@@ -187,12 +178,12 @@ export class Utils {
         carry = sum > 0xff ? 1 : 0;
       }
 
-      // Convert to BigInteger and negate
-      let absValue = bigInt(0);
+      // Convert to BigInt and negate
+      let absValue = 0n;
       for (let i = 0; i < invertedBytes.length; i++) {
-        absValue = absValue.multiply(256).add(invertedBytes[i]);
+        absValue = absValue * 256n + BigInt(invertedBytes[i]);
       }
-      return absValue.negate();
+      return -absValue;
     }
   }
 
@@ -213,7 +204,7 @@ export class Utils {
   }
 
   public static uint64ToByteArrayLE(
-    val: BigInteger,
+    val: bigint | number,
     out: Uint8Array,
     offset: number
   ): void {
@@ -303,18 +294,17 @@ export class Utils {
     return result;
   }
 
-  public static readInt64(bytes: Uint8Array, offset: number): BigInteger {
+  public static readInt64(bytes: Uint8Array, offset: number): bigint {
     const value = tools.readUInt64(bytes, offset, "LE");
     // Convert to signed BigInt
     if (value >= 0x8000000000000000n) {
-      return bigInt(value - 0x10000000000000000n);
+      return value - 0x10000000000000000n;
     }
-    return bigInt(value);
+    return value;
   }
 
-  public static readUint64(bytes: Uint8Array, offset: number): BigInteger {
-    const value = tools.readUInt64(bytes, offset, "LE");
-    return bigInt(value);
+  public static readUint64(bytes: Uint8Array, offset: number): bigint {
+    return tools.readUInt64(bytes, offset, "LE");
   }
 
   public static readUint32BE(bytes: Uint8Array, offset: number): number {
@@ -394,7 +384,7 @@ export class Utils {
     return ripemd160(sha256Result);
   }
 
-  public static decodeMPI(mpi: Uint8Array, hasLength: boolean): BigInteger {
+  public static decodeMPI(mpi: Uint8Array, hasLength: boolean): bigint {
     let buf: Uint8Array;
     if (hasLength) {
       const length = Utils.readUint32BE(mpi, 0);
@@ -403,34 +393,48 @@ export class Utils {
       buf = mpi;
     }
     if (buf.length === 0) {
-      return bigInt(0); // Use bigInt(0)
+      return 0n;
     }
     const isNegative = (buf[0] & 0x80) === 0x80;
-    if (isNegative) {
+    if (IsNegative) {
       buf[0] &= 0x7f;
     }
-    const result = bigInt(Utils.HEX.encode(buf), 16); // Use bigInt()
-    return isNegative ? result.negate() : result;
+    const hex = Utils.HEX.encode(buf);
+    let result = BigInt(`0x${hex}`);
+    return isNegative ? -result : result;
   }
 
   public static encodeMPI(
-    value: BigInteger,
+    value: bigint | number,
     includeLength: boolean
   ): Uint8Array {
-    console.log("encodeMPI value:", value.toString());
-    if (value.equals(bigInt(0))) {
+    let v = typeof value === 'number' ? BigInt(value) : value;
+    console.log("encodeMPI value:", v.toString());
+    if (v === 0n) {
       if (!includeLength) {
         return new Uint8Array(0);
       } else {
         return new Uint8Array([0x00, 0x00, 0x00, 0x00]);
       }
     }
-    const isNegative = value.isNegative();
-    const absValue = isNegative ? value.abs() : value;
+    const isNegative = v < 0n;
+    const absValue = isNegative ? -v : v;
 
-    // Get bytes from big-integer, most significant byte first
-    const arrayResult = absValue.toArray(256);
-    let array = new Uint8Array(arrayResult.value).reverse(); // Convert to Uint8Array and then reverse
+    // Convert bigint to bytes - get bytes in big-endian format
+    let array: Uint8Array;
+    if (absValue === 0n) {
+      array = new Uint8Array([0]);
+    } else {
+      // Convert to hex string and then to bytes
+      let hex = absValue.toString(16);
+      if (hex.length % 2 !== 0) {
+        hex = '0' + hex; // Ensure even length
+      }
+      array = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < array.length; i++) {
+        array[i] = parseInt(hex.substr(i * 2, 2), 16);
+      }
+    }
 
     // Ensure the highest bit is not set if positive, or is set if negative (for MPI format)
     let length = array.length;
@@ -461,7 +465,7 @@ export class Utils {
     }
   }
 
-  public static decodeCompactBits(compact: number): BigInteger {
+  public static decodeCompactBits(compact: number): bigint {
     const size = (compact >>> 24) & 0xff;
     const b = new Uint8Array(4);
     b[0] = (compact >>> 16) & 0xff;
@@ -469,25 +473,28 @@ export class Utils {
     b[2] = compact & 0xff;
     b[3] = 0;
 
-    let mantissa = bigInt(Utils.HEX.encode(b.slice(0, 3)), 16);
+    // Convert the first 3 bytes to bigint
+    let hex = Utils.HEX.encode(b.slice(0, 3));
+    let mantissa = BigInt(`0x${hex}`);
 
     if ((compact & 0x00800000) !== 0) {
-      mantissa = mantissa.negate();
+      mantissa = -mantissa;
     }
 
     if (size <= 3) {
-      return mantissa.shiftRight(8 * (3 - size));
+      return mantissa >> BigInt(8 * (3 - size));
     } else {
-      return mantissa.shiftLeft(8 * (size - 3));
+      return mantissa << BigInt(8 * (size - 3));
     }
   }
 
-  public static encodeCompactBits(value: BigInteger): number {
-    if (value.isZero()) {
+  public static encodeCompactBits(value: bigint | number): number {
+    let v = typeof value === 'number' ? BigInt(value) : value;
+    if (v === 0n) {
       return 0;
     }
 
-    const absValue = value.abs();
+    const absValue = v < 0n ? -v : v;
     let hex = absValue.toString(16);
     if (hex.length % 2 !== 0) {
       hex = "0" + hex;
@@ -512,7 +519,7 @@ export class Utils {
     }
 
     let compact = (size << 24) | mantissa;
-    if (value.isNegative()) {
+    if (v < 0n) {
       compact |= 0x800000;
     }
     return compact;
@@ -633,13 +640,11 @@ export class Utils {
       "amount"
     );
     if (amountStr !== null) {
-      const amount = bigInt(amountStr); // Use bigInt()
+      const amount = BigInt(amountStr);
       if (
         contractEventInfo.getOfferValue() !== null &&
-        contractEventInfo.getOfferValue()!.mod(amount).compareTo(bigInt(0)) !==
-          0
+        contractEventInfo.getOfferValue()! % amount !== 0n
       ) {
-        // Use bigInt(0)
         throw new VerificationException(
           `only module base amount is allowed ${contractEventInfo.getOfferValue()} % ${amount}`
         );

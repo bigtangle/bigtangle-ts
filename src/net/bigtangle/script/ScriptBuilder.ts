@@ -4,7 +4,6 @@ import { Address } from '../core/Address';
 import { ECKey } from '../core/ECKey';
 import { Utils } from '../utils/Utils';
 import { TransactionSignature } from '../crypto/TransactionSignature';
-import bigInt from 'big-integer';
 import * as ScriptOpCodes from './ScriptOpCodes';
 
 export class ScriptBuilder {
@@ -60,7 +59,7 @@ export class ScriptBuilder {
         return this.addChunk(new ScriptChunk(opcode, Buffer.from(data)));
     }
 
-    number(num: number | bigInt.BigInteger): ScriptBuilder {
+    number(num: number | bigint ): ScriptBuilder {
         if (typeof num === 'number' && num >= 0 && num <= 16) {
             return this.smallNum(num);
         } else {
@@ -75,26 +74,26 @@ export class ScriptBuilder {
         return this.addChunk(new ScriptChunk(Script.encodeToOpN(num), null));
     }
 
-    protected bigNum(num: number | bigInt.BigInteger): ScriptBuilder {
+    protected bigNum(num: number | bigint): ScriptBuilder {
         let data: Uint8Array;
 
         if (typeof num === 'number' && num === 0) {
             data = new Uint8Array(0);
         } else {
-            let absValue: bigInt.BigInteger;
+            let absValue: bigint;
             let neg = false;
             if (typeof num === 'number') {
                 neg = num < 0;
-                absValue = bigInt(Math.abs(num));
+                absValue = BigInt(Math.abs(num));
             } else { // bigInt.BigInteger
-                neg = num.isNegative();
-                absValue = num.abs();
+                neg = num < 0n;
+                absValue = num < 0n ? -num : num;
             }
 
             const result: number[] = [];
-            while (absValue.compare(bigInt(0)) !== 0) {
-                result.push(absValue.and(bigInt(0xff)).toJSNumber());
-                absValue = absValue.shiftRight(8);
+            while (absValue !== 0n) {
+                result.push(Number(absValue & 0xffn));
+                absValue = absValue >> 8n;
             }
 
             if ((result[result.length - 1] & 0x80) !== 0) {
@@ -294,7 +293,7 @@ export class ScriptBuilder {
         return new ScriptBuilder().op(ScriptOpCodes.OP_RETURN).data(data).build();
     }
 
-    static createCLTVPaymentChannelOutput(time: bigInt.BigInteger, from: ECKey, to: ECKey): Script {
+    static createCLTVPaymentChannelOutput(time: bigint, from: ECKey, to: ECKey): Script {
         const timeBytes = Utils.encodeMPI(time, false);
         if (timeBytes.length > 5) {
             throw new Error("Time too large to encode as 5-byte int");

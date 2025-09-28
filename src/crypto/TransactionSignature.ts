@@ -7,14 +7,23 @@ export class TransactionSignature {
    * @param derSignature The DER-encoded signature
    * @param sigHash The signature hash type
    */
-  public static fromDER(derSignature: Uint8Array, sigHash: number): TransactionSignature {
-    return new TransactionSignature(derSignature, sigHash);
+  public static fromDER(derSignature: Uint8Array, sigHash: number, anyoneCanPay: boolean): TransactionSignature {
+    return new TransactionSignature(derSignature, sigHash, anyoneCanPay);
   }
 
   constructor(
     public readonly derSignature: Uint8Array,
-    public readonly sigHash: number
+    public readonly sigHash: number,
+    public readonly anyoneCanPay: boolean
   ) {}
+
+  public static calcSigHashValue(hashType: any, anyoneCanPay: boolean): number {
+    let sigHash = hashType.value;
+    if (anyoneCanPay) {
+      sigHash |= 0x80;
+    }
+    return sigHash;
+  }
 
   /**
    * Encodes the signature into the format used in transaction scripts.

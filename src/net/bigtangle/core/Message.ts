@@ -343,8 +343,8 @@ export abstract class Message {
             }
             const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
             this.cursor += offset + varint.getOriginalSizeInBytes();
-            // Convert BigInteger to number
-            return varint.value.toJSNumber();
+            // Convert BigInt to number
+            return Number(varint.value);
         } catch (e) {
             if (e instanceof ArrayIndexOutOfBoundsException) {
                 // Pass the error message instead of the exception object

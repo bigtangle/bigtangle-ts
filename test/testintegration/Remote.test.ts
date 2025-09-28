@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 import { ObjectMapper } from "jackson-js";
-import bigInt from "big-integer";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
 import { BlockType } from "../../src/net/bigtangle/core/BlockType";

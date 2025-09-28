@@ -1,8 +1,9 @@
 import { BasicKeyChain } from '../../src/net/bigtangle/wallet/BasicKeyChain';
+import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
-import bigInt from 'big-integer';
-import { describe, beforeEach, test, expect } from 'vitest';
+import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
+import { describe, test, expect } from 'vitest';
 
 describe('BasicKeyChainTest', () => {
     let chain: BasicKeyChain;
@@ -21,16 +22,16 @@ describe('BasicKeyChainTest', () => {
     test('importKeys', () => {
         Utils.setMockClock();
         const now = Utils.currentTimeSeconds();
-        const key1 = ECKey.fromPrivate(bigInt('1'));
+        const key1 = ECKey.fromPrivate(BigInt('1'));
         Utils.rollMockClock(now);
-        const key2 = ECKey.fromPrivate(bigInt('2'));
+        const key2 = ECKey.fromPrivate(BigInt('2'));
         const keys = [key1, key2];
 
         expect(chain.importKeys(...keys)).toBe(2);
         expect(chain.numKeys()).toBe(2);
         expect(chain.getEarliestKeyCreationTime()).toBe(now);
 
-        const newKey = ECKey.fromPrivate(bigInt('3'));
+        const newKey = ECKey.fromPrivate(BigInt('3'));
         keys.push(newKey);
         expect(chain.importKeys(...keys)).toBe(1);
         expect(chain.importKeys(...keys)).toBe(0);
@@ -43,7 +44,7 @@ describe('BasicKeyChainTest', () => {
     });
 
     test('removeKey', () => {
-        const key = ECKey.fromPrivate(bigInt('1'));
+        const key = ECKey.fromPrivate(BigInt('1'));
         chain.importKeys(key);
         expect(chain.numKeys()).toBe(1);
         expect(chain.removeKey(key)).toBe(true);

@@ -15,36 +15,68 @@ export class ECDSASignature {
         this.r = r;
         this.s = s;
     }
+    
+    public toCanonicalised(): ECDSASignature {
+        const HALF_CURVE_ORDER = secp256k1.CURVE.n / BigInt(2);
+        if (this.s > HALF_CURVE_ORDER) {
+            // The order of the curve is the number of valid points that exist on that curve.
+            // If S is above the order of the curve divided by two, its complement modulo N (the curve order) is used instead.
+            return new ECDSASignature(this.r, secp256k1.CURVE.n - this.s);
+        } else {
+            return this;
+        }
+    }
+
+    public isCanonical(): boolean {
+        const HALF_CURVE_ORDER = secp256k1.CURVE.n / BigInt(2);
+        return this.s <= HALF_CURVE_ORDER;
+    }
 
     /**
      * Returns the DER encoding of the signature as a Buffer.
+     * This is a strict implementation that follows Bitcoin's BIP-66.
      */
     public encodeDER(): Buffer {
-        // Minimal DER encoding for ECDSA signature (r, s)
-        function encodeInt(num: bigint): Buffer {
-            const hex = num.toString(16).padStart(2, '0');
-            const bytes = Buffer.from(hex, 'hex');
-            // If the most significant bit is set, add a 00 byte
-            if (bytes[0] & 0x80) {
-                return Buffer.concat([Buffer.from([0x00]), bytes]);
-            }
-            return bytes;
+        let rHex = this.r.toString(16);
+        if (rHex.length % 2 !== 0) rHex = '0' + rHex;
+        let r = Buffer.from(rHex, 'hex');
+
+        let sHex = this.s.toString(16);
+        if (sHex.length % 2 !== 0) sHex = '0' + sHex;
+        let s = Buffer.from(sHex, 'hex');
+
+        // Ensure positive integers
+        if (r.length > 0 && (r[0] & 0x80)) {
+            r = Buffer.concat([Buffer.from([0x00]), r]);
         }
-        
-        const rBytes = encodeInt(this.r);
-        const sBytes = encodeInt(this.s);
-        const totalLen = 2 + rBytes.length + 2 + sBytes.length;
+        if (s.length > 0 && (s[0] & 0x80)) {
+            s = Buffer.concat([Buffer.from([0x00]), s]);
+        }
+
+        // Remove unnecessary leading zeros
+        while (r.length > 1 && r[0] === 0x00 && !(r[1] & 0x80)) {
+            r = r.slice(1);
+        }
+        while (s.length > 1 && s[0] === 0x00 && !(s[1] & 0x80)) {
+            s = s.slice(1);
+        }
+
+        const totalLen = 2 + r.length + 2 + s.length;
         const der = Buffer.alloc(2 + totalLen);
         let offset = 0;
+
         der[offset++] = 0x30; // SEQUENCE
         der[offset++] = totalLen;
+
         der[offset++] = 0x02; // INTEGER
-        der[offset++] = rBytes.length;
-        rBytes.copy(der, offset);
-        offset += rBytes.length;
+        der[offset++] = r.length;
+        r.copy(der, offset);
+        offset += r.length;
+
         der[offset++] = 0x02; // INTEGER
-        der[offset++] = sBytes.length;
-        sBytes.copy(der, offset);
+        der[offset++] = s.length;
+        s.copy(der, offset);
+
         return der;
     }
 
@@ -73,18 +105,44 @@ export class ECDSASignature {
 
     /**
      * Parse a DER-encoded signature Buffer into an ECDSASignature.
+     * This is a strict implementation that follows Bitcoin's BIP-66.
      */
     public static decodeDER(buffer: Buffer): ECDSASignature {
-        // This is a minimal parser for DER-encoded ECDSA signatures.
+        if (buffer.length < 8 || buffer.length > 72) throw new InvalidTransactionDataException('Invalid DER signature length');
         if (buffer[0] !== 0x30) throw new InvalidTransactionDataException('Invalid DER sequence');
+        
+        const totalLen = buffer[1];
+        if (totalLen !== buffer.length - 2) throw new InvalidTransactionDataException('Invalid DER length');
+
         let offset = 2;
-        if (buffer[offset++] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for r');
-        const rLen = buffer[offset++];
-        const r = BigInt('0x' + buffer.slice(offset, offset + rLen).toString('hex'));
+        if (buffer[offset] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for r');
+        offset++;
+
+        const rLen = buffer[offset];
+        offset++;
+        if (rLen === 0) throw new InvalidTransactionDataException('r length is zero');
+        if (buffer[offset] & 0x80) throw new InvalidTransactionDataException('r is negative');
+        if (rLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('r is not minimally encoded');
+        
+        const rSlice = buffer.slice(offset, offset + rLen);
+        const r = BigInt('0x' + rSlice.toString('hex'));
         offset += rLen;
-        if (buffer[offset++] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for s');
-        const sLen = buffer[offset++];
-        const s = BigInt('0x' + buffer.slice(offset, offset + sLen).toString('hex'));
+
+        if (buffer[offset] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for s');
+        offset++;
+
+        const sLen = buffer[offset];
+        offset++;
+        if (sLen === 0) throw new InvalidTransactionDataException('s length is zero');
+        if (buffer[offset] & 0x80) throw new InvalidTransactionDataException('s is negative');
+        if (sLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('s is not minimally encoded');
+
+        const sSlice = buffer.slice(offset, offset + sLen);
+        const s = BigInt('0x' + sSlice.toString('hex'));
+        offset += sLen;
+
+        if (offset !== buffer.length) throw new InvalidTransactionDataException('Extra data at end of signature');
+
         return new ECDSASignature(r, s);
     }
 

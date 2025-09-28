@@ -7,7 +7,7 @@ import { Utils } from "../../src/net/bigtangle/utils/Utils";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { KeyCrypterScrypt } from "../../src/net/bigtangle/crypto/KeyCrypterScrypt";
 import { KeyCrypter } from "../../src/net/bigtangle/crypto/KeyCrypter";
-import bigInt from "big-integer";
+
 import { TestParams } from "net/bigtangle/params/TestParams";
 import { describe, beforeEach, test, expect } from "vitest";
 
@@ -21,7 +21,7 @@ describe("ECKeyTest", () => {
   });
 
   test("sValue", async () => {
-    const key = ECKey.fromPrivate(bigInt(10));
+    const key = ECKey.fromPrivate(BigInt(10));
     const input = new Uint8Array(32);
     input[31] = 1;
     const sig = await key.sign(input);
@@ -36,9 +36,8 @@ describe("ECKeyTest", () => {
   });
 
   test("testSignatures", async () => {
-    const privkey = bigInt(
-      "180cb41c7c600be951b5d3d0a7334acc7506173875834f7a6c4c786a28fcbb19",
-      16
+    const privkey = BigInt(
+      "0x180cb41c7c600be951b5d3d0a7334acc7506173875834f7a6c4c786a28fcbb19"
     );
     const key = ECKey.fromPrivate(privkey);
     const output = await key.sign(Sha256Hash.ZERO_HASH.getBytes());
@@ -215,7 +214,7 @@ describe("ECKeyTest", () => {
   });
 
   test("testToString", () => {
-    const key = ECKey.fromPrivate(bigInt(10));
+    const key = ECKey.fromPrivate(BigInt(10));
     const params = MainNetParams.get();
     // Keys are now compressed by default (prefix 03 instead of 04)
     expect(key.toString()).toBe(
@@ -236,7 +235,7 @@ describe("ECKeyTest", () => {
   });
 
   test("testGetPublicKeyAsHex", () => {
-    const key = ECKey.fromPrivate(bigInt(10));
+    const key = ECKey.fromPrivate(BigInt(10));
     // Compressed public key (starts with 03)
     expect(key.getPublicKeyAsHex()).toBe(
       "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7"

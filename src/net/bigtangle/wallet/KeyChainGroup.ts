@@ -1,6 +1,5 @@
 import { DeterministicKeyChain } from "./DeterministicKeyChain";
 import { NetworkParameters } from "../params/NetworkParameters";
-import bigInt from 'big-integer';
 
 import { DeterministicKey } from "../crypto/DeterministicKey";
 import { KeyPurpose } from "./KeyChain";

@@ -3,6 +3,7 @@ import { KeyBag } from "../net/bigtangle/wallet/KeyBag";
 import { Transaction } from "../net/bigtangle/core/Transaction";
 import { TransactionInput } from "../net/bigtangle/core/TransactionInput";
 import { TransactionOutput } from "../net/bigtangle/core/TransactionOutput";
+import { ECDSASignature } from "../net/bigtangle/core/ECDSASignature";
 import { TransactionSignature } from "../net/bigtangle/crypto/TransactionSignature";
 import { SigHash } from "../net/bigtangle/core/SigHash";
 import { ScriptBuilder } from "../net/bigtangle/script/ScriptBuilder";
@@ -11,7 +12,7 @@ import { NetworkParameters } from "../net/bigtangle/params/NetworkParameters";
 import { Address } from "../net/bigtangle/core/Address";
 import { Coin } from "../net/bigtangle/core/Coin";
 import { Sha256Hash } from "../net/bigtangle/core/Sha256Hash";
-import bigInt from 'big-integer';
+
 
 import { TransactionSigner, ProposedTransaction } from "./TransactionSigner";
 
@@ -78,13 +79,8 @@ export class LocalTransactionSigner implements TransactionSigner {
             const hashBytes = tx.hashForSignature(i, script, SigHash.ALL, false);
             
             // Sign the raw hash bytes directly
-            const signature = secp256k1.sign(hashBytes.getBytes(), key.getPrivKeyBytes());
-            // Convert r and s to BigInteger
-            const r = bigInt(signature.r.toString());
-            const s = bigInt(signature.s.toString());
-            
-            // Create TransactionSignature from r and s
-            const txSignature = new TransactionSignature(r, s, SigHash.ALL);
+            const signature = await key.sign(hashBytes.getBytes());
+            const txSignature = new TransactionSignature(signature, SigHash.ALL, false);
             txIn.setScriptSig(ScriptBuilder.createInputScript(txSignature, key));
         }
 

@@ -1,117 +1,160 @@
-import bigInt, { BigInteger } from 'big-integer';
+// ECDSASignature.ts
+// TypeScript translation of ECDSASignature inner class from ECKey.java
+// Uses imports from core, utils, exception, params, script
+
+import { Buffer } from 'buffer';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import asn1 from 'asn1.js';
+import { InvalidTransactionDataException } from '../exception/Exceptions';
 
-/**
- * An ECKey.ECDSASignature contains the two components of an ECDSA signature (R and S).
- * The ECDSA signature algorithm is a way to prove that a party knows the private key for a given public key,
- * without revealing the private key itself. It produces two numbers, R and S, that are mathematically linked
- * to the private key and the message being signed.
- */
+
 export class ECDSASignature {
-    public readonly r: BigInteger;
-    public readonly s: BigInteger;
+    public r: bigint;
+    public s: bigint;
 
-    constructor(r: BigInteger, s: BigInteger) {
+    constructor(r: bigint, s: bigint) {
         this.r = r;
         this.s = s;
     }
-
-    // Helper: BigInteger to minimal unsigned byte array
-    private static bigIntToMinimalBytes(bi: BigInteger): Uint8Array {
-        let hex = bi.toString(16);
-        if (hex.length % 2 !== 0) hex = '0' + hex;
-        let bytes = Buffer.from(hex, 'hex');
-        // If the first byte >= 0x80, prepend 0x00 to indicate positive integer in DER
-        if (bytes.length > 0 && bytes[0] & 0x80) {
-            bytes = Buffer.concat([Buffer.from([0x00]), bytes]);
-        }
-        return new Uint8Array(bytes);
-    }
-
-    // Helper: Uint8Array to hex string
-    private static bufferToHex(buf: Uint8Array): string {
-        return Buffer.from(buf).toString('hex');
-    }
-
-    /**
-     * Returns true if the S component is "canonical", meaning it is lower than or equal to half the curve order.
-     * This is a Bitcoin-specific rule to prevent signature malleability.
-     */
-    public isCanonical(): boolean {
-        const halfCurveOrder: BigInteger = bigInt(secp256k1.CURVE.n.toString()).divide(bigInt("2"));
-        return this.s.compareTo(halfCurveOrder) <= 0;
-    }
-
-    /**
-     * Will automatically adjust the S component to be lower than or equal to half the curve order, if necessary.
-     * This is a Bitcoin-specific rule to prevent signature malleability.
-     */
+    
     public toCanonicalised(): ECDSASignature {
-        if (!this.isCanonical()) {
-            const canonicalS: BigInteger = bigInt(secp256k1.CURVE.n.toString()).subtract(this.s);
-            return new ECDSASignature(this.r, canonicalS);
+        const HALF_CURVE_ORDER = secp256k1.CURVE.n / BigInt(2);
+        if (this.s > HALF_CURVE_ORDER) {
+            // The order of the curve is the number of valid points that exist on that curve.
+            // If S is above the order of the curve divided by two, its complement modulo N (the curve order) is used instead.
+            return new ECDSASignature(this.r, secp256k1.CURVE.n - this.s);
+        } else {
+            return this;
         }
-        return this;
+    }
+
+    public isCanonical(): boolean {
+        const HALF_CURVE_ORDER = secp256k1.CURVE.n / BigInt(2);
+        return this.s <= HALF_CURVE_ORDER;
     }
 
     /**
-     * DER-encodes the signature. This is a standard way to serialize ECDSA signatures.
-     * The format is: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S]
+     * Returns the DER encoding of the signature as a Buffer.
+     * This is a strict implementation that follows Bitcoin's BIP-66.
      */
-    public derByteStream(): Uint8Array {
-        // Manual DER encoding for ECDSA signature
-        const rBytes = ECDSASignature.bigIntToMinimalBytes(this.r);
-        const sBytes = ECDSASignature.bigIntToMinimalBytes(this.s);
-        
-        // Calculate total length
-        const totalLength = 2 + rBytes.length + 2 + sBytes.length;
-        
-        // Create buffer for DER encoding
-        const der = new Uint8Array(1 + 1 + totalLength); // 0x30 + length byte + total content
+    public encodeDER(): Buffer {
+        let rHex = this.r.toString(16);
+        if (rHex.length % 2 !== 0) rHex = '0' + rHex;
+        let r = Buffer.from(rHex, 'hex');
+
+        let sHex = this.s.toString(16);
+        if (sHex.length % 2 !== 0) sHex = '0' + sHex;
+        let s = Buffer.from(sHex, 'hex');
+
+        // Ensure positive integers
+        if (r.length > 0 && (r[0] & 0x80)) {
+            r = Buffer.concat([Buffer.from([0x00]), r]);
+        }
+        if (s.length > 0 && (s[0] & 0x80)) {
+            s = Buffer.concat([Buffer.from([0x00]), s]);
+        }
+
+        // Remove unnecessary leading zeros
+        while (r.length > 1 && r[0] === 0x00 && !(r[1] & 0x80)) {
+            r = r.slice(1);
+        }
+        while (s.length > 1 && s[0] === 0x00 && !(s[1] & 0x80)) {
+            s = s.slice(1);
+        }
+
+        const totalLen = 2 + r.length + 2 + s.length;
+        const der = Buffer.alloc(2 + totalLen);
         let offset = 0;
-        
-        // Add sequence tag and length
-        der[offset++] = 0x30; // SEQUENCE tag
-        der[offset++] = totalLength; // Total length
-        
-        // Add r value
-        der[offset++] = 0x02; // INTEGER tag
-        der[offset++] = rBytes.length; // Length of r
-        der.set(rBytes, offset);
-        offset += rBytes.length;
-        
-        // Add s value
-        der[offset++] = 0x02; // INTEGER tag
-        der[offset++] = sBytes.length; // Length of s
-        der.set(sBytes, offset);
-        
+
+        der[offset++] = 0x30; // SEQUENCE
+        der[offset++] = totalLen;
+
+        der[offset++] = 0x02; // INTEGER
+        der[offset++] = r.length;
+        r.copy(der, offset);
+        offset += r.length;
+
+        der[offset++] = 0x02; // INTEGER
+        der[offset++] = s.length;
+        s.copy(der, offset);
+
         return der;
     }
 
     /**
-     * Decodes a DER-encoded signature.
+     * Returns the signature as a Buffer in compact format (r, s concatenated, 64 bytes).
      */
-    public static decodeFromDER(bytes: Uint8Array): ECDSASignature {
-        let offset = 0;
-        if (bytes[offset++] !== 0x30) {
-            throw new Error("Bad signature: sequence tag not found");
-        }
-        const totalLength = bytes[offset++];
-        if (totalLength !== bytes.length - 2) {
-            throw new Error("Bad signature: invalid total length");
-        }
-        if (bytes[offset++] !== 0x02) {
-            throw new Error("Bad signature: R tag not found");
-        }
-        const rLen = bytes[offset++];
-        const r: BigInteger = bigInt(ECDSASignature.bufferToHex(bytes.slice(offset, offset + rLen)), 16);
+    public toCompact(): Buffer {
+        const rBuf = Buffer.from(this.r.toString(16).padStart(64, '0'), 'hex');
+        const sBuf = Buffer.from(this.s.toString(16).padStart(64, '0'), 'hex');
+        return Buffer.concat([rBuf, sBuf]);
+    }
+
+    /**
+     * Returns the signature as a hex string (DER encoded).
+     */
+    public toHexDER(): string {
+        return this.encodeDER().toString('hex');
+    }
+
+    /**
+     * Returns the signature as a hex string (compact format).
+     */
+    public toHexCompact(): string {
+        return this.toCompact().toString('hex');
+    }
+
+    /**
+     * Parse a DER-encoded signature Buffer into an ECDSASignature.
+     * This is a strict implementation that follows Bitcoin's BIP-66.
+     */
+    public static decodeDER(buffer: Buffer): ECDSASignature {
+        if (buffer.length < 8 || buffer.length > 72) throw new InvalidTransactionDataException('Invalid DER signature length');
+        if (buffer[0] !== 0x30) throw new InvalidTransactionDataException('Invalid DER sequence');
+        
+        const totalLen = buffer[1];
+        if (totalLen !== buffer.length - 2) throw new InvalidTransactionDataException('Invalid DER length');
+
+        let offset = 2;
+        if (buffer[offset] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for r');
+        offset++;
+
+        const rLen = buffer[offset];
+        offset++;
+        if (rLen === 0) throw new InvalidTransactionDataException('r length is zero');
+        if (buffer[offset] & 0x80) throw new InvalidTransactionDataException('r is negative');
+        if (rLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('r is not minimally encoded');
+        
+        const rSlice = buffer.slice(offset, offset + rLen);
+        const r = BigInt('0x' + rSlice.toString('hex'));
         offset += rLen;
-        if (bytes[offset++] !== 0x02) {
-            throw new Error("Bad signature: S tag not found");
-        }
-        const sLen = bytes[offset++];
-        const s: BigInteger = bigInt(ECDSASignature.bufferToHex(bytes.slice(offset, offset + sLen)), 16);
+
+        if (buffer[offset] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for s');
+        offset++;
+
+        const sLen = buffer[offset];
+        offset++;
+        if (sLen === 0) throw new InvalidTransactionDataException('s length is zero');
+        if (buffer[offset] & 0x80) throw new InvalidTransactionDataException('s is negative');
+        if (sLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('s is not minimally encoded');
+
+        const sSlice = buffer.slice(offset, offset + sLen);
+        const s = BigInt('0x' + sSlice.toString('hex'));
+        offset += sLen;
+
+        if (offset !== buffer.length) throw new InvalidTransactionDataException('Extra data at end of signature');
+
         return new ECDSASignature(r, s);
+    }
+
+    public recoverPublicKey(messageHash: Uint8Array, recoveryId: number): Uint8Array {
+        // Recover public key using noble/secp256k1
+        const signature = new Uint8Array(64);
+        const rBytes = new Uint8Array(Buffer.from(this.r.toString(16).padStart(64, '0'), 'hex'));
+        const sBytes = new Uint8Array(Buffer.from(this.s.toString(16).padStart(64, '0'), 'hex'));
+        signature.set(rBytes, 0);
+        signature.set(sBytes, 32);
+        
+        const publicKeyPoint = secp256k1.Signature.fromCompact(signature).recoverPublicKey(messageHash);
+        return publicKeyPoint.toRawBytes(true); // compressed format
     }
 }

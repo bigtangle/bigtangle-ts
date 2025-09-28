@@ -16,7 +16,7 @@ import { ScriptChunk } from '../../src/net/bigtangle/script/ScriptChunk';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { UtilBase } from './UtilBase';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
-import bigInt from 'big-integer';
+
 import { SigHash } from '../../src/net/bigtangle/core/SigHash';
 
 describe('ScriptSerialization', () => {
@@ -173,7 +173,7 @@ describe('ScriptSerialization', () => {
             ScriptBuilder.createOutputScript(key1),
             ScriptBuilder.createMultiSigOutputScript(2, [key1, key2, key3]),
             ScriptBuilder.createP2SHOutputScript(Buffer.alloc(20)),
-            ScriptBuilder.createCLTVPaymentChannelOutput(bigInt(2000), key1, key2),
+            ScriptBuilder.createCLTVPaymentChannelOutput(BigInt(2000), key1, key2),
             new ScriptBuilder().op(ScriptOpCodes.OP_TRUE).build(),
             new ScriptBuilder().data(Buffer.from([0x01, 0x02, 0x03])).build()
         ];
@@ -225,8 +225,8 @@ describe('ScriptSerialization', () => {
         
         const sighash = tx.hashForSignature(0, outputScript.getProgram(), 1, false);
         const ecdsaSignature = await key1.sign(sighash.getBytes());
-        const r = bigInt(ecdsaSignature.r.toString());
-        const s = bigInt(ecdsaSignature.s.toString());
+        const r = BigInt(ecdsaSignature.r.toString());
+        const s = BigInt(ecdsaSignature.s.toString());
         const signature = new TransactionSignature(r, s, 1);
         
         const inputScript = ScriptBuilder.createInputScript(signature, key1);

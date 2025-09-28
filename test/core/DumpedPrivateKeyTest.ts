@@ -1,6 +1,6 @@
 import { DumpedPrivateKey } from '../../src/net/bigtangle/core/DumpedPrivateKey';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import bigInt from 'big-integer';
+
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { describe, test, expect } from 'vitest';
 
@@ -92,9 +92,9 @@ describe('DumpedPrivateKeyTest', () => {
     const mockParams = new MockNetworkParameters();
 
     test('cloning', () => {
-        const key = ECKey.fromPrivate(bigInt('1'));
+        const ecKey = ECKey.fromPrivate(BigInt('1'));
         // Get raw private key bytes without padding
-        const privKeyBytes = key.getPrivKey().toArray(256).value;
+        const privKeyBytes = ECKey.bigIntToBytes(ecKey.getPrivKey(), 32);
         const a = new DumpedPrivateKey(mockParams, new Uint8Array(privKeyBytes), true);
         const b = a.clone();
 

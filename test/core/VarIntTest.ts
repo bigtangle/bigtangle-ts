@@ -32,19 +32,19 @@ describe('VarIntTest', () => {
         // Test case 1: value < 253
         const buf1 = Buffer.from([1]);
         const varInt1 = VarInt.fromBuffer(buf1, 0);
-        expect(varInt1.value.toJSNumber()).toBe(1);
+        expect(Number(varInt1.value)).toBe(1);
         expect(varInt1.getOriginalSizeInBytes()).toBe(1);
         
         // Test case 2: value >= 253 but <= 0xFFFF
         const buf2 = Buffer.from([253, 253, 0]);
         const varInt2 = VarInt.fromBuffer(buf2, 0);
-        expect(varInt2.value.toJSNumber()).toBe(253);
+        expect(Number(varInt2.value)).toBe(253);
         expect(varInt2.getOriginalSizeInBytes()).toBe(3);
         
         // Test case 3: value > 0xFFFF but <= 0xFFFFFFFF
         const buf3 = Buffer.from([254, 0, 0, 1, 0]);
         const varInt3 = VarInt.fromBuffer(buf3, 0);
-        expect(varInt3.value.toJSNumber()).toBe(0x10000);
+        expect(Number(varInt3.value)).toBe(0x10000);
         expect(varInt3.getOriginalSizeInBytes()).toBe(5);
     });
 });

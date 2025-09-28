@@ -11,7 +11,7 @@ import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOut
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { OP_0 } from '../../src/net/bigtangle/script/ScriptOpCodes';
-import bigInt from 'big-integer';
+
 import { describe, test, expect } from 'vitest';
 
 describe('ScriptTest', () => {
@@ -39,7 +39,7 @@ describe('ScriptTest', () => {
     });
 
     test('testMultiSig', () => {
-        const keys = [ECKey.fromPrivate(bigInt('1')), ECKey.fromPrivate(bigInt('2')), ECKey.fromPrivate(bigInt('3'))];
+        const keys = [ECKey.fromPrivate(BigInt('1')), ECKey.fromPrivate(BigInt('2')), ECKey.fromPrivate(BigInt('3'))];
         expect(
             ScriptBuilder.createMultiSigOutputScript(2, keys).isSentToMultiSig(),
         ).toBe(true);
@@ -51,7 +51,7 @@ describe('ScriptTest', () => {
         }
         expect(script.getPubKeys()).toEqual(pubkeys);
         expect(
-            ScriptBuilder.createOutputScript(ECKey.fromPrivate(bigInt('4'))).isSentToMultiSig(),
+            ScriptBuilder.createOutputScript(ECKey.fromPrivate(BigInt('4'))).isSentToMultiSig(),
         ).toBe(false);
         try {
             ScriptBuilder.createMultiSigOutputScript(4, keys);
@@ -87,7 +87,7 @@ describe('ScriptTest', () => {
 
     test('createAndUpdateEmptyInputScript', () => {
         const dummySig = TransactionSignature.dummy();
-        const key = ECKey.fromPrivate(bigInt('1'));
+        const key = ECKey.fromPrivate(BigInt('1'));
 
         let inputScript = ScriptBuilder.createInputScript(dummySig);
         expect(
@@ -112,7 +112,7 @@ describe('ScriptTest', () => {
             0,
         );
 
-        const key2 = ECKey.fromPrivate(bigInt('2'));
+        const key2 = ECKey.fromPrivate(BigInt('2'));
         const multisigScript = ScriptBuilder.createMultiSigOutputScript(2, [
             key,
             key2,
@@ -235,15 +235,15 @@ describe('ScriptTest', () => {
 
     test('testCLTVPaymentChannelOutput', () => {
         const script = ScriptBuilder.createCLTVPaymentChannelOutput(
-            bigInt('20'),
-            ECKey.fromPrivate(bigInt('1')),
-            ECKey.fromPrivate(bigInt('2')),
+            BigInt('20'),
+            ECKey.fromPrivate(BigInt('1')),
+            ECKey.fromPrivate(BigInt('2')),
         );
         expect(script.isSentToCLTVPaymentChannel()).toBe(true);
     });
 
     test('getToAddress', () => {
-        const toKey = ECKey.fromPrivate(bigInt('1'));
+        const toKey = ECKey.fromPrivate(BigInt('1'));
         const toAddress = toKey.toAddress(PARAMS);
         expect(
             ScriptBuilder.createOutputScript(toKey).getToAddress(PARAMS, true),

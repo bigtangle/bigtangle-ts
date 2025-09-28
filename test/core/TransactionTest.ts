@@ -4,7 +4,7 @@ import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { FakeTxBuilder } from './FakeTxBuilder';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { Message } from '../../src/net/bigtangle/core/Message';
-import bigInt from 'big-integer';
+
 import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
@@ -19,7 +19,7 @@ import { describe, beforeEach, test, expect } from 'vitest';
 
 describe('TransactionTest', () => {
     const PARAMS = MainNetParams.get();
-    const ADDRESS = ECKey.fromPrivate(bigInt('1')).toAddress(PARAMS);
+    const ADDRESS = ECKey.fromPrivate(BigInt('1')).toAddress(PARAMS);
 
     let tx: Transaction;
 

@@ -30,6 +30,7 @@ import { Block } from "./Block";
 import { Coin } from "./Coin";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
+import { ECDSASignature as CoreECDSASignature } from "./ECDSASignature"; // This is the core ECDSASignature
 import { Script } from "../script/Script";
 import { TransactionBag } from "./TransactionBag";
 import { VerificationException } from "../exception/VerificationException";
@@ -42,9 +43,9 @@ import { Message } from "./Message";
 import { MessageSerializer } from "./MessageSerializer";
 import { ScriptBuilder } from "../script/ScriptBuilder";
 import { TransactionSignature } from "../crypto/TransactionSignature";
-import { MemoInfo } from "./MemoInfo";
 import { ECDSASignature as CryptoECDSASignature } from "../crypto/ECDSASignature";
-import bigInt, { BigInteger } from "big-integer";
+
+import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
 
 /**
  * <p>
@@ -969,12 +970,17 @@ export class Transaction extends ChildMessage {
     hashType: SigHash,
     anyoneCanPay: boolean
   ): Promise<TransactionSignature> {
-    const hash = this.hashForSignature(inputIndex, redeemScript, hashType, anyoneCanPay);
-    const signature = await key.sign(hash.getBytes(), undefined);
-    // Convert core ECDSASignature to crypto ECDSASignature
+    const hash = this.hashForSignature(
+      inputIndex,
+      redeemScript,
+      hashType,
+      anyoneCanPay
+    );
+    const signature: CoreECDSASignature = await key.sign(hash.getBytes());
+    // Convert core ECDSASignature (bigint) to crypto ECDSASignature (BigInteger) to match TransactionSignature requirement
     const cryptoSignature = new CryptoECDSASignature(
-        bigInt(signature.r.toString()),
-        bigInt(signature.s.toString())
+      BigInt(signature.r.toString()),
+      BigInt(signature.s.toString())
     );
     return new TransactionSignature(cryptoSignature, hashType, anyoneCanPay);
   }
@@ -1086,8 +1092,6 @@ export class Transaction extends ChildMessage {
         newInput.setScriptBytes(connectedScript);
       } else {
         newInput.setScriptBytes(new Uint8Array(0));
-        // Clear sequence number for other inputs
-        newInput.setSequenceNumber(0);
       }
       txCopy.addInput1(newInput);
     }
@@ -1104,6 +1108,12 @@ export class Transaction extends ChildMessage {
     if (baseType === SIGHASH_NONE) {
       // Clear all outputs
       txCopy.outputs = [];
+      // For SIGHASH_NONE, sequence numbers of other inputs are 0.
+      for (let i = 0; i < txCopy.inputs.length; i++) {
+        if (i !== inputIndex) {
+          txCopy.inputs[i].setSequenceNumber(0);
+        }
+      }
     } else if (baseType === SIGHASH_SINGLE) {
       // Keep only the output with the same index as input
       txCopy.outputs = [];
@@ -1115,6 +1125,12 @@ export class Transaction extends ChildMessage {
           output.getValue(),
           output.getScriptBytes()
         ));
+      }
+      // For SIGHASH_SINGLE, sequence numbers of other inputs are 0.
+      for (let i = 0; i < txCopy.inputs.length; i++) {
+        if (i !== inputIndex) {
+          txCopy.inputs[i].setSequenceNumber(0);
+        }
       }
     } else {
       // SIGHASH_ALL (default) - keep all outputs
@@ -1135,7 +1151,9 @@ export class Transaction extends ChildMessage {
     }
 
     // Serialize and hash the transaction
-    const serialized = txCopy.unsafeBitcoinSerialize();
+    const stream = new UnsafeByteArrayOutputStream();
+    txCopy.bitcoinSerializeToStream(stream);
+    const serialized = stream.toByteArray();
     
     // Create buffer without using Node.js Buffer
     const sigHashTypeBytes = new Uint8Array(4);
@@ -1151,7 +1169,7 @@ export class Transaction extends ChildMessage {
     return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(buffer));
   }
 
-  protected bitcoinSerializeToStream(stream: any): void {
+  protected bitcoinSerializeForSignature(stream: any): void {
     Utils.uint32ToByteStreamLE(this.version, stream);
     stream.write(new VarInt(this.inputs.length).encode());
     for (const input of this.inputs) {
@@ -1161,8 +1179,17 @@ export class Transaction extends ChildMessage {
     for (const output of this.outputs) {
       output.bitcoinSerialize(stream);
     }
-
     Utils.uint32ToByteStreamLE(this.lockTime, stream);
+  }
+
+  public unsafeBitcoinSerializeForSignature(): Uint8Array {
+    const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length + 32);
+    this.bitcoinSerializeForSignature(stream);
+    return stream.toByteArray();
+  }
+
+  protected bitcoinSerializeToStream(stream: any): void {
+    this.bitcoinSerializeForSignature(stream);
     // write dataClassName
     if (this.dataClassName == null) {
       Utils.uint32ToByteStreamLE(0, stream);

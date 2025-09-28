@@ -13,7 +13,7 @@ import { TransactionSignature } from '../../src/net/bigtangle/crypto/Transaction
 import { Block } from '../../src/net/bigtangle/core/Block';
 // Removed UtilsTest import
 import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
-import bigInt from 'big-integer';
+
 
 export class FakeTxBuilder {
     /** Create a fake transaction, without change. */
@@ -21,7 +21,7 @@ export class FakeTxBuilder {
         return FakeTxBuilder.createFakeTxWithoutChangeAddress(
             params,
             Coin.COIN,
-            ECKey.fromPrivate(bigInt('1')).toAddress(params),
+            ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
     }
 
@@ -33,7 +33,7 @@ export class FakeTxBuilder {
         const prevTx = FakeTxBuilder.createFakeTx(
             params,
             Coin.COIN,
-            ECKey.fromPrivate(bigInt('1')).toAddress(params),
+            ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
         const tx = new Transaction(params);
         tx.addOutput(output);
@@ -60,8 +60,8 @@ export class FakeTxBuilder {
         const outputToMe = TransactionOutput.fromAddress(
             params,
             tx,
-            Coin.COIN.multiply(50),
-            ECKey.fromPrivate(bigInt('1')).toAddress(params),
+            Coin.valueOf(Coin.COIN.getValue() * 50n, NetworkParameters.getBIGTANGLE_TOKENID()),
+            ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
         tx.addOutput(outputToMe);
 
@@ -89,7 +89,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
+                BigInt(Coin.COIN.getValue() * 1n + 111n),
                 NetworkParameters.getBIGTANGLE_TOKENID(),
             ),
             changeOutput,
@@ -127,15 +127,15 @@ export class FakeTxBuilder {
 
         // Make a random split in the output value so we get a distinct hash
         // when we call this multiple times with same args
-        let split = bigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
-        if (split.isNegative()) {
-            split = split.multiply(-1);
+        let split = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        if (split < 0n) {
+              split = split * -1n;
         }
-        if (split.isZero()) {
-            split = bigInt(15);
+        if (split === 0n) {
+            split = BigInt(15);
         }
-        while (split.greater(value.getValue())) {
-            split = split.divide(2);
+        while (split > BigInt(value.getValue())) {
+            split = split / 2n;
         }
 
         // Make a previous tx simply to send us sufficient coins. This prev tx
@@ -166,7 +166,7 @@ export class FakeTxBuilder {
             params,
             prevTx2,
             Coin.valueOf(
-                BigInt(bigInt(value.getValue()).subtract(split).toString()),
+                BigInt(value.getValue()) - split,
                 NetworkParameters.getBIGTANGLE_TOKENID(),
             ),
             to,
@@ -195,7 +195,7 @@ export class FakeTxBuilder {
             params,
             value,
             to,
-            ECKey.fromPrivate(bigInt('1')).toAddress(params),
+            ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
     }
 
@@ -216,10 +216,10 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
-                NetworkParameters.getBIGTANGLE_TOKENID(),
+                BigInt((Coin.COIN.getValue() as number) * 1 + 11),
+                NetworkParameters.getBIGTANGLE_TOKENID()
             ),
-            ECKey.fromPrivate(bigInt('2')).toAddress(params),
+            ECKey.fromPrivate(BigInt('2')).toAddress(params),
         );
         t.addOutput(change);
         // Make a previous tx simply to send us sufficient coins. This prev tx
@@ -256,10 +256,10 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt(bigInt(Coin.COIN.getValue()).multiply(1).add(11).toString()),
-                NetworkParameters.getBIGTANGLE_TOKENID(),
+                BigInt((Coin.COIN.getValue() as number) * 1 + 11),
+                NetworkParameters.getBIGTANGLE_TOKENID()
             ),
-            ECKey.fromPrivate(bigInt('2')).toAddress(params),
+            ECKey.fromPrivate(BigInt('2')).toAddress(params),
         );
         t.addOutput(change);
         // Make a feeder tx that sends to the from address specified. This
@@ -312,7 +312,7 @@ export class FakeTxBuilder {
     ): DoubleSpends {
         const doubleSpends = new DoubleSpends();
         const value = Coin.COIN;
-        const someBadGuy = ECKey.fromPrivate(bigInt('3')).toAddress(params);
+        const someBadGuy = ECKey.fromPrivate(BigInt('3')).toAddress(params);
 
         doubleSpends.prevTx = new Transaction(params);
         const prevOut = TransactionOutput.fromAddress(

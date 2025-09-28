@@ -1,7 +1,6 @@
 import { Buffer } from "buffer";
 import crypto from "crypto";
 import base58 from "bs58";
-import bigInt, { BigInteger } from "big-integer";
 import { BaseEncoding } from "../utils/BaseEncoding";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils as UtilsHelper } from "../utils/Utils";

@@ -1,5 +1,4 @@
 import { Buffer } from 'buffer';
-import bigInt from 'big-integer';
 import { describe, test, expect } from 'vitest';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { ContactInfo } from '../../src/net/bigtangle/core/ContactInfo';
@@ -105,7 +104,7 @@ describe('SerializationTest', () => {
     test('testContractEventInfoSerialization', () => {
         const info1 = new ContractEventInfo(
             'contracttokenid',
-            bigInt("1"), // version
+            BigInt("1"), // version
             'tokenid',
             'address',
             3, // offerValue (number)

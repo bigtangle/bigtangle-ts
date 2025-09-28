@@ -1,6 +1,5 @@
 import { DataClass } from './DataClass.js';
 import { Sha256Hash } from './Sha256Hash.js';
-import bigInt, { BigInteger } from 'big-integer';
 import { Utils } from '../utils/Utils.js';
 import { DataInputStream } from '../utils/DataInputStream.js';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream.js';
@@ -49,7 +48,7 @@ export class RewardInfo extends DataClass {
         if (chainlength !== undefined) this.chainlength = chainlength;
     }
 
-    private static readonly LARGEST_HASH = bigInt(1).shiftLeft(256);
+    private static readonly LARGEST_HASH = 1n << 256n;
 
     public getWork(): BigInteger { // Use BigInteger for type
         const target = this.getDifficultyTargetAsInteger();

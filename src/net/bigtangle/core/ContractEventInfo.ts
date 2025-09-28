@@ -1,5 +1,5 @@
 import { DataClass } from './DataClass';
-import bigInt, { BigInteger } from 'big-integer'; // Use big-integer
+
 import { Utils } from '../utils/Utils';
 import { DataInputStream } from '../utils/DataInputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
@@ -28,7 +28,7 @@ export class ContractEventInfo extends DataClass {
         super();
         if (contractTokenid) this.contractTokenid = contractTokenid;
         if (beneficiaryAddress) this.beneficiaryAddress = beneficiaryAddress;
-        if (offerValue) this.offerValue = bigInt(offerValue);
+        if (offerValue) this.offerValue = BigInt(offerValue);
         if (offerTokenid) this.offerTokenid = offerTokenid;
         if (offerSystem) this.offerSystem = offerSystem;
     }

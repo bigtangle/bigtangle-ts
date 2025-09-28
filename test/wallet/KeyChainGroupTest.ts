@@ -3,7 +3,6 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { KeyPurpose } from '../../src/net/bigtangle/wallet/KeyChain';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { KeyCrypterScrypt } from '../../src/net/bigtangle/crypto/KeyCrypterScrypt';
-import bigInt from 'big-integer';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
 import { describe, beforeEach, test, expect } from 'vitest';
 
@@ -13,7 +12,7 @@ describe('KeyChainGroupTest', () => {
     let group: KeyChainGroup;
 
     // Valid private key (1 < key < N-1)
-    const VALID_PRIVATE_KEY = bigInt('12345678901234567890123456789012', 16);
+    const VALID_PRIVATE_KEY = BigInt('1234567890123456789012345678901234567890');
 
     beforeEach(() => {
         group = new KeyChainGroup(NETWORK_PARAMS);

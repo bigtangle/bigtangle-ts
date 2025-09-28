@@ -7,8 +7,7 @@ import { TransactionSignature } from '../crypto/TransactionSignature.js';
 import { ScriptException } from '../exception/ScriptException.js';
 import { Utils } from '../utils/Utils.js';
 import { ScriptChunk } from './ScriptChunk.js';
-import BigInteger from 'big-integer';
-import { ECDSASignature } from '../core/ECDSASignature.js'; // Added ECDSASignature import
+import { ECDSASignature } from '../core/ECDSASignature.js'; // Added ECDSignature import
 import {
     OP_0, OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4, OP_1NEGATE, OP_1, OP_2, OP_3, OP_4, OP_5, OP_6, OP_7, OP_8, OP_9, OP_10, OP_11, OP_12, OP_13, OP_14, OP_15, OP_16,
     OP_NOP, OP_IF, OP_NOTIF, OP_VERIF, OP_VERNOTIF, OP_ELSE, OP_ENDIF, OP_VERIFY, OP_RETURN,
@@ -809,22 +808,22 @@ export class Script {
     }
 
     /**
-     * Cast a script chunk to a BigInteger.
+     * Cast a script chunk to a BigInt.
      *
      * @see #castToBigInteger(byte[], int) for values with different maximum
      * sizes.
      * @throws ScriptException if the chunk is longer than 4 bytes.
      */
-    private static castToBigInteger(chunk: Uint8Array): any;
-    private static castToBigInteger(chunk: Uint8Array, maxLength: number): any;
-    private static castToBigInteger(chunk: Uint8Array, maxLength?: number): any {
+    private static castToBigInteger(chunk: Uint8Array): bigint;
+    private static castToBigInteger(chunk: Uint8Array, maxLength: number): bigint;
+    private static castToBigInteger(chunk: Uint8Array, maxLength?: number): bigint {
         if (maxLength !== undefined && chunk.length > maxLength) {
             throw new ScriptException(`Script attempted to use an integer larger than ${maxLength} bytes`);
         }
         if (maxLength === undefined && chunk.length > 4) {
             throw new ScriptException("Script attempted to use an integer larger than 4 bytes");
         }
-        return Utils.decodeMPI(chunk, false) as any;
+        return Utils.decodeMPI(chunk, false) as bigint;
     }
 
     isOpReturn(): boolean {
@@ -924,7 +923,7 @@ export class Script {
                 switch (opcode) {
                 // OP_0 is no opcode
                 case OP_1NEGATE:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).one.negate(), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(-1n, false)));
                     break;
                 case OP_1:
                 case OP_2:
@@ -942,7 +941,7 @@ export class Script {
                 case OP_14:
                 case OP_15:
                 case OP_16:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInteger(String(Script.decodeFromOpN(opcode))) as any, false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInt(Script.decodeFromOpN(opcode)), false)));
                     break;
                 case OP_NOP:
                     break;
@@ -1040,7 +1039,7 @@ export class Script {
                     }
                     break;
                 case OP_DEPTH:
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new (BigInteger as any)(String(stack.length)), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInt(stack.length), false)));
                     break;
                 case OP_DROP:
                     if (stack.length < 1) {
@@ -1073,11 +1072,11 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_PICK/OP_ROLL on an empty stack");
                     }
-                    const val = Script.castToBigInteger(stack.pop()!) as any;
-                    if (val.lt(0) || val.gte(stack.length)) { // Using big-integer methods for comparison
+                    const val = Script.castToBigInteger(stack.pop()!);
+                    if (val < 0n || val >= BigInt(stack.length)) {
                         throw new ScriptException("OP_PICK/OP_ROLL attempted to get data deeper than stack size");
                     }
-                    const OPROLLtmpChunk = stack.splice(stack.length - 1 - val.toJSNumber(), 1)[0];
+                    const OPROLLtmpChunk = stack.splice(stack.length - 1 - Number(val), 1)[0];
                     stack.push(OPROLLtmpChunk);
                     break;
                 case OP_ROT:
@@ -1113,7 +1112,7 @@ export class Script {
                     if (stack.length < 1) {
                         throw new ScriptException("Attempted OP_SIZE on an empty stack");
                     }
-                    stack.push(Utils.reverseBytes(Utils.encodeMPI(new (BigInteger as any)(String(stack[stack.length - 1].length)), false)));
+                    stack.push(Utils.reverseBytes(Utils.encodeMPI(BigInt(stack[stack.length - 1].length), false)));
                     break;
                 case OP_INVERT:
                 case OP_AND:
@@ -1147,32 +1146,22 @@ export class Script {
 
                     switch (opcode) {
                     case OP_1ADD:
-                        numericOPnum = numericOPnum.add((BigInteger as any).one);
+                        numericOPnum = numericOPnum + 1n;
                         break;
                     case OP_1SUB:
-                        numericOPnum = numericOPnum.subtract((BigInteger as any).one);
+                        numericOPnum = numericOPnum - 1n;
                         break;
                     case OP_NEGATE:
-                        numericOPnum = numericOPnum.negate();
+                        numericOPnum = -numericOPnum;
                         break;
                     case OP_ABS:
-                        if (numericOPnum.signum() < 0) {
-                            numericOPnum = numericOPnum.negate();
-                        }
+                        numericOPnum = numericOPnum < 0n ? -numericOPnum : numericOPnum;
                         break;
                     case OP_NOT:
-                        if (numericOPnum.equals((BigInteger as any).zero)) {
-                            numericOPnum = (BigInteger as any).one;
-                        } else {
-                            numericOPnum = (BigInteger as any).zero;
-                        }
+                        numericOPnum = numericOPnum === 0n ? 1n : 0n;
                         break;
                     case OP_0NOTEQUAL:
-                        if (numericOPnum.equals((BigInteger as any).zero)) {
-                            numericOPnum = (BigInteger as any).zero;
-                        } else {
-                            numericOPnum = (BigInteger as any).one;
-                        }
+                        numericOPnum = numericOPnum !== 0n ? 1n : 0n;
                         break;
                     default:
                         throw new Error("Unreachable");
@@ -1205,59 +1194,31 @@ export class Script {
                     let numericOPresult: any;
                     switch (opcode) {
                     case OP_ADD:
-                        numericOPresult = numericOPnum1.add(numericOPnum2);
+                        numericOPresult = numericOPnum1 + numericOPnum2;
                         break;
                     case OP_SUB:
-                        numericOPresult = numericOPnum1.subtract(numericOPnum2);
+                        numericOPresult = numericOPnum1 - numericOPnum2;
                         break;
                     case OP_BOOLAND:
-                        if (!numericOPnum1.equals((BigInteger as any).zero) && !numericOPnum2.equals((BigInteger as any).zero)) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 !== 0n && numericOPnum2 !== 0n) ? 1n : 0n;
                         break;
                     case OP_BOOLOR:
-                        if (!numericOPnum1.equals((BigInteger as any).zero) || !numericOPnum2.equals((BigInteger as any).zero)) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 !== 0n || numericOPnum2 !== 0n) ? 1n : 0n;
                         break;
                     case OP_NUMEQUAL:
-                        if (numericOPnum1.equals(numericOPnum2)) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 === numericOPnum2) ? 1n : 0n;
                         break;
                     case OP_NUMNOTEQUAL:
-                        if (!numericOPnum1.equals(numericOPnum2)) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 !== numericOPnum2) ? 1n : 0n;
                         break;
                     case OP_LESSTHAN:
-                        if (numericOPnum1.compareTo(numericOPnum2) < 0) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 < numericOPnum2) ? 1n : 0n;
                         break;
                     case OP_GREATERTHAN:
-                        if (numericOPnum1.compareTo(numericOPnum2) > 0) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 > numericOPnum2) ? 1n : 0n;
                         break;
                     case OP_LESSTHANOREQUAL:
-                        if (numericOPnum1.compareTo(numericOPnum2) <= 0) {
-                            numericOPresult = (BigInteger as any).one;
-                        } else {
-                            numericOPresult = (BigInteger as any).zero;
-                        }
+                        numericOPresult = (numericOPnum1 <= numericOPnum2) ? 1n : 0n;
                         break;
                     case OP_GREATERTHANOREQUAL:
                         if (numericOPnum1.compareTo(numericOPnum2) >= 0) {
@@ -1296,10 +1257,10 @@ export class Script {
                     if (stack.length < 2) {
                         throw new ScriptException("Attempted OP_NUMEQUALVERIFY on a stack with size < 2");
                     }
-                    const OPNUMEQUALVERIFYnum2 = Script.castToBigInteger(stack.pop()!) as any;
-                    const OPNUMEQUALVERIFYnum1 = Script.castToBigInteger(stack.pop()!) as any;
+                    const OPNUMEQUALVERIFYnum2 = Script.castToBigInteger(stack.pop()!);
+                    const OPNUMEQUALVERIFYnum1 = Script.castToBigInteger(stack.pop()!);
 
-                    if (!OPNUMEQUALVERIFYnum1.equals(OPNUMEQUALVERIFYnum2)) {
+                    if (OPNUMEQUALVERIFYnum1 !== OPNUMEQUALVERIFYnum2) {
                         throw new ScriptException("OP_NUMEQUALVERIFY failed");
                     }
                     break;
@@ -1307,13 +1268,13 @@ export class Script {
                     if (stack.length < 3) {
                         throw new ScriptException("Attempted OP_WITHIN on a stack with size < 3");
                     }
-                    const OPWITHINnum3 = Script.castToBigInteger(stack.pop()!) as any;
-                    const OPWITHINnum2 = Script.castToBigInteger(stack.pop()!) as any;
-                    const OPWITHINnum1 = Script.castToBigInteger(stack.pop()!) as any;
-                    if (OPWITHINnum2.compareTo(OPWITHINnum1) <= 0 && OPWITHINnum1.compareTo(OPWITHINnum3) < 0) {
-                        stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).one, false)));
+                    const OPWITHINnum3 = Script.castToBigInteger(stack.pop()!);
+                    const OPWITHINnum2 = Script.castToBigInteger(stack.pop()!);
+                    const OPWITHINnum1 = Script.castToBigInteger(stack.pop()!);
+                    if (OPWITHINnum2 <= OPWITHINnum1 && OPWITHINnum1 < OPWITHINnum3) {
+                        stack.push(Utils.reverseBytes(Utils.encodeMPI(1n, false)));
                     } else {
-                        stack.push(Utils.reverseBytes(Utils.encodeMPI((BigInteger as any).zero, false)));
+                        stack.push(Utils.reverseBytes(Utils.encodeMPI(0n, false)));
                     }
                     break;
                 case OP_RIPEMD160:

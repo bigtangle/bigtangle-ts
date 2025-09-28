@@ -4,7 +4,6 @@ import { AddressFormatException } from '../exception/AddressFormatException.js';
 import { WrongNetworkException } from '../exception/WrongNetworkException.js';
 import { ECKey } from '../core/ECKey.js';
 import { Base58 } from '../utils/Base58.js';
-import bigInt from 'big-integer';
 import { secp256k1 } from '@noble/curves/secp256k1';
  
 
@@ -74,16 +73,14 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
   }
 
   public getKey(): ECKey {
-    // Validate private key is in [1, N-1]
-    const N = secp256k1.CURVE.n;
-    // Convert bytes to hex string for bigInt and BigInteger
-    const hex = Array.from(this.bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    const keyInt = bigInt(hex, 16);
-    if (keyInt.lesser(1) || keyInt.greaterOrEquals(bigInt(N))) {
+    // Convert bytes to hex string for BigInt
+        const hex = Array.from(this.bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        const keyInt = BigInt('0x' + hex);
+    if (keyInt < 1n || keyInt >= BigInt(secp256k1.CURVE.n.toString())) {
       throw new Error('DumpedPrivateKey: private key out of range [1..N-1]');
     }
-    // Use big-integer library
-    const priv = bigInt(hex, 16);
+    // Use native BigInt
+    const priv = BigInt('0x' + hex);
     return ECKey.fromPrivate(priv);
   }
 

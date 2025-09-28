@@ -1,7 +1,6 @@
 import { NetworkParameters } from '../params/NetworkParameters';
 import { VersionedChecksummedBytes } from './VersionedChecksummedBytes';
 import { ECKey } from './ECKey';
-import bigInt from 'big-integer';
 
 export class DumpedPrivateKey extends VersionedChecksummedBytes {
     private compressed: boolean;
@@ -71,7 +70,7 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
         }
         
         const hex = Buffer.from(keyBytes).toString('hex');
-        const privKey = bigInt(hex, 16);
+        const privKey = BigInt('0x' + hex);
         return ECKey.fromPrivate(privKey, compressed);
     }
 

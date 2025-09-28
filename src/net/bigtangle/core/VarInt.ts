@@ -1,11 +1,10 @@
 import { Utils } from "../utils/Utils";
-import bigInt, { BigInteger } from 'big-integer';
 
 /**
  * A variable-length encoded unsigned integer using Satoshi's encoding (a.k.a. "CompactSize").
  */
 export class VarInt {
-    public readonly value: BigInteger;
+    public readonly value: bigint;
     private readonly originallyEncodedSize: number;
 
     /**
@@ -13,7 +12,7 @@ export class VarInt {
      *
      * @param value the unsigned long value (beware widening conversion of negatives!)
      */
-    constructor(value: BigInteger | number | Buffer | Uint8Array, offset?: number) {
+    constructor(value: bigint | number | Buffer | Uint8Array, offset?: number) {
         // If a Uint8Array is passed, convert it to a Buffer for legacy APIs
         let buf: Buffer | null = null;
         if (value instanceof Uint8Array && !Buffer.isBuffer(value)) {
@@ -32,13 +31,13 @@ export class VarInt {
             // console.log(`VarInt.constructor: buf.length=${buf.length}, offset=${offset}, buf[${offset}]=${buf[offset].toString(16)}`);
             const first = 0xFF & buf[offset];
             if (first < 253) {
-                this.value = bigInt(first);
+                this.value = BigInt(first);
                 this.originallyEncodedSize = 1; // 1 data byte (8 bits)
             } else if (first === 253) {
-                this.value = bigInt(0xFF & buf[offset + 1]).or(bigInt(0xFF & buf[offset + 2]).shiftLeft(8));
+                this.value = BigInt(0xFF & buf[offset + 1]) | (BigInt(0xFF & buf[offset + 2]) << 8n);
                 this.originallyEncodedSize = 3; // 1 marker + 2 data bytes (16 bits)
             } else if (first === 254) {
-                this.value = bigInt(Utils.readUint32(buf, offset + 1));
+                this.value = BigInt(Utils.readUint32(buf, offset + 1));
                 this.originallyEncodedSize = 5; // 1 marker + 4 data bytes (32 bits)
             } else {
                 this.value = Utils.readUint64(buf, offset + 1);
@@ -46,7 +45,7 @@ export class VarInt {
             }
         } else {
             // Constructor with numeric/bigint value
-            this.value = typeof value === 'number' ? bigInt(value) : (value as BigInteger);
+            this.value = typeof value === 'number' ? BigInt(value) : (value as bigint);
             this.originallyEncodedSize = this.getSizeInBytes();
         }
     }
@@ -81,13 +80,13 @@ export class VarInt {
      *
      * @param value the unsigned long value (beware widening conversion of negatives!)
      */
-    public static sizeOf(value: BigInteger | number): number {
-        const val = typeof value === 'number' ? bigInt(value) : value;
+    public static sizeOf(value: bigint | number): number {
+        const val = typeof value === 'number' ? BigInt(value) : value;
         // if negative, it's actually a very large unsigned long value
-        if (val.isNegative()) return 9; // 1 marker + 8 data bytes
-        if (val.lesser(253)) return 1; // 1 data byte
-        if (val.lesserOrEquals(0xFFFF)) return 3; // 1 marker + 2 data bytes
-        if (val.lesserOrEquals(0xFFFFFFFF)) return 5; // 1 marker + 4 data bytes
+        if (val < 0n) return 9; // 1 marker + 8 data bytes
+        if (val < 253n) return 1; // 1 data byte
+        if (val <= 0xFFFFn) return 3; // 1 marker + 2 data bytes
+        if (val <= 0xFFFFFFFFn) return 5; // 1 marker + 4 data bytes
         return 9; // 1 marker + 8 data bytes
     }
 
@@ -102,13 +101,13 @@ export class VarInt {
 
         switch (size) {
             case 1:
-                return Buffer.from([this.value.toJSNumber()]);
+                return Buffer.from([Number(this.value)]);
             case 3:
-                return Buffer.from([253, this.value.and(0xFF).toJSNumber(), this.value.shiftRight(8).and(0xFF).toJSNumber()]);
+                return Buffer.from([253, Number(this.value & 0xFFn), Number((this.value >> 8n) & 0xFFn)]);
             case 5:
                 buf = Buffer.alloc(5);
                 buf[0] = 254;
-                Utils.uint32ToByteArrayLE(this.value.toJSNumber(), buf, 1);
+                Utils.uint32ToByteArrayLE(Number(this.value), buf, 1);
                 return buf;
             default:
                 buf = Buffer.alloc(9);

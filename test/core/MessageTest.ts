@@ -3,7 +3,7 @@ import { Buffer } from 'buffer';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Message } from '../../src/net/bigtangle/core/Message';
 import { VarInt } from '../../src/net/bigtangle/core/VarInt';
-import bigInt from 'big-integer';
+
 import { describe, test, expect } from 'vitest';
 
 describe('MessageTest', () => {
@@ -14,7 +14,7 @@ describe('MessageTest', () => {
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
             // Use a value that will be properly encoded and produce the expected error message
-            const maxValue = bigInt('9007194959773695'); // This is the actual value that gets encoded
+            const maxValue = BigInt('9007194959773695'); // This is the actual value that gets encoded
             const varInt = new VarInt(maxValue);
             const varIntBuffer = varInt.encode();
             writer.write(varIntBuffer);
@@ -44,7 +44,7 @@ describe('MessageTest', () => {
             const chunks: Buffer[] = [];
             const writer = { write: (chunk: Buffer) => chunks.push(chunk) };
             // Use a value that will be properly encoded and produce the expected error message
-            const maxValue = bigInt('9007194959773695'); // This is the actual value that gets encoded
+            const maxValue = BigInt('9007194959773695'); // This is the actual value that gets encoded
             const varInt = new VarInt(maxValue);
             const varIntBuffer = varInt.encode();
             writer.write(varIntBuffer);

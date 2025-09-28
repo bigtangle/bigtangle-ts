@@ -1,11 +1,11 @@
-import bigInt, { BigInteger } from "big-integer"; // Use big-integer
+
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { ECDSASignature } from "../core/ECDSASignature";
 
 // Define HALF_CURVE_ORDER constant
-const HALF_CURVE_ORDER = bigInt(secp256k1.CURVE.n).shiftRight(1);
+const HALF_CURVE_ORDER = BigInt(secp256k1.CURVE.n.toString()) >> 1n;
 import { ECPoint } from "./ECPoint";
 import { NetworkParameters } from "../params/NetworkParameters";
 import * as Address from "./Address";
@@ -27,23 +27,18 @@ export class ECKey {
    
     const randomBytes = secp256k1.utils.randomPrivateKey();
     const hex =Utils.HEX.encode (randomBytes);
-    const privateKey = bigInt(hex, 16);
+    const privateKey = BigInt('0x' + hex);
     return ECKey.fromPrivate(privateKey, compressed);
   }
 
-  // Helper to convert bigint or BigInteger to 32-byte Uint8Array
+  // Helper to convert bigint to 32-byte Uint8Array
   private static bigIntToBytes(
-    bi: bigint | BigInteger,
+    bi: bigint,
     length: number = 32
   ): Uint8Array {
     let hex: string;
 
-    if (typeof bi === "bigint") {
-      hex = bi.toString(16);
-    } else {
-      // Handle big-integer BigInteger
-      hex = bi.toString(16);
-    }
+    hex = bi.toString(16);
 
     // Pad with leading zeros if necessary to match the desired byte length
     // Each byte is 2 hex characters, so length * 2
@@ -61,7 +56,7 @@ export class ECKey {
     return Utils.HEX.encode(buf);
   }
 
-  public priv: BigInteger | null;
+  public priv: bigint | null;
   public pub: ECPoint | null;
   private pubKeyHash: Uint8Array | null = null;
   public creationTimeSeconds: number = Math.floor(Date.now() / 1000);
@@ -69,7 +64,7 @@ export class ECKey {
   public keyCrypter: KeyCrypter | null = null;
 
   constructor(
-    priv: BigInteger | null,
+    priv: bigint | null,
     pub: ECPoint | null,
     compressed: boolean = true
   ) {
@@ -80,20 +75,20 @@ export class ECKey {
     }
   }
 
-  public static createBigInteger(signum: number, magnitude: Uint8Array): BigInteger {
+  public static createBigInteger(signum: number, magnitude: Uint8Array): bigint {
     // Handle zero case
     if (signum === 0 || magnitude.length === 0) {
-      return bigInt(0);
+      return 0n;
     }
 
     // Convert magnitude bytes to BigInteger
-    let result = bigInt(0);
+    let result = 0n;
     for (const element of magnitude) {
-      result = result.shiftLeft(8).add(element);
+      result = (result << 8n) + BigInt(element);
     }
 
     // Apply sign
-    return signum < 0 ? result.negate() : result;
+    return signum < 0 ? -result : result;
   }
 
   public static fromPrivateByte(privKeyBytes: Uint8Array): ECKey {
@@ -102,7 +97,7 @@ export class ECKey {
   }
 
   public static fromPrivate(
-    privKey: BigInteger,
+    privKey: bigint,
     compressed: boolean = true
   ): ECKey {
     const pubPoint = ECKey.publicPointFromPrivate(privKey);
@@ -130,7 +125,14 @@ export class ECKey {
     return ECKey.fromPublic(pubKeyBytes, compressed);
   }
 
-  public static publicPointFromPrivate(privKey: BigInteger): ECPoint {
+  public static publicPointFromPrivate(privKey: bigint): ECPoint {
+    // Ensure the private key is within valid range [1, N-1] where N is the curve order
+    if (privKey < 1n || privKey >= secp256k1.CURVE.n) {
+      console.log(`DEBUG: Private key validation - privKey: ${privKey.toString(16)}, N: ${secp256k1.CURVE.n.toString(16)}`);
+      console.log(`DEBUG: Comparison - privKey < 1n: ${privKey < 1n}, privKey >= N: ${privKey >= secp256k1.CURVE.n}`);
+      throw new Error(`invalid private key: out of range [1..N-1]`);
+    }
+    
     // Convert directly to Uint8Array
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);
     const pubKey = secp256k1.getPublicKey(privKeyBytes);
@@ -183,7 +185,7 @@ export class ECKey {
    * Gets the private key as a BigInteger.
    * Throws if the private key is not available.
    */
-  public getPrivKey(): BigInteger {
+  public getPrivKey(): bigint {
     if (!this.priv) {
       throw new Error("Private key is not available");
     }
@@ -222,18 +224,15 @@ export class ECKey {
       if (!this.priv) {
         throw new Error("Private key is not available for signing");
       }
-      // Convert BigInteger to bigint
-      const privKeyBigInt = BigInt(this.priv.toString());
-      return this.doSign(messageHash, privKeyBigInt);
+      return this.doSign(messageHash, this.priv);
     }
   }
 
   public doSign(messageHash: Uint8Array, privKey: bigint): ECDSASignature {
-    // Convert to Uint8Array for signing
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);
-    const signature = secp256k1.sign(messageHash, privKeyBytes);
-    // Return ECDSASignature object instead of raw bytes
-    return new ECDSASignature(signature.r, signature.s);
+    const sig = secp256k1.sign(messageHash, privKeyBytes);
+    const signature = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
+    return signature.toCanonicalised();
   }
 
     public verify(data: Uint8Array, signature: Uint8Array): boolean {
@@ -298,7 +297,7 @@ export class ECKey {
     const hex = ECKey.bufferToHex(decryptedPrivKeyBytes);
     // Convert directly to native bigint and then to BigInteger
     const nativePrivKey = BigInt("0x" + hex);
-    const decryptedPrivKey = bigInt(nativePrivKey.toString());
+    const decryptedPrivKey = nativePrivKey;
     const decryptedKey = new ECKey(decryptedPrivKey, this.pub);
     decryptedKey.creationTimeSeconds = this.creationTimeSeconds;
     return decryptedKey;
@@ -457,9 +456,6 @@ export class ECKey {
   }
 
   // Helper to convert native BigInt to big-integer BigInteger
-  private static nativeBigIntToBigInteger(bi: bigint): BigInteger {
-    return bigInt(bi.toString());
-  }
 
   public isWatching(): boolean {
     // Placeholder for isWatching logic

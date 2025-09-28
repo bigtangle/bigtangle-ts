@@ -24,7 +24,7 @@ import { ECKey } from '../core/ECKey';
 import { ECPoint } from '../core/ECPoint';
 import { HDDerivationException } from './HDDerivationException';
 import { HDUtils } from './HDUtils';
-import bigInt, { BigInteger } from 'big-integer';
+
 import { randomBytes } from 'crypto';
 
 /**
@@ -36,12 +36,8 @@ export class HDKeyDerivation {
     private static bufferToHex(buf: Uint8Array): string {
         return Buffer.from(buf).toString('hex');
     }
-    // Helper: BigInt to BigInteger
-    private static bigIntToBigInteger(bi: bigint): bigInt.BigInteger {
-        return bigInt(bi.toString(16), 16);
-    }
-    // Helper: BigInteger to Uint8Array (32 bytes)
-    private static bigIntegerToBytes(bi: bigInt.BigInteger, length: number = 32): Uint8Array {
+    // Helper: BigInt to Uint8Array (32 bytes)
+    private static bigIntToBytes(bi: bigint, length: number = 32): Uint8Array {
         let hex = bi.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
         let bytes = Buffer.from(hex, 'hex');
@@ -53,7 +49,7 @@ export class HDKeyDerivation {
     }
 
     // Some arbitrary random number. Doesn't matter what it is.
-    private static readonly RAND_INT: bigInt.BigInteger = HDKeyDerivation.bigIntToBigInteger(BigInt('0x' + HDKeyDerivation.bufferToHex(randomBytes(32))));
+    private static readonly RAND_INT: bigint = BigInt('0x' + HDKeyDerivation.bufferToHex(randomBytes(32)));
 
     private constructor() { }
 
@@ -95,7 +91,7 @@ export class HDKeyDerivation {
      * @throws HDDerivationException if privKeyBytes is invalid (0 or >= n).
      */
     public static createMasterPrivKeyFromBytes(privKeyBytes: Uint8Array, chainCode: Uint8Array): DeterministicKey {
-        const priv = HDKeyDerivation.bigIntToBigInteger(BigInt('0x' + HDKeyDerivation.bufferToHex(privKeyBytes)));
+        const priv = BigInt('0x' + HDKeyDerivation.bufferToHex(privKeyBytes));
         HDKeyDerivation.assertNonZero(priv, 'Generated master key is invalid.');
         HDKeyDerivation.assertLessThanN(priv, 'Generated master key is invalid.');
         return new DeterministicKey([], chainCode, null, priv, null);
@@ -150,7 +146,7 @@ export class HDKeyDerivation {
             );
         } else {
             const rawKey = HDKeyDerivation.deriveChildKeyBytesFromPrivate(parent, childNumber);
-            const privKey = HDKeyDerivation.bigIntToBigInteger(BigInt('0x' + HDKeyDerivation.bufferToHex(rawKey.keyBytes)));
+            const privKey = BigInt('0x' + HDKeyDerivation.bufferToHex(rawKey.keyBytes));
             return new DeterministicKey(
                 [...parent.getPath(), childNumber],
                 rawKey.chainCode,
@@ -193,10 +189,10 @@ export class HDKeyDerivation {
         HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
         const priv = parent.getPrivKey();
         const N = ECKey.CURVE.n;
-        const kiBigInt = (BigInt(bigInt(priv.toString()).add(HDKeyDerivation.bigIntToBigInteger(ilInt)).toString()) % N);
+        const kiBigInt = (priv + ilInt) % N;
         HDKeyDerivation.assertNonZero(kiBigInt, 'Illegal derived key: derived private key equals 0.');
-        const ki = HDKeyDerivation.bigIntToBigInteger(kiBigInt);
-        const kiBytes = HDKeyDerivation.bigIntegerToBytes(ki, 32);
+        const ki = kiBigInt;
+        const kiBytes = HDKeyDerivation.bigIntToBytes(ki, 32);
         return new RawKeyBytes(kiBytes, chainCode);
     }
 
@@ -232,13 +228,13 @@ export class HDKeyDerivation {
         if (!parentPubPoint) throw new Error('Parent public key is missing');
         switch (mode) {
             case PublicDeriveMode.NORMAL:
-                Ki = ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger(ilInt)).add(parentPubPoint);
+                Ki = ECKey.publicPointFromPrivate(ilInt).add(parentPubPoint);
                 break;
             case PublicDeriveMode.WITH_INVERSION: {
                 const randIntBig = BigInt(HDKeyDerivation.RAND_INT.toString()); // Keep as bigint for modulo with N (which is bigint)
-                const Ki1 = ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger((ilInt + randIntBig) % N));
+                const Ki1 = ECKey.publicPointFromPrivate((ilInt + randIntBig) % N);
                 const additiveInverse = (N - (randIntBig % N)) % N;
-                const Ki2 = Ki1.add(ECKey.publicPointFromPrivate(HDKeyDerivation.bigIntToBigInteger(additiveInverse)));
+                const Ki2 = Ki1.add(ECKey.publicPointFromPrivate(additiveInverse));
                 Ki = Ki2.add(parentPubPoint);
                 break;
             }
@@ -249,8 +245,8 @@ export class HDKeyDerivation {
         return new RawKeyBytes(Ki.encode(true), chainCode);
     }
 
-    private static assertNonZero(integer: BigInteger | bigint, errorMessage: string): void {
-        if ((typeof integer === 'bigint' && integer === BigInt(0)) || (integer instanceof bigInt && integer.compareTo(bigInt(0)) === 0)) {
+    private static assertNonZero(integer: bigint, errorMessage: string): void {
+        if (integer === 0n) {
             throw new HDDerivationException(errorMessage);
         }
     }
@@ -261,9 +257,9 @@ export class HDKeyDerivation {
         }
     }
 
-    private static assertLessThanN(integer: BigInteger | bigint, errorMessage: string): void {
+    private static assertLessThanN(integer: bigint, errorMessage: string): void {
         const n = ECKey.CURVE.n;
-        if ((typeof integer === 'bigint' && integer >= n) || (integer instanceof bigInt && integer.compareTo(bigInt(n.toString())) >= 0)) {
+        if (integer >= n) {
             throw new HDDerivationException(errorMessage);
         }
     }
