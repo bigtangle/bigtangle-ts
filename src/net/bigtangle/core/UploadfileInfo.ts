@@ -10,7 +10,7 @@ export class UploadfileInfo extends DataClass {
 
     public toByteArray(): Uint8Array {
         try {
-            const jsonStr = Json.jsonmapper().writeValueAsString(this);
+            const jsonStr = JSON.stringify(this);
             return new TextEncoder().encode(jsonStr);
         } catch (e: any) {
             throw new Error(e);
@@ -19,7 +19,7 @@ export class UploadfileInfo extends DataClass {
 
     public parse(buf: Uint8Array): UploadfileInfo {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
-        const uploadfileInfo = Json.jsonmapper().readValue(jsonStr, UploadfileInfo);
+        const uploadfileInfo = JSON.parse(jsonStr);
         if (uploadfileInfo === null) {
             return this;
         }

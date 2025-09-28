@@ -235,8 +235,6 @@ export abstract class WalletBase implements KeyBag {
         // Not implemented for now
     }
 
-    public abstract saveToFileStream(f: any): void;
-
     public getParams(): NetworkParameters {
         return this.params;
     }

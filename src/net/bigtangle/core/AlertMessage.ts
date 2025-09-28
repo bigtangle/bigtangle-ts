@@ -3,7 +3,6 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
 import { Sha256Hash } from './Sha256Hash';
 import { Buffer } from 'buffer';
-import { ProtocolVersion } from './ProtocolVersion';
 // TODO: Implement UnsafeByteArrayOutputStream
 // import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 

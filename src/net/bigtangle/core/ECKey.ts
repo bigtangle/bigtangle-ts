@@ -32,7 +32,7 @@ export class ECKey {
   }
 
   // Helper to convert bigint to 32-byte Uint8Array
-  private static bigIntToBytes(
+  public static bigIntToBytes(
     bi: bigint,
     length: number = 32
   ): Uint8Array {

@@ -49,7 +49,7 @@ export class MemoInfo {
 
     const memoInfo = objectMapper.parse(jsonStr, {
       mainCreator: () => [MemoInfo],
-    });
+    }) as MemoInfo | null;
     return memoInfo;
   }
 

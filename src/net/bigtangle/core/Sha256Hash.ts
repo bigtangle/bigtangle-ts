@@ -1,9 +1,6 @@
-import { createHash } from 'crypto';
 import { Buffer } from 'buffer';
 import { Utils } from '../utils/Utils';
 import { MessageDigest } from '../utils/MessageDigest';
-import { SHA256Digest } from '../utils/SHA256Digest';
-import { MessageDigestSpi } from '../utils/MessageDigestSpi';
 import { MessageDigestFactory } from '../utils/MessageDigestFactory';
 
 /**

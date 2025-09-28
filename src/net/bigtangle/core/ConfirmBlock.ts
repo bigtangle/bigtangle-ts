@@ -6,8 +6,6 @@ import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerial
 
 export class ConfirmBlock extends DataClass {
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private blockHash: Sha256Hash | null = null;
     @JsonProperty()
     private confirmed: boolean = false;

@@ -8,16 +8,12 @@ import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerial
 
 export class SpentBlock extends DataClass {
   @JsonProperty()
-  @JsonDeserialize({ using: Sha256HashDeserializer })
-  @JsonSerialize({ using: Sha256HashSerializer })
   private blockHash: Sha256Hash | null = null;
   @JsonProperty()
   private confirmed: boolean = false;
   @JsonProperty()
   private spent: boolean = false;
   @JsonProperty()
-  @JsonDeserialize({ using: Sha256HashDeserializer })
-  @JsonSerialize({ using: Sha256HashSerializer })
   private spenderBlockHash: Sha256Hash | null = null;
   @JsonProperty()
   private time: number = 0;

@@ -8,7 +8,7 @@ export class ContractEventInfo extends DataClass {
     @JsonProperty()
     private beneficiaryAddress: string | null = null;
     @JsonProperty()
-    private offerValue: BigInteger | null = null;
+    private offerValue: bigint | null = null;
     @JsonProperty()
     private offerTokenid: string | null = null;
     @JsonProperty()
@@ -89,11 +89,11 @@ export class ContractEventInfo extends DataClass {
         this.beneficiaryAddress = beneficiaryAddress;
     }
 
-    public getOfferValue(): BigInteger | null {
+    public getOfferValue(): bigint | null {
         return this.offerValue;
     }
 
-    public setOfferValue(offerValue: BigInteger | null): void {
+    public setOfferValue(offerValue: bigint | null): void {
         this.offerValue = offerValue;
     }
 

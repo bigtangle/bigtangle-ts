@@ -3,7 +3,7 @@ import { Json } from '../utils/Json';
 import { JsonProperty } from 'jackson-js';
 
 export class TokenKeyValues {
-    @JsonProperty({ class: () => [KeyValue] })
+    @JsonProperty()
     private keyvalues: KeyValue[] | null = null;
 
     public addKeyvalue(kv: KeyValue): void {
@@ -13,7 +13,7 @@ export class TokenKeyValues {
 
     public toByteArray(): Uint8Array {
         try {
-            const jsonStr = Json.jsonmapper().writeValueAsString(this);
+            const jsonStr = JSON.stringify(this);
             return new TextEncoder().encode(jsonStr);
         } catch (e: any) {
             throw new Error(e);
@@ -22,7 +22,7 @@ export class TokenKeyValues {
 
     public static parse(buf: Uint8Array): TokenKeyValues {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
-        return Json.jsonmapper().readValue(jsonStr, TokenKeyValues);
+        return JSON.parse(jsonStr);
     }
 
     public getKeyvalues(): KeyValue[] | null {

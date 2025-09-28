@@ -240,7 +240,7 @@ export class Utils {
    * @param b The BigInteger to convert
    * @returns A byte array representing the BigInteger in two's-complement form
    */
-  public static bigIntToBytes(value: BigInteger | bigint): Uint8Array {
+  public static bigIntToBytes(value: bigint): Uint8Array {
     return UtilsHelper.bigIntToBytes(value);
   }
 

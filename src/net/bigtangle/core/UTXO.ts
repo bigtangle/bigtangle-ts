@@ -12,13 +12,11 @@ import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerial
  * transaction.
  */
 export class UTXO extends SpentBlock {
-    @JsonProperty({ type: () => Coin })
+    @JsonProperty()
     private value: Coin = new Coin(); // Default to empty coin instead of null
     @JsonProperty()
     private script: Script = new Script(new Uint8Array()); // Default to empty script
     @JsonProperty()
-    @JsonDeserialize({ using: new Sha256HashDeserializer() })
-    @JsonSerialize({ using: new Sha256HashSerializer() })
     private hash: Sha256Hash =   Sha256Hash.ZERO_HASH; // Default to empty hash
     @JsonProperty()
     private index: number = 0;

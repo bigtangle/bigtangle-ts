@@ -13,7 +13,7 @@ describe("ProbeBlockOffsets", () => {
       try {
         if (s >= payload.length) break;
         const nv = new VarInt(payload, s);
-        const numTx = nv.value.toJSNumber();
+        const numTx = Number(nv.value);
         let cursor = s + nv.getOriginalSizeInBytes();
         for (let i = 0; i < numTx; i++) {
           const tx = Transaction.fromTransaction6(params, payload, cursor, null as any, params.getSerializer(true), -1);

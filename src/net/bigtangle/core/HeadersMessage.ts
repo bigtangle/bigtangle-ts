@@ -47,7 +47,7 @@ export class HeadersMessage extends Message {
         }
         let cursor = 0;
         const varInt = VarInt.fromBuffer(Buffer.from(this.payload), cursor);
-        const numHeaders = varInt.value.toJSNumber();
+        const numHeaders = Number(varInt.value);
         cursor += varInt.getOriginalSizeInBytes();
 
         if (numHeaders > HeadersMessage.MAX_HEADERS) {

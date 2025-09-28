@@ -63,8 +63,8 @@ export class ServerPool {
         try {
             const requestParam: { [key: string]: string } = {};
             const requestBody = Json.jsonmapper().stringify(requestParam);
-            OkHttp3Util.post(this.params.serverSeeds()[0] + ReqCmd.serverinfolist, requestBody).then(data => {
-                const response = Json.jsonmapper().parse( data);
+            OkHttp3Util.post(this.params.serverSeeds()[0] + ReqCmd.serverinfolist, Buffer.from(requestBody)).then(data => {
+                const response = Json.jsonmapper().parse( data) as any;
                 if (response.getServerInfoList() !== null) {
                     for (const serverInfo of response.getServerInfoList()!) {
                         if (serverInfo.getStatus() === "inactive") {
@@ -121,8 +121,8 @@ export class ServerPool {
         const requestParam: { [key: string]: string } = {};
         // Use Json.jsonmapper().stringify() instead of writeValueAsString()
         const requestBody = Json.jsonmapper().stringify(requestParam);
-        const response = await OkHttp3Util.postStringSingle(`${s.trim()}/${ReqCmd.getChainNumber}`, requestBody);
-        const aTXRewardResponse = Json.jsonmapper().parse(response);
+        const response = await OkHttp3Util.postStringSingle(`${s.trim()}/${ReqCmd.getChainNumber}`, Buffer.from(requestBody));
+        const aTXRewardResponse = Json.jsonmapper().parse(response) as any;
         return aTXRewardResponse.getTxReward();
     }
 

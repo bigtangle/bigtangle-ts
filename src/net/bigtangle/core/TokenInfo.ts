@@ -13,9 +13,9 @@ export class TokenInfo extends DataClass {
     // so it doesn't need to be redefined here.
     // @JsonProperty() // No longer needed here as it's handled in DataClass
 
-    @JsonProperty({ class: () => Token })
+    @JsonProperty()
     private token: Token | null = null;
-    @JsonProperty({ class: () => [MultiSignAddress] })
+    @JsonProperty()
     private multiSignAddresses: MultiSignAddress[] = [];
 
     constructor() {
@@ -44,7 +44,7 @@ export class TokenInfo extends DataClass {
         const parsed = objectMapper.parse(jsonStr, { 
             mainCreator: () => [TokenInfo],
             features: {
-                DeserializationFeature: {
+                deserialization: {
                     FAIL_ON_UNKNOWN_PROPERTIES: false
                 }
             }
@@ -81,7 +81,7 @@ export class TokenInfo extends DataClass {
             return objectMapper.parse(jsonStr, { 
                 mainCreator: () => [TokenInfo],
                 features: {
-                    DeserializationFeature: {
+                    deserialization: {
                         FAIL_ON_UNKNOWN_PROPERTIES: false
                     }
                 }

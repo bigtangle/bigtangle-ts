@@ -47,7 +47,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     }
   }
 
-  @JsonCreator()
+
   public static fromJSON(json: any): Coin {
     const coin = new Coin();
     // Handle both string and number representations for large values

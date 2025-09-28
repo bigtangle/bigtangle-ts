@@ -396,7 +396,7 @@ export class Utils {
       return 0n;
     }
     const isNegative = (buf[0] & 0x80) === 0x80;
-    if (IsNegative) {
+    if (isNegative) {
       buf[0] &= 0x7f;
     }
     const hex = Utils.HEX.encode(buf);
@@ -643,7 +643,7 @@ export class Utils {
       const amount = BigInt(amountStr);
       if (
         contractEventInfo.getOfferValue() !== null &&
-        contractEventInfo.getOfferValue()! % amount !== 0n
+        BigInt(contractEventInfo.getOfferValue()!) % BigInt(amount) !== 0n
       ) {
         throw new VerificationException(
           `only module base amount is allowed ${contractEventInfo.getOfferValue()} % ${amount}`

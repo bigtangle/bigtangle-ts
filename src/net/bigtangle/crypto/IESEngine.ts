@@ -96,7 +96,7 @@ export class ECDHBasicAgreement implements BasicAgreement {
         }
         if (pubKey instanceof ECPublicKeyParameters) {
             const sharedSecret = secp256k1.getSharedSecret(
-                Utils.bigIntToBytes(this.privateKey ),
+                BigInt(this.privateKey.toString()),
                 pubKey.q.encode(false)
             );
             return bigInt(Utils.HEX.encode(sharedSecret));

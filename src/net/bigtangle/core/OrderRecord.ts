@@ -13,8 +13,6 @@ import {
 } from "./Sha256HashSerializer";
 export class OrderRecord extends SpentBlock {
   @JsonProperty()
-  @JsonDeserialize({ using: Sha256HashDeserializer })
-  @JsonSerialize({ using: Sha256HashSerializer })
   private issuingMatcherBlockHash: Sha256Hash | null = null;
   @JsonProperty() offerValue: number = 0;
   @JsonProperty() offerTokenid: string | null = null;

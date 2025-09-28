@@ -8,8 +8,6 @@ import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerial
 
 export class TXReward extends SpentBlock {
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private prevBlockHash: Sha256Hash | null = null;
     @JsonProperty()
     private difficulty: number = 0;

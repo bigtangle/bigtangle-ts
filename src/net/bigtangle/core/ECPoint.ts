@@ -22,20 +22,20 @@ export class ECPoint {
         return decompressedPoint;
     }
 
-    public getX(): bigInt.BigInteger {
-        return bigInt(this.point.x.toString());
+    public getX(): bigint {
+        return BigInt(this.point.x.toString());
     }
 
-    public getY(): bigInt.BigInteger {
-        return bigInt(this.point.y.toString());
+    public getY(): bigint {
+        return BigInt(this.point.y.toString());
     }
 
     public add(other: ECPoint): ECPoint {
         return new ECPoint(this.point.add(other.point));
     }
 
-    public multiply(k: bigInt.BigInteger): ECPoint {
-        return new ECPoint(this.point.multiply(BigInt(k.toString())));
+    public multiply(k: bigint): ECPoint {
+        return new ECPoint(this.point.multiply(k));
     }
 
     public negate(): ECPoint {

@@ -4,47 +4,32 @@ import { Address } from "../core/Address";
 import { Block } from "../core/Block";
 import { Coin } from "../core/Coin";
 import { ECKey } from "../core/ECKey";
-import { MemoInfo } from "../core/MemoInfo";
-import { MultiSign } from "../core/MultiSign";
-import { MultiSignAddress } from "../core/MultiSignAddress";
-import { MultiSignBy } from "../core/MultiSignBy";
 import { NetworkParameters } from "../params/NetworkParameters";
-import { OrderOpenInfo } from "../core/OrderOpenInfo";
-import { Side } from "../core/Side";
 import { Token } from "../core/Token";
 import { TokenInfo } from "../core/TokenInfo";
 import { Transaction } from "../core/Transaction";
-import { TransactionInput } from "../core/TransactionInput";
-import { TransactionOutput } from "../core/TransactionOutput";
 import { UTXO } from "../core/UTXO";
-import { UserSettingDataInfo } from "../core/UserSettingDataInfo";
 import { Utils } from "../utils/Utils";
 import { Base58 } from "../utils/Base58";
 import { Sha256Hash } from "../core/Sha256Hash";
 import { DeterministicKey } from "../crypto/DeterministicKey";
-import { ECIESCoder } from "../crypto/ECIESCoder";
 import { TransactionSignature } from "../crypto/TransactionSignature";
 import { InsufficientMoneyException } from "../exception/InsufficientMoneyException";
 import { NoTokenException } from "../exception/NoTokenException";
 import { ReqCmd } from "../params/ReqCmd";
 import { ServerPool } from "../pool/server/ServerPool";
-import { GetDomainTokenResponse } from "../response/GetDomainTokenResponse";
-import { BlockType } from "../core/BlockType";
-import { GetOutputsResponse } from "../response/GetOutputsResponse";
 import { GetTokensResponse } from "../response/GetTokensResponse";
-import { MultiSignByRequest } from "../response/MultiSignByRequest";
-import { MultiSignResponse } from "../response/MultiSignResponse";
-import { PermissionedAddressesResponse } from "../response/PermissionedAddressesResponse";
-import { TokenIndexResponse } from "../response/TokenIndexResponse";
-import { ScriptBuilder } from "../script/ScriptBuilder";
 import { Json } from "../utils/Json";
 import { OkHttp3Util } from "../utils/OkHttp3Util";
 import { WalletBase } from "./WalletBase";
 import { KeyChainGroup } from "./KeyChainGroup";
 import { LocalTransactionSigner } from "../signers/LocalTransactionSigner";
 import { FreeStandingTransactionOutput } from "./FreeStandingTransactionOutput";
+import { TransactionOutput } from "../core/TransactionOutput";
+import { MemoInfo } from "../core/MemoInfo";
+import { OrderOpenInfo } from "../core/OrderOpenInfo";
+import { BlockType } from "../core/BlockType";
 import { TransactionOutPoint } from "../core/TransactionOutPoint";
-import { WalletProtobufSerializer } from "./WalletProtobufSerializer";
 import { ECDSASignature } from "../crypto/ECDSASignature";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { SigHash } from "../core/SigHash";
@@ -53,6 +38,8 @@ export class Wallet extends WalletBase {
   private static readonly log = console; // Replace with a logger if needed
   keyChainGroup: KeyChainGroup;
   url: string | null = null;
+
+ 
 
   // Static method: fromKeys
   static fromKeys(params: NetworkParameters, keys: ECKey[]): Wallet {
@@ -124,12 +111,7 @@ export class Wallet extends WalletBase {
       .makeBlock(Buffer.from(Utils.HEX.decode(tip)));
   }
 
-  saveToFileStream(f: any): void {
-    // Serialize the wallet to the file stream
-    const serializer = new WalletProtobufSerializer();
-    serializer.writeWallet(this, f);
-  }
-
+  
   async calculateAllSpendCandidates(
     aesKey: any,
     multisigns: boolean
@@ -287,7 +269,7 @@ export class Wallet extends WalletBase {
     );
     
     // Parse response and convert plain objects to UTXO instances
-    const responseObj = Json.jsonmapper().parse(resp);
+    const responseObj: any = Json.jsonmapper().parse(resp);
     let utxos: UTXO[] = [];
     
     if (responseObj.outputs) {

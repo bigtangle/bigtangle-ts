@@ -1222,9 +1222,9 @@ export class Script {
                         break;
                     case OP_GREATERTHANOREQUAL:
                         if (numericOPnum1.compareTo(numericOPnum2) >= 0) {
-                            numericOPresult = (BigInteger as any).one;
+                            numericOPresult = 1n;
                         } else {
-                            numericOPresult = (BigInteger as any).zero;
+                            numericOPresult = 0n;
                         }
                         break;
                     case OP_MIN:
@@ -1391,21 +1391,21 @@ export class Script {
         // to 5-byte bignums to avoid year 2038 issue.
         const nLockTime = Script.castToBigInteger(stack[stack.length - 1], 5) as any;
 
-        if (nLockTime.compareTo((BigInteger as any).zero) < 0) {
+        if (nLockTime < 0n) {
             throw new ScriptException("Negative locktime");
         }
 
         // There are two kinds of nLockTime, need to ensure we're comparing apples-to-apples
         if (!(
-            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD)))) < 0) ||
-            ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime.compareTo(new (BigInteger as any)(String(Transaction.LOCKTIME_THRESHOLD)))) >= 0))
-        ) {
+            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime < BigInt(Transaction.LOCKTIME_THRESHOLD.toString()))) ||
+            ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime >= BigInt(Transaction.LOCKTIME_THRESHOLD.toString())))
+        )) {
             throw new ScriptException("Locktime requirement type mismatch");
         }
 
         // Now that we know we're comparing apples-to-apples, the
         // comparison is a simple numeric one.
-        if (nLockTime.compareTo(new (BigInteger as any)(String(txContainingThis.getLockTime()))) > 0) {
+        if (nLockTime > BigInt(txContainingThis.getLockTime().toString())) {
             throw new ScriptException("Locktime requirement not satisfied");
         }
 

@@ -12,27 +12,19 @@ export class RewardInfo extends DataClass {
     private chainlength: number = 0;
     
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private prevRewardHash: Sha256Hash | null = null;
     
     @JsonProperty()
     @JsonClassType({type: () => [Set, [Sha256Hash]]})
-    @JsonDeserialize({ contentUsing: Sha256HashDeserializer })
-    @JsonSerialize({ contentUsing: Sha256HashSerializer })
     private blocks: Set<Sha256Hash> = new Set();
 
     @JsonProperty()
     private difficultyTargetReward: number = 0;
 
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private ordermatchingResult: Sha256Hash | null = null;
 
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private miningResult: Sha256Hash | null = null;
     
     constructor(
@@ -50,12 +42,13 @@ export class RewardInfo extends DataClass {
 
     private static readonly LARGEST_HASH = 1n << 256n;
 
-    public getWork(): BigInteger { // Use BigInteger for type
+    public getWork(): bigint { // Use native bigint instead of BigInteger
         const target = this.getDifficultyTargetAsInteger();
-        return RewardInfo.LARGEST_HASH.divide(bigInt(target).add(bigInt(1)));
+        // Convert to native bigint division
+        return RewardInfo.LARGEST_HASH / (target + 1n);
     }
 
-    public getDifficultyTargetAsInteger(): BigInteger { // Use BigInteger for type
+    public getDifficultyTargetAsInteger(): bigint { // Use native bigint instead of BigInteger
         return Utils.decodeCompactBits(this.difficultyTargetReward);
     }
     

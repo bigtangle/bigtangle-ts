@@ -30,7 +30,7 @@ import { MessageSerializer } from './MessageSerializer';
 
 // Importing necessary types and functions
 import { Preconditions } from '../utils/Preconditions';
-import { BigInteger } from 'big-integer';
+
 import { Buffer } from 'buffer';
 
 const { checkState } = Preconditions;

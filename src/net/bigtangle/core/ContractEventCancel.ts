@@ -10,8 +10,6 @@ export class ContractEventCancel extends SpentBlock {
 
     // this is the block hash of the Order Block, which should be canceled
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private eventBlockHash: Sha256Hash | null = null;
 
     constructor(eventBlockHash?: Sha256Hash) {

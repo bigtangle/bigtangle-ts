@@ -36,15 +36,6 @@ import { OrderOpenInfo } from './OrderOpenInfo';
 import { TokenInfo } from './TokenInfo';
 import { ContractExecutionResult } from './ContractExecutionResult';
 import { OrderExecutionResult } from './OrderExecutionResult';
-import { Script } from '../script/Script';
-import { ScriptBuilder } from '../script/ScriptBuilder';
-import { ECKey } from './ECKey';
-import { TransactionOutput } from './TransactionOutput';
-import { TransactionInput } from './TransactionInput';
-import { Coin } from './Coin';
-import { MemoInfo } from './MemoInfo';
-import { DataClassName } from './DataClassName';
-import { MultiSignAddress } from './MultiSignAddress';
 import { Buffer } from 'buffer';
 
 /**

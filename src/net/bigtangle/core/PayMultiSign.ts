@@ -1,4 +1,4 @@
-import { BigInteger } from 'big-integer';
+
 
 export class PayMultiSign {
     private orderid: string | null = null;
@@ -6,7 +6,7 @@ export class PayMultiSign {
     private toaddress: string | null = null;
     private blockhashHex: string | null = null;
     private blockhash: Uint8Array | null = null;
-    private amount: BigInteger | null = null;
+    private amount: bigint | null = null;
     private minsignnumber: number = 0;
     private pubKeyHex: string | null = null;
     private outputHashHex: string | null = null;
@@ -54,11 +54,11 @@ export class PayMultiSign {
         this.toaddress = toaddress;
     }
 
-    public getAmount(): BigInteger | null {
+    public getAmount(): bigint | null {
         return this.amount;
     }
 
-    public setAmount(amount: BigInteger | null): void {
+    public setAmount(amount: bigint | null): void {
         this.amount = amount;
     }
 

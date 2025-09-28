@@ -1,40 +1,56 @@
 import { Sha256Hash } from './Sha256Hash';
 import { SpentBlock } from './SpentBlock';
-import { BigInteger } from 'big-integer';
 import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
 import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
 
 export class ContractEventRecord extends SpentBlock {
     @JsonProperty()
-    @JsonDeserialize({ using: Sha256HashDeserializer })
-    @JsonSerialize({ using: Sha256HashSerializer })
     private collectinghash: Sha256Hash | null = null;
     @JsonProperty()
     private contractTokenid: string | null = null;
     @JsonProperty()
-    private targetValue: BigInteger | null = null;
+    private targetValue: bigint | null = null;
     @JsonProperty()
     private targetTokenid: string | null = null;
     @JsonProperty()
     private beneficiaryAddress: string | null = null;
 
     constructor(
-        initialBlockHash?: Sha256Hash,
         collectinghash?: Sha256Hash,
         contractTokenid?: string,
-        confirmed?: boolean,
-        spent?: boolean,
-        spenderBlockHash?: Sha256Hash,
-        targetValue?: BigInteger,
+        targetValue?: bigint,
         targetTokenid?: string,
-        beneficiaryAddress?: string
+        beneficiaryAddress?: string,
+        validFromTimeMilli?: number,
+        validToTimeMilli?: number,
+        spendBlockHash?: Sha256Hash,
+        spendTxHash?: Sha256Hash,
+        confirmed?: boolean,
+        time?: number,
+        spent?: boolean,
+        spendPending?: boolean,
+        spendPendingTime?: number,
+        blockHashHex?: string,
+        hashHex?: string,
+        index?: number,
+        coinbase?: boolean,
+        address?: string,
+        fromaddress?: string,
+        tokenId?: string,
+        minimumsign?: number,
+        zero?: boolean,
+        multiSig?: boolean,
+        scriptHex?: string,
+        blockHash?: Sha256Hash,
+        confirmedTimeMilli?: number,
+        domainName?: string
     ) {
         super();
-        if (initialBlockHash) this.setBlockHash(initialBlockHash);
+        if (blockHash) this.setBlockHash(blockHash);
         if (collectinghash) this.collectinghash = collectinghash;
         if (confirmed !== undefined) this.setConfirmed(confirmed);
         if (spent !== undefined) this.setSpent(spent);
-        if (spenderBlockHash) this.setSpenderBlockHash(spenderBlockHash);
+        if (blockHash) this.setSpenderBlockHash(blockHash);
         if (targetValue) this.targetValue = targetValue;
         if (targetTokenid) this.targetTokenid = targetTokenid;
         if (beneficiaryAddress) this.beneficiaryAddress = beneficiaryAddress;
@@ -43,23 +59,42 @@ export class ContractEventRecord extends SpentBlock {
 
     public static cloneOrderRecord(old: ContractEventRecord): ContractEventRecord {
         return new ContractEventRecord(
-            old.getBlockHash() || undefined,
             old.getCollectinghash() || undefined,
             old.getContractTokenid() || undefined,
-            old.isConfirmed(),
-            old.isSpent(),
-            old.getSpenderBlockHash() || undefined,
             old.getTargetValue() || undefined,
             old.getTargetTokenid() || undefined,
-            old.getBeneficiaryAddress() || undefined
+            old.getBeneficiaryAddress() || undefined,
+            undefined, // validFromTimeMilli
+            undefined, // validToTimeMilli
+            undefined, // spendBlockHash
+            undefined, // spendTxHash
+            old.isConfirmed(),
+            undefined, // time
+            old.isSpent(),
+            undefined, // spendPending
+            undefined, // spendPendingTime
+            undefined, // blockHashHex
+            undefined, // hashHex
+            undefined, // index
+            undefined, // coinbase
+            undefined, // address
+            undefined, // fromaddress
+            undefined, // tokenId
+            undefined, // minimumsign
+            undefined, // zero
+            undefined, // multiSig
+            undefined, // scriptHex
+            old.getBlockHash() || undefined,
+            undefined  // confirmedTimeMilli
+            // domainName is omitted
         );
     }
 
-    public getTargetValue(): BigInteger | null {
+    public getTargetValue(): bigint | null {
         return this.targetValue;
     }
 
-    public setTargetValue(targetValue: BigInteger | null): void {
+    public setTargetValue(targetValue: bigint | null): void {
         this.targetValue = targetValue;
     }
 

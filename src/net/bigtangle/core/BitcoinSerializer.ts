@@ -5,7 +5,6 @@ import { Message } from './Message';
 import { Block } from './Block';
 import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
-import { BloomFilter } from './BloomFilter';
 import { FilteredBlock } from './FilteredBlock';
 import { HeadersMessage } from './HeadersMessage';
 import { Sha256Hash } from './Sha256Hash';

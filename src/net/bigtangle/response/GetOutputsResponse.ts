@@ -4,8 +4,8 @@ import { UTXO } from "../core/UTXO";
 import { JsonProperty } from "jackson-js";
 
 export class GetOutputsResponse extends AbstractResponse {
-  @JsonProperty({ type: () => UTXO }) private outputs: UTXO[] | null = null;
-  @JsonProperty({ type: () => Token })
+  @JsonProperty() private outputs: UTXO[] | null = null;
+  @JsonProperty()
   private tokennames: Record<string, Token> | null = null;
 
   public static create(

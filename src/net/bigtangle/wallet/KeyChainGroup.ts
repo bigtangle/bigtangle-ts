@@ -240,7 +240,7 @@ export class KeyChainGroup implements KeyBag {
         let key: ECKey;
         if (keyProto.secret_bytes) {
             // Reconstruct BigInteger from Uint8Array
-            const privKeyBigInt = bigInt(Buffer.from(keyProto.secret_bytes).toString('hex'), 16);
+            const privKeyBigInt = BigInt('0x' + Buffer.from(keyProto.secret_bytes).toString('hex'));
             key = ECKey.fromPrivate(privKeyBigInt);
         } else {
             key = ECKey.fromPublic(keyProto.public_key!);

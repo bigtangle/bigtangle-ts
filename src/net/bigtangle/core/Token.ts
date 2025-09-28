@@ -39,10 +39,8 @@ export class Token extends SpentBlock {
   @JsonProperty()
   private tokenstop: boolean = false;
   @JsonProperty()
-  @JsonDeserialize({ using: Sha256HashDeserializer })
-  @JsonSerialize({ using: Sha256HashSerializer })
   private prevblockhash: Sha256Hash | null = null;
-  @JsonProperty({ type: "BigInt" }) // Specify BigInt type for Jackson-js
+  @JsonProperty()
   private amount: bigint | null = null;
   @JsonProperty()
   private decimals: number = 0;
@@ -52,7 +50,7 @@ export class Token extends SpentBlock {
   private language: string | null = null;
   @JsonProperty()
   private revoked: boolean = false;
-  @JsonProperty({ class: () => TokenKeyValues })
+  @JsonProperty()
   private tokenKeyValues: TokenKeyValues | null = null;
 
   public addKeyvalue(kv: KeyValue): void {

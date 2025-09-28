@@ -41,15 +41,12 @@ export class DeterministicKey extends ECKey {
     }
     // Helper to convert bigint to Uint8Array (32 bytes)
     private static bigIntegerToBytes(bi: bigint, length: number = 32): Uint8Array {
-        // big-integer's toArray(256) returns { value: number[], isNegative: boolean }
-        const biArrayResult = bi.toArray(256);
-        let bytes = new Uint8Array(biArrayResult.value).reverse(); // Convert to Uint8Array and then reverse
-
-        if (bytes.length < length) {
-            const pad = new Uint8Array(length - bytes.length).fill(0);
-            bytes = new Uint8Array([...pad, ...bytes]);
-        } else if (bytes.length > length) {
-            bytes = bytes.slice(bytes.length - length); // Truncate from left (MSB)
+        // Convert bigint to Uint8Array
+        const bytes = new Uint8Array(length);
+        let value = bi;
+        for (let i = length - 1; i >= 0 && value > 0n; i--) {
+            bytes[i] = Number(value & 0xFFn);
+            value = value >> 8n;
         }
         return bytes;
     }
@@ -59,7 +56,7 @@ export class DeterministicKey extends ECKey {
         childNumberPath: ChildNumber[],
         chainCode: Uint8Array,
         publicAsPoint: ECPoint | null,
-        priv: BigInteger | null,
+        priv: bigint | null,
         parent: DeterministicKey | null,
         depth?: number,
         parentFingerprint?: number,
