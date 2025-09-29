@@ -56,11 +56,13 @@ export class ECDSASignature {
      * of the signature, as recognized by OpenSSL and other libraries.
      */
     public encodeToDER(): Buffer {
-        const rHex = this.r.toString(16).padStart(64, '0');
-        const sHex = this.s.toString(16).padStart(64, '0');
+        // Convert r and s to 32-byte buffers
+        const rBytes = this.bigIntToBytes(this.r, 32);
+        const sBytes = this.bigIntToBytes(this.s, 32);
 
-        const rBa = Buffer.from(rHex, 'hex');
-        const sBa = Buffer.from(sHex, 'hex');
+        // Ensure proper DER encoding by handling leading zeros
+        const rBa = this.ensureProperDERInteger(rBytes);
+        const sBa = this.ensureProperDERInteger(sBytes);
 
         const rInteger = new asn1js.Integer({ valueHex: rBa });
         const sInteger = new asn1js.Integer({ valueHex: sBa });
@@ -71,6 +73,46 @@ export class ECDSASignature {
 
         const der = sequence.toBER(false);
         return Buffer.from(der);
+    }
+
+    /**
+     * Helper method to convert bigint to bytes with proper padding
+     */
+    private bigIntToBytes(value: bigint, length: number): Buffer {
+        let hex = value.toString(16).padStart(length * 2, '0');
+        // Ensure we don't exceed the desired length
+        if (hex.length > length * 2) {
+            hex = hex.substring(hex.length - length * 2);
+        }
+        return Buffer.from(hex, 'hex');
+    }
+
+    /**
+     * Ensure proper DER encoding by handling leading zeros and high bit
+     */
+    private ensureProperDERInteger(bytes: Buffer): Buffer {
+        // If the first byte has the high bit set (>= 0x80), we need to prepend 0x00
+        if (bytes[0] >= 0x80) {
+            const result = Buffer.alloc(bytes.length + 1);
+            result[0] = 0x00;
+            bytes.copy(result, 1);
+            return result;
+        }
+        
+        // Remove any unnecessary leading zeros, but keep at least one byte
+        let start = 0;
+        while (start < bytes.length - 1 && bytes[start] === 0x00) {
+            start++;
+        }
+        
+        return bytes.slice(start);
+    }
+
+    /**
+     * Alias for encodeToDER for compatibility with TransactionSignature
+     */
+    public encodeDER(): Buffer {
+        return this.encodeToDER();
     }
 
     public static decodeFromDER(bytes: Uint8Array): ECDSASignature {
