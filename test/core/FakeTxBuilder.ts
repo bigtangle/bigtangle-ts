@@ -216,7 +216,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt((Coin.COIN.getValue() as number) * 1 + 11),
+                Coin.COIN.getValue() * 1n + 11n,
                 NetworkParameters.getBIGTANGLE_TOKENID()
             ),
             ECKey.fromPrivate(BigInt('2')).toAddress(params),
@@ -256,7 +256,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt((Coin.COIN.getValue() as number) * 1 + 11),
+                Coin.COIN.getValue() * 1n + 11n,
                 NetworkParameters.getBIGTANGLE_TOKENID()
             ),
             ECKey.fromPrivate(BigInt('2')).toAddress(params),

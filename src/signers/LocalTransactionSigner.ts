@@ -80,7 +80,7 @@ export class LocalTransactionSigner implements TransactionSigner {
             
             // Sign the raw hash bytes directly
             const signature = await key.sign(hashBytes.getBytes());
-            const txSignature = new TransactionSignature(signature, SigHash.ALL, false);
+            const txSignature = new TransactionSignature(signature.r, signature.s, SigHash.ALL);
             txIn.setScriptSig(ScriptBuilder.createInputScript(txSignature, key));
         }
 

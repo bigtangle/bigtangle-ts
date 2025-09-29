@@ -142,6 +142,11 @@ export class TransactionSignature extends ECDSASignature {
      */
     public encodeToBitcoin(): Uint8Array {
         const derBytes = this.encodeDER();
+        // Validate that DER encoding succeeded and produced reasonable length
+        if (derBytes.length === 0 || derBytes.length > 72) {
+            throw new Error(`Invalid DER signature length: ${derBytes.length}`);
+        }
+        
         const output = new Uint8Array(derBytes.length + 1);
         output.set(derBytes, 0);
         output[derBytes.length] = this.sighashFlags;

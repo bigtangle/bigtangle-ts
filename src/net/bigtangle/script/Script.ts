@@ -542,8 +542,8 @@ export class Script {
                 // Use ECKey.fromPublic to create a key and call verify
                 const pubKey = ECKey.fromPublic(this.chunks[i + 1].data!);
                 // Create ECDSASignature from the raw signature bytes
-                const sig = ECDSASignature.decodeDER(Buffer.from(signatureBytes));
-                if (pubKey.verify(hash.getBytes(), sig.encodeDER())) {
+                const sig = ECDSASignature.decodeFromDER(Buffer.from(signatureBytes));
+                if (pubKey.verify(hash.getBytes(), sig.encodeToDER())) {
                     return i;
                 }
         }

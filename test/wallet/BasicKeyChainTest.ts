@@ -3,7 +3,7 @@ import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { DeterministicKey } from '../../src/net/bigtangle/crypto/DeterministicKey';
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 
 describe('BasicKeyChainTest', () => {
     let chain: BasicKeyChain;

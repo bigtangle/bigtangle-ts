@@ -243,7 +243,22 @@ export class ECKey {
     }
 
     public verifyWithPubKey(data: Uint8Array, signature: Uint8Array, pub: Uint8Array): boolean {
-        return secp256k1.verify(signature, data, pub);
+        // If signature is in DER format (starts with 0x30), convert it to compact format
+        if (signature.length > 64 && signature[0] === 0x30) {
+            try {
+                // Parse the DER signature to get r and s components
+                const sig = ECDSASignature.decodeFromDER(signature);
+                // Convert to compact format (64 bytes) for verification
+                const compactSig = new secp256k1.Signature(sig.r, sig.s);
+                return secp256k1.verify(compactSig.toCompactRawBytes(), data, pub);
+            } catch (e) {
+                // If DER parsing fails, try direct verification
+                return secp256k1.verify(signature, data, pub);
+            }
+        } else {
+            // Signature is already in compact format
+            return secp256k1.verify(signature, data, pub);
+        }
     }
 
   public isPubKeyOnly(): boolean {
@@ -385,7 +400,7 @@ export class ECKey {
     ]);
     const hash = sha256(sha256(buffer));
     const signature = await this.sign(Uint8Array.from(hash));
-    return signature.encodeDER();
+    return signature.encodeToDER();
   }
 
   public static signedMessageToKey(

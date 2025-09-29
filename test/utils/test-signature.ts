@@ -53,7 +53,7 @@ describe('Signature Test', () => {
     
     // Verify the signature
     const hashBytes = Utils.HEX.decode(hashHex);
-    const hash = Sha256Hash.wrap(hashBytes);
+    const hash = Sha256Hash.wrap(Buffer.from(hashBytes));
     
     try {
       // Fix the type issue by converting Uint8Array to Buffer properly

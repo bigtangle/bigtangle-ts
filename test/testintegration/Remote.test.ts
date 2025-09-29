@@ -354,7 +354,7 @@ export abstract class RemoteTest {
     requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash()!);
     const resp = await OkHttp3Util.postStringSingle(
       this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
+      Buffer.from(this.objectMapper.stringify(Object.fromEntries(requestParam)))
     );
     return this.objectMapper.parse(resp, {
       // Removed .toString("utf8")
@@ -376,7 +376,7 @@ export abstract class RemoteTest {
     const resp: string = await OkHttp3Util.postStringSingle(
       // Explicitly declare resp as string
       this.contextRoot + ReqCmd.getTokenSignByAddress,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
+      Buffer.from(this.objectMapper.stringify(Object.fromEntries(requestParam)))
     );
 
     const trimmedResp = resp.trim(); // Introduce intermediate variable
@@ -412,7 +412,7 @@ export abstract class RemoteTest {
     }
     const sighash = transaction.getHash();
     const party1Signature = await outKey.sign(sighash!.getBytes());
-    const buf1 = party1Signature.encodeDER();
+    const buf1 = party1Signature.encodeToDER();
 
     const multiSignBy0 = new MultiSignBy();
 
@@ -492,8 +492,8 @@ export abstract class RemoteTest {
       Buffer.from(block.bitcoinSerialize())
     );
 
-    const result = this.objectMapper.parse(resp);
-    const dataHex = result.dataHex as string;
+    const result = this.objectMapper.parse(resp) as { dataHex: string };
+    const dataHex = result.dataHex;
 
     const adjust = this.networkParameters
       .getDefaultSerializer()
@@ -565,8 +565,8 @@ export abstract class RemoteTest {
     const signature = await genesiskey.sign(sighash.getBytes());
     const inputScript = ScriptBuilder.createInputScript(
       new TransactionSignature(
-        bigInt(signature.r.toString()),
-        bigInt(signature.s.toString()),
+        signature.r,
+        signature.s,
          SigHash.ALL
       )
     );
@@ -1029,7 +1029,7 @@ export abstract class RemoteTest {
       }
       const sighash = transaction.getHash();
       const party1Signature = await ecKey.sign(sighash!.getBytes());
-      const buf1 = party1Signature.encodeDER();
+      const buf1 = party1Signature.encodeToDER();
 
       const multiSignBy0 = new MultiSignBy();
       multiSignBy0.setTokenid(tokenid);
@@ -1287,7 +1287,7 @@ export abstract class RemoteTest {
     const multiSignBies = new Array<MultiSignBy>();
 
     const party1Signature = await outKey.sign(sighash!.getBytes());
-    const buf1 = party1Signature.encodeDER();
+    const buf1 = party1Signature.encodeToDER();
     let multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
     multiSignBy0.setTokenindex(0);
@@ -1300,7 +1300,7 @@ export abstract class RemoteTest {
 
     const genesiskey = ECKey.fromPrivateString(RemoteTest.testPriv);
     const party2Signature = await genesiskey.sign(sighash!.getBytes());
-    const buf2 = party2Signature.encodeDER();
+    const buf2 = party2Signature.encodeToDER();
     multiSignBy0 = new MultiSignBy();
     multiSignBy0.setTokenid(tokenInfo.getToken()!.getTokenid()!.trim());
     multiSignBy0.setTokenindex(0);
@@ -1445,7 +1445,7 @@ export abstract class RemoteTest {
     const requestParam = new Map<string, any>();
     const response0 = await OkHttp3Util.postStringSingle(
       this.contextRoot + ReqCmd.getOrders,
-      this.objectMapper.stringify(Object.fromEntries(requestParam))
+      Buffer.from(this.objectMapper.stringify(Object.fromEntries(requestParam)))
     );
 
     const orderdataResponse = this.objectMapper.parse(response0, {
