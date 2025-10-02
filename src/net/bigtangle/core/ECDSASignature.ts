@@ -73,54 +73,67 @@ export class ECDSASignature {
      * Strict BIP-66 DER encoding implementation (for compatibility with crypto version)
      */
     public encodeDERStrict(): Buffer {
-        // Convert r to minimal signed format
-        let rHex = this.r.toString(16);
-        if (rHex.length % 2 !== 0) rHex = '0' + rHex;
-        let r = Buffer.from(rHex, 'hex');
+        // Convert r and s to minimal signed DER format (following Bitcoin's DER rules)
         
-        // Add leading zero if r is negative (high bit of first byte is set)
-        if (r.length > 0 && (r[0] & 0x80)) {
-            r = Buffer.concat([Buffer.from([0x00]), r]);
-        } 
-        // Remove unnecessary leading zeros, but only if the next byte doesn't have the high bit set
+        // Convert r to DER integer format
+        let rBytes = this.toDERInteger(this.r);
         
-        while (r.length > 1 && r[0] === 0x00 && !(r[1] & 0x80)) {
-            r = r.slice(1);
-        }
+        // Convert s to DER integer format  
+        let sBytes = this.toDERInteger(this.s);
 
-        // Convert s to minimal signed format
-        let sHex = this.s.toString(16);
-        if (sHex.length % 2 !== 0) sHex = '0' + sHex;
-        let s = Buffer.from(sHex, 'hex');
-        
-        // Add leading zero if s is negative (high bit of first byte is set)
-        if (s.length > 0 && (s[0] & 0x80)) {
-            s = Buffer.concat([Buffer.from([0x00]), s]);
-        } 
-        // Remove unnecessary leading zeros, but only if the next byte doesn't have the high bit set
-        
-        while (s.length > 1 && s[0] === 0x00 && !(s[1] & 0x80)) {
-            s = s.slice(1);
-        }
+        // Calculate total length of the content after the sequence tag
+        const totalLen = rBytes.length + sBytes.length;
 
-        // Calculate total length AFTER applying minimal encoding logic
-        const totalLen = (1 + 1 + r.length) + (1 + 1 + s.length); // INTEGER(r) + INTEGER(s)
-        const der = Buffer.alloc(2 + totalLen);
+        // Create buffer with exact size needed for the complete DER signature
+        const der = Buffer.alloc(2 + totalLen); // SEQUENCE tag + length byte + content
         let offset = 0;
 
-        der[offset++] = 0x30; // SEQUENCE
-        der[offset++] = totalLen;
+        der[offset++] = 0x30; // SEQUENCE tag
+        der[offset++] = totalLen; // Length of the content that follows
 
-        der[offset++] = 0x02; // INTEGER for r
-        der[offset++] = r.length;
-        r.copy(der, offset);
-        offset += r.length;
-
-        der[offset++] = 0x02; // INTEGER for s
-        der[offset++] = s.length;
-        s.copy(der, offset);
+        // Copy r and s DER-encoded integers
+        rBytes.copy(der, offset);
+        offset += rBytes.length;
+        sBytes.copy(der, offset);
 
         return der;
+    }
+    
+    /**
+     * Convert a BigInteger to its DER integer representation following strict DER rules:
+     * - If the value has the high bit set (>= 0x80), prepend 0x00 to indicate positive
+     * - Ensure minimal encoding (no unnecessary leading 0x00)
+     */
+    private toDERInteger(value: bigint): Buffer {
+        if (value === 0n) {
+            return Buffer.from([0x02, 0x01, 0x00]); // INTEGER, length=1, value=0
+        }
+
+        // Convert the value to bytes
+        let hex = value.toString(16);
+        if (hex.length % 2 !== 0) {
+            hex = '0' + hex; // Ensure even number of hex chars
+        }
+        let bytes = Buffer.from(hex, 'hex');
+        
+        // Remove leading zero bytes as long as they're not needed to maintain sign
+        // A leading zero is only necessary if the first byte has the high bit set (>= 0x80)
+        while (bytes.length > 1 && bytes[0] === 0x00 && (bytes[1] & 0x80) === 0) {
+            bytes = bytes.slice(1);
+        }
+        
+        // If the first byte has the high bit set (>= 0x80), prepend 0x00 to indicate positive value
+        if (bytes[0] & 0x80) {
+            bytes = Buffer.concat([Buffer.from([0x00]), bytes]);
+        }
+        
+        // Create the DER integer: tag (0x02) + length + value
+        const result = Buffer.alloc(2 + bytes.length);
+        result[0] = 0x02; // INTEGER tag
+        result[1] = bytes.length; // Length of value
+        bytes.copy(result, 2);
+        
+        return result;
     }
 
     /**

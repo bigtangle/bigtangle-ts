@@ -1149,10 +1149,8 @@ export class Transaction extends ChildMessage {
     txCopy.bitcoinSerializeForSignature(stream);
     const serialized = stream.toByteArray();
     
-    // Create buffer without using Node.js Buffer
-    const sigHashTypeBytes = new Uint8Array(4);
-    const view = new DataView(sigHashTypeBytes.buffer);
-    view.setUint32(0, sigHashType, true);
+    // Create buffer for sighash type - Bitcoin uses a single byte
+    const sigHashTypeBytes = new Uint8Array([sigHashType]);
     
     // Convert to Buffer for compatibility with Sha256Hash.hashTwice
     const buffer = Buffer.concat([
@@ -1160,7 +1158,8 @@ export class Transaction extends ChildMessage {
         Buffer.from(sigHashTypeBytes)
     ]);
 
-    return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(buffer));
+    // Don't use wrapReversed - Bitcoin signature hash is not reversed
+    return Sha256Hash.twiceOf(buffer);
   }
 
   protected bitcoinSerializeForSignature(stream: any): void {

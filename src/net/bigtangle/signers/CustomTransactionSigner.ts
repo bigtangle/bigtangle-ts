@@ -7,7 +7,7 @@ import { TransactionSignature } from '../crypto/TransactionSignature';
 import { KeyBag } from '../wallet/KeyBag'; // Placeholder
 // Placeholder
 import { ChildNumber } from '../crypto/ChildNumber';
-import { ECDSASignature } from '../crypto/ECDSASignature';
+import { ECDSASignature } from '../core/ECDSASignature';
 import { SigHash } from '../core/SigHash';
 
 /**
