@@ -1,8 +1,9 @@
-import { ECDSASignature } from './ECDSASignature';
+import { ECDSASignature } from '../core/ECDSASignature';
 import { Transaction } from '../core/Transaction';
 import { SigHash } from '../core/SigHash';
 import { VerificationException } from '../exception/VerificationException';
 import { secp256k1 } from '@noble/curves/secp256k1';
+import { Buffer } from 'buffer';
 
 /**
  * A TransactionSignature wraps an {@link net.bigtangle.core.ECKey.ECDSASignature} and adds methods for handling

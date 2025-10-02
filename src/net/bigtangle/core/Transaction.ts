@@ -30,7 +30,7 @@ import { Block } from "./Block";
 import { Coin } from "./Coin";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
-import { ECDSASignature as CoreECDSASignature } from "./ECDSASignature"; // This is the core ECDSASignature
+import { ECDSASignature } from "./ECDSASignature";
 import { Script } from "../script/Script";
 import { TransactionBag } from "./TransactionBag";
 import { VerificationException } from "../exception/VerificationException";
@@ -43,7 +43,6 @@ import { Message } from "./Message";
 import { MessageSerializer } from "./MessageSerializer";
 import { ScriptBuilder } from "../script/ScriptBuilder";
 import { TransactionSignature } from "../crypto/TransactionSignature";
-import { ECDSASignature as CryptoECDSASignature } from "../crypto/ECDSASignature";
 
 import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
 
@@ -976,13 +975,8 @@ export class Transaction extends ChildMessage {
       hashType,
       anyoneCanPay
     );
-    const signature: CoreECDSASignature = await key.sign(hash.getBytes());
-    // Convert core ECDSASignature (bigint) to crypto ECDSASignature (BigInteger) to match TransactionSignature requirement
-    const cryptoSignature = new CryptoECDSASignature(
-      BigInt(signature.r.toString()),
-      BigInt(signature.s.toString())
-    );
-    return new TransactionSignature(cryptoSignature, hashType, anyoneCanPay);
+    const signature: ECDSASignature = await key.sign(hash.getBytes());
+    return new TransactionSignature(signature, hashType, anyoneCanPay);
   }
 
  

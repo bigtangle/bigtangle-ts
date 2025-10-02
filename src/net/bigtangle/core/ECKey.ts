@@ -2,7 +2,10 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
+import { Buffer } from 'buffer';
 import { ECDSASignature } from "../core/ECDSASignature";
+import { TransactionSignature } from "../crypto/TransactionSignature";
+import { SigHash } from "../core/SigHash";
 
 // Define HALF_CURVE_ORDER constant
 const HALF_CURVE_ORDER = BigInt(secp256k1.CURVE.n.toString()) >> 1n;
@@ -444,6 +447,26 @@ export class ECKey {
     const publicKeyBytes = publicKey.toRawBytes();
 
     return ECKey.fromPublic(publicKeyBytes);
+  }
+
+  /**
+   * Signs a transaction input with the given private key and returns a TransactionSignature.
+   * This method creates a signature compatible with Bitcoin transaction format.
+   *
+   * @param hash The precalculated hash of the transaction to sign
+   * @param aesKey Optional AES key for encrypted private keys
+   * @param sigHashType The signature hash type (ALL, NONE, SINGLE)
+   * @param anyoneCanPay Whether the signature allows other inputs to be added (ANYONECANPAY)
+   * @returns A TransactionSignature object that can be used in transaction input scripts
+   */
+  public async signTransactionInput(
+    hash: Uint8Array,
+    aesKey?: KeyParameter,
+    sigHashType: SigHash = SigHash.ALL,
+    anyoneCanPay: boolean = false
+  ): Promise<TransactionSignature> {
+    const signature = await this.sign(hash, aesKey);
+    return new TransactionSignature(signature, sigHashType, anyoneCanPay);
   }
 
   public toAddress(params: NetworkParameters): Address.Address {
