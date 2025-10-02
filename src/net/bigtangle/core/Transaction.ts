@@ -1146,7 +1146,7 @@ export class Transaction extends ChildMessage {
 
     // Serialize and hash the transaction
     const stream = new UnsafeByteArrayOutputStream();
-    txCopy.bitcoinSerializeToStream(stream);
+    txCopy.bitcoinSerializeForSignature(stream);
     const serialized = stream.toByteArray();
     
     // Create buffer without using Node.js Buffer

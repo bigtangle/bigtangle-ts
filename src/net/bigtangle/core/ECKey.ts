@@ -234,7 +234,7 @@ export class ECKey {
   public doSign(messageHash: Uint8Array, privKey: bigint): ECDSASignature {
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);
     const sig = secp256k1.sign(messageHash, privKeyBytes);
-    const signature = new ECDSASignature(BigInt(sig.r.toString()), BigInt(sig.s.toString()));
+    const signature = new ECDSASignature(sig.r, sig.s);
     return signature.toCanonicalised();
   }
 
