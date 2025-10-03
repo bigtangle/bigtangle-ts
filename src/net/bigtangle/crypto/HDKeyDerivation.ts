@@ -188,7 +188,7 @@ export class HDKeyDerivation {
         const ilInt = BigInt('0x' + HDKeyDerivation.bufferToHex(il));
         HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
         const priv = parent.getPrivKey();
-        const N = ECKey.CURVE.n;
+        const N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         const kiBigInt = (priv + ilInt) % N;
         HDKeyDerivation.assertNonZero(kiBigInt, 'Illegal derived key: derived private key equals 0.');
         const ki = kiBigInt;
@@ -222,7 +222,7 @@ export class HDKeyDerivation {
         const chainCode = i.slice(32, 64);
         const ilInt = BigInt('0x' + HDKeyDerivation.bufferToHex(il));
         HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
-        const N = ECKey.CURVE.n;
+        const N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         let Ki: ECPoint;
         const parentPubPoint = parent.getPubKeyPoint();
         if (!parentPubPoint) throw new Error('Parent public key is missing');
@@ -258,7 +258,7 @@ export class HDKeyDerivation {
     }
 
     private static assertLessThanN(integer: bigint, errorMessage: string): void {
-        const n = ECKey.CURVE.n;
+        const n = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
         if (integer >= n) {
             throw new HDDerivationException(errorMessage);
         }

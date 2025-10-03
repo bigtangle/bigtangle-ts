@@ -32,6 +32,7 @@ import { Address } from "./Address";
 import { ECKey } from "./ECKey";
 import { ECDSASignature } from "./ECDSASignature";
 import { Script } from "../script/Script";
+import * as ScriptOpCodes from "../script/ScriptOpCodes";
 import { TransactionBag } from "./TransactionBag";
 import { VerificationException } from "../exception/VerificationException";
 import { ScriptException } from "../exception/ScriptException";
@@ -1067,99 +1068,102 @@ export class Transaction extends ChildMessage {
       throw new Error("Network parameters not set");
     }
 
-    // Create a copy of the transaction
-    const txCopy = new Transaction(this.params);
-    txCopy.version = this.version;
-    txCopy.lockTime = this.lockTime;
+    // This step has no purpose beyond being synchronized with Bitcoin Core's bugs.
+    // OP_CODESEPARATOR is a legacy holdover from a previous, broken design of executing
+    // scripts that shipped in Bitcoin 0.1. It was seriously flawed and would have let anyone
+    // take anyone elses money. Later versions switched to the design we use today where 
+    // scripts are executed independently but share a stack. This left the OP_CODESEPARATOR 
+    // instruction having no purpose as it was only meant to be used internally, not actually
+    // ever put into scripts. Deleting OP_CODESEPARATOR is a step that should never be 
+    // required but if we don't do it, we could split off the main chain.
+    connectedScript = Script.removeAllInstancesOfOp(connectedScript, ScriptOpCodes.OP_CODESEPARATOR);
 
-    // Copy inputs - clear all scripts except for the input being signed
-    for (let i = 0; i < this.inputs.length; i++) {
-      const input = this.inputs[i];
-      // Create new input without serialization
-      const newInput = new TransactionInput(this.params);
-      newInput.getOutpoint().setBlockHash(input.getOutpoint().getBlockHash());
-      newInput.getOutpoint().setTxHash(input.getOutpoint().getTxHash());
-      newInput.getOutpoint().setIndex(input.getOutpoint().getIndex());
-      newInput.setSequenceNumber(input.getSequenceNumber());
-      
-      if (i === inputIndex) {
-        newInput.setScriptBytes(connectedScript);
-      } else {
-        newInput.setScriptBytes(new Uint8Array(0));
-      }
-      txCopy.addInput1(newInput);
+    // Create a copy of this transaction to operate upon because we need
+    // make changes to the inputs and outputs.
+    // It would not be thread-safe to change the attributes of the
+    // transaction object itself.
+    const tx = this.params.getDefaultSerializer().makeTransaction(Buffer.from(this.bitcoinSerialize()));
+
+    // Clear input scripts in preparation for signing. If we're signing
+    // a fresh transaction that step isn't very helpful, but it doesn't add much
+    // cost relative to the actual EC math so we'll do it anyway.
+    for (let i = 0; i < tx.inputs.length; i++) {
+      tx.inputs[i].clearScriptBytes();
     }
 
-    // Handle outputs based on sighash type
-    const baseType = sigHashType & 0x1f;
-    const anyoneCanPay = (sigHashType & 0x80) !== 0;
+    // Set the input to the script of its output. Bitcoin Core does this
+    // but the step has no obvious purpose as the signature covers the hash 
+    // of the prevout transaction which obviously includes the output script
+    // already. Perhaps it felt safer to him in some way, or is another
+    // leftover from how the code was written.
+    const input = tx.inputs[inputIndex];
+    input.setScriptBytes(connectedScript);
 
-    // Use numeric constants for sighash types
-    const SIGHASH_ALL = 1;
-    const SIGHASH_NONE = 2;
-    const SIGHASH_SINGLE = 3;
+    if ((sigHashType & 0x1f) === 2) { // SIGHASH_NONE
+      // SIGHASH_NONE means no outputs are signed at all - the
+      // signature is effectively for a "blank cheque".
+      tx.outputs = [];
+      // The signature isn't broken by new versions of the transaction
+      // issued by other parties.
+      for (let i = 0; i < tx.inputs.length; i++)
+        if (i !== inputIndex)
+          tx.inputs[i].setSequenceNumber(0);
+    } else if ((sigHashType & 0x1f) === 3) { // SIGHASH_SINGLE
+      // SIGHASH_SINGLE means only sign the output at the same index
+      // as the input (ie, my output).
+      if (inputIndex >= tx.outputs.length) {
+        // The input index is beyond the number of outputs, it's a
+        // buggy signature made by a broken
+        // Bitcoin implementation. Bitcoin Core also contains a bug
+        // in handling this case:
+        // any transaction output that is signed in this case will
+        // result in both the signed output
+        // and any future outputs to this public key being
+        // steal-able by anyone who has
+        // the resulting signature and the public key (both of which
+        // are part of the signed tx input).
 
-    if (baseType === SIGHASH_NONE) {
-      // Clear all outputs
-      txCopy.outputs = [];
-      // For SIGHASH_NONE, sequence numbers of other inputs are 0.
-      for (let i = 0; i < txCopy.inputs.length; i++) {
-        if (i !== inputIndex) {
-          txCopy.inputs[i].setSequenceNumber(0);
-        }
+        // Bitcoin Core's bug is that SignatureHash was supposed to
+        // return a hash and on this codepath it
+        // actually returns the constant "1" to indicate an error,
+        // which is never checked for. Oops.
+        return Sha256Hash.wrapString("0100000000000000000000000000000000000000000000000000000000000000");
       }
-    } else if (baseType === SIGHASH_SINGLE) {
-      // Keep only the output with the same index as input
-      txCopy.outputs = [];
-      if (inputIndex < this.outputs.length) {
-        const output = this.outputs[inputIndex];
-        txCopy.addOutput(new TransactionOutput(
-          this.params,
-          txCopy,
-          output.getValue(),
-          output.getScriptBytes()
-        ));
-      }
-      // For SIGHASH_SINGLE, sequence numbers of other inputs are 0.
-      for (let i = 0; i < txCopy.inputs.length; i++) {
-        if (i !== inputIndex) {
-          txCopy.inputs[i].setSequenceNumber(0);
-        }
-      }
-    } else {
-      // SIGHASH_ALL (default) - keep all outputs
-      for (const output of this.outputs) {
-        txCopy.addOutput(new TransactionOutput(
-          this.params,
-          txCopy,
-          output.getValue(),
-          output.getScriptBytes()
-        ));
-      }
+      // In SIGHASH_SINGLE the outputs after the matching input index
+      // are deleted, and the outputs before
+      // that position are "nulled out". Unintuitively, the value in a
+      // "null" transaction is set to -1.
+      tx.outputs = tx.outputs.slice(0, inputIndex + 1);
+      for (let i = 0; i < inputIndex; i++)
+        tx.outputs[i] = new TransactionOutput(tx.params!, tx, Coin.NEGATIVE_SATOSHI, new Uint8Array());
+      // The signature isn't broken by new versions of the transaction
+      // issued by other parties.
+      for (let i = 0; i < tx.inputs.length; i++)
+        if (i !== inputIndex)
+          tx.inputs[i].setSequenceNumber(0);
     }
 
-    // If ANYONECANPAY, only keep current input
-    if (anyoneCanPay) {
-      const currentInput = txCopy.inputs[inputIndex];
-      txCopy.inputs = [currentInput];
+    if ((sigHashType & 0x80) !== 0) { // SIGHASH_ANYONECANPAY
+      // SIGHASH_ANYONECANPAY means the signature in the input is not
+      // broken by changes/additions/removals
+      // of other inputs. For example, this is useful for building
+      // assurance contracts.
+      tx.inputs = [input];
     }
 
     // Serialize and hash the transaction
-    const stream = new UnsafeByteArrayOutputStream();
-    txCopy.bitcoinSerializeForSignature(stream);
-    const serialized = stream.toByteArray();
-    
-    // Create buffer for sighash type - Bitcoin uses a single byte
-    const sigHashTypeBytes = new Uint8Array([sigHashType]);
-    
-    // Convert to Buffer for compatibility with Sha256Hash.hashTwice
-    const buffer = Buffer.concat([
-        Buffer.from(serialized),
-        Buffer.from(sigHashTypeBytes)
-    ]);
+    const stream = new UnsafeByteArrayOutputStream(
+      tx.length === (tx.constructor as any).UNKNOWN_LENGTH ? 256 : tx.length + 4
+    );
+    tx.bitcoinSerializeForSignature(stream);
+    // We also have to write a hash type (sigHashType is actually an unsigned char)
+    Utils.uint32ToByteStreamLE(sigHashType & 0x000000ff, stream);
+    // Note that this is NOT reversed to ensure it will be signed
+    // correctly. If it were to be printed out
+    // however then we would expect that it is IS reversed.
+    const hash = Sha256Hash.twiceOf(Buffer.from(stream.toByteArray()));
 
-    // Don't use wrapReversed - Bitcoin signature hash is not reversed
-    return Sha256Hash.twiceOf(buffer);
+    return hash;
   }
 
   protected bitcoinSerializeForSignature(stream: any): void {

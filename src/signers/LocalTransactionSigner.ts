@@ -7,7 +7,7 @@ import { ECDSASignature } from "../net/bigtangle/core/ECDSASignature";
 import { TransactionSignature } from "../net/bigtangle/crypto/TransactionSignature";
 import { SigHash } from "../net/bigtangle/core/SigHash";
 import { ScriptBuilder } from "../net/bigtangle/script/ScriptBuilder";
-import { secp256k1 } from "@noble/curves/secp256k1";
+
 import { NetworkParameters } from "../net/bigtangle/params/NetworkParameters";
 import { Address } from "../net/bigtangle/core/Address";
 import { Coin } from "../net/bigtangle/core/Coin";

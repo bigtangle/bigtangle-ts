@@ -78,7 +78,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 const signature = await tx.calculateSignature(i, key, scriptPubKeyBytes,  SigHash.ALL, false);
        
                  console.log(signature.toString());
-                 // Create input script with signature and public key using ScriptBuilder
+                 // Always use signature + public key for P2PKH format which is most common
                  const newInputScript = ScriptBuilder.createInputScript(signature, key);
                  txIn.setScriptSig(newInputScript);
             } catch (e: any) {

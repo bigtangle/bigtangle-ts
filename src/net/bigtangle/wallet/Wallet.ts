@@ -31,7 +31,7 @@ import { OrderOpenInfo } from "../core/OrderOpenInfo";
 import { BlockType } from "../core/BlockType";
 import { TransactionOutPoint } from "../core/TransactionOutPoint";
 import { ECDSASignature } from "../core/ECDSASignature";
-import { secp256k1 } from "@noble/curves/secp256k1";
+
 import { SigHash } from "../core/SigHash";
 
 export class Wallet extends WalletBase {

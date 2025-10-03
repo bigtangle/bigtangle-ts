@@ -2,7 +2,7 @@ import { ECDSASignature } from '../core/ECDSASignature';
 import { Transaction } from '../core/Transaction';
 import { SigHash } from '../core/SigHash';
 import { VerificationException } from '../exception/VerificationException';
-import { secp256k1 } from '@noble/curves/secp256k1';
+
 import { Buffer } from 'buffer';
 
 /**
@@ -48,9 +48,9 @@ export class TransactionSignature extends ECDSASignature {
      * real signature later.
      */
     public static dummy(): TransactionSignature {
-        // In the original Java code, HALF_CURVE_ORDER is used. We need to find an equivalent in noble-curves.
-        // secp256k1.CURVE.n is the order of the curve.
-        const halfCurveOrder = BigInt(secp256k1.CURVE.n.toString()) / 2n;
+        // secp256k1 curve order: 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
+        const curveN = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        const halfCurveOrder = curveN / 2n;
         return new TransactionSignature(BigInt(halfCurveOrder), BigInt(halfCurveOrder));
     }
 

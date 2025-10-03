@@ -30,7 +30,7 @@ describe("ECKeyTest", () => {
     expect(key.verify(input, sig.encodeToDER())).toBe(true);
 
     // Verify s-value is within valid range (0 < s <= n/2)
-    const n = ECKey.CURVE.n;
+    const n = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
     expect(sig.s > 0n).toBe(true);
     expect(sig.s <= n / 2n).toBe(true);
   });

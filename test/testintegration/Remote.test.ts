@@ -575,7 +575,7 @@ export abstract class RemoteTest {
     return tx;
   }
 
-  protected getLargeUTXO(outputs: UTXO[]): UTXO {
+  public getLargeUTXO(outputs: UTXO[]): UTXO {
     // Filter out UTXOs with null values
     const validOutputs = outputs.filter((output) => output.getValue() !== null);
 
@@ -597,7 +597,7 @@ export abstract class RemoteTest {
     return this.getBalanceByKeys(withZero, await this.wallet.walletKeys(null));
   }
 
-  protected async getBalanceByKey(
+  public async getBalanceByKey(
     withZero: boolean,
     ecKey: ECKey
   ): Promise<UTXO[]> {

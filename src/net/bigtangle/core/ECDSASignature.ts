@@ -3,12 +3,12 @@
 // Combined version with strict BIP-66 DER encoding and additional methods
 
 import { Buffer } from 'buffer';
-import { secp256k1 } from '@noble/curves/secp256k1';
+
 import * as asn1js from 'asn1js';
 import { InvalidTransactionDataException } from '../exception/Exceptions';
 
 // The order of the curve
-const CURVE_N = secp256k1.CURVE.n;
+const CURVE_N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
 // The half order of the curve
 const HALF_CURVE_ORDER = CURVE_N / 2n;
 
@@ -223,8 +223,19 @@ export class ECDSASignature {
                 }
 
                 const sequence = asn1.result as asn1js.Sequence;
-                const rValue = (sequence.valueBlock as any).value[0].valueBlock.valueHex;
-                const sValue = (sequence.valueBlock as any).value[1].valueBlock.valueHex;
+                if (!sequence || !sequence.valueBlock || !(sequence.valueBlock as any).value || (sequence.valueBlock as any).value.length < 2) {
+                    throw new Error("Invalid ASN.1 sequence structure");
+                }
+                
+                const rValueBlock = (sequence.valueBlock as any).value[0].valueBlock;
+                const sValueBlock = (sequence.valueBlock as any).value[1].valueBlock;
+                
+                if (!rValueBlock || !rValueBlock.valueHex || !sValueBlock || !sValueBlock.valueHex) {
+                    throw new Error("Invalid ASN.1 integer values");
+                }
+
+                const rValue = rValueBlock.valueHex;
+                const sValue = sValueBlock.valueHex;
 
                 const r = BigInt('0x' + Buffer.from(rValue).toString('hex'));
                 const s = BigInt('0x' + Buffer.from(sValue).toString('hex'));
@@ -240,15 +251,10 @@ export class ECDSASignature {
      * Recover public key from signature and message hash
      */
     public recoverPublicKey(messageHash: Uint8Array, recoveryId: number): Uint8Array {
-        // Recover public key using noble/secp256k1
-        const signature = new Uint8Array(64);
-        const rBytes = new Uint8Array(Buffer.from(this.r.toString(16).padStart(64, '0'), 'hex'));
-        const sBytes = new Uint8Array(Buffer.from(this.s.toString(16).padStart(64, '0'), 'hex'));
-        signature.set(rBytes, 0);
-        signature.set(sBytes, 32);
-        
-        const publicKeyPoint = secp256k1.Signature.fromCompact(signature).recoverPublicKey(messageHash);
-        return publicKeyPoint.toRawBytes(true); // compressed format
+        // This method is currently not implemented with the secp256k1 library
+        // It would require proper signature format conversion and recovery
+        // For now, throw an error to indicate it's not supported
+        throw new Error("recoverPublicKey not implemented with secp256k1 library");
     }
 
     public equals(o: any): boolean {
