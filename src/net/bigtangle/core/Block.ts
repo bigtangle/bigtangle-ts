@@ -687,7 +687,7 @@ export class Block extends Message {
         }
         if (!calculatedRoot.equals(this.merkleRoot)) {
             Block.log.error("Merkle tree did not verify");
-            this.merkleRoot = calculatedRoot;
+            throw new VerificationException.MerkleRootMismatchException();
         }
     }
     
@@ -771,10 +771,12 @@ export class Block extends Message {
                 const right = Math.min(left + 1, levelSize - 1);
                 const leftBytes = tree[levelOffset + left];
                 const rightBytes = tree[levelOffset + right];
-                const leftReversed = Utils.reverseBytes(Buffer.from(leftBytes));
-                const rightReversed = Utils.reverseBytes(Buffer.from(rightBytes));
-                const concatenated = Buffer.concat([leftReversed, rightReversed]);
-                const hashResult = Sha256Hash.hashTwice(concatenated);
+                const leftReversed = Utils.reverseBytes(leftBytes);
+                const rightReversed = Utils.reverseBytes(rightBytes);
+                const hashResult = Sha256Hash.hashTwiceRanges(
+                    leftReversed, 0, leftReversed.length,
+                    rightReversed, 0, rightReversed.length
+                );
                 tree.push(new Uint8Array(Utils.reverseBytes(hashResult)));
             }
             // Move to the next level.

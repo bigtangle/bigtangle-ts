@@ -1084,7 +1084,7 @@ export class Transaction extends ChildMessage {
     // make changes to the inputs and outputs.
     // It would not be thread-safe to change the attributes of the
     // transaction object itself.
-    const tx = this.params.getDefaultSerializer().makeTransaction(Buffer.from(this.bitcoinSerialize()));
+    const tx = this.params.getDefaultSerializer().makeTransaction(this.bitcoinSerialize());
 
     // Clear input scripts in preparation for signing. If we're signing
     // a fresh transaction that step isn't very helpful, but it doesn't add much
@@ -1157,7 +1157,8 @@ export class Transaction extends ChildMessage {
     const stream = new UnsafeByteArrayOutputStream(
       tx.length === (tx.constructor as any).UNKNOWN_LENGTH ? 256 : tx.length + 4
     );
-    tx.bitcoinSerializeForSignature(stream);
+    // Use the signature hash serialization method that includes additional fields
+    tx.bitcoinSerializeForSignatureHash(stream);
     // We also have to write a hash type (sigHashType is actually an unsigned char)
     Utils.uint32ToByteStreamLE(sigHashType & 0x000000ff, stream);
     // Note that this is NOT reversed to ensure it will be signed
@@ -1179,6 +1180,73 @@ export class Transaction extends ChildMessage {
       output.bitcoinSerialize(stream);
     }
     Utils.uint32ToByteStreamLE(this.lockTime, stream);
+  }
+
+  protected bitcoinSerializeForSignatureHash(stream: any): void {
+    Utils.uint32ToByteStreamLE(this.version, stream);
+    stream.write(new VarInt(this.inputs.length).encode());
+    for (const input of this.inputs) {
+      input.bitcoinSerialize(stream);
+    }
+    stream.write(new VarInt(this.outputs.length).encode());
+    for (const output of this.outputs) {
+      output.bitcoinSerialize(stream);
+    }
+    Utils.uint32ToByteStreamLE(this.lockTime, stream);
+    
+    // Include additional fields that are part of the signature hash calculation
+    // write dataClassName
+    if (this.dataClassName == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.dataClassName.length, stream);
+      stream.write(new TextEncoder().encode(this.dataClassName));
+    }
+
+    // write data
+    if (this.data == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.data.length, stream);
+      if (this.data.length > 0) {
+        stream.write(this.data);
+      }
+    }
+
+    // write toAddressInSubtangle
+    if (this.toAddressInSubtangle == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
+      if (this.toAddressInSubtangle.length > 0) {
+        stream.write(this.toAddressInSubtangle);
+      }
+    }
+
+    // write memo
+    if (this.memo == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      const membyte = new TextEncoder().encode(this.memo);
+      Utils.uint32ToByteStreamLE(membyte.length, stream);
+      stream.write(membyte);
+    }
+
+    // write dataSignature
+    if (this.dataSignature == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.dataSignature.length, stream);
+      if (this.dataSignature.length > 0) {
+        stream.write(this.dataSignature);
+      }
+    }
+  }
+
+  public unsafeBitcoinSerialize(): Uint8Array {
+    const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length + 32);
+    this.bitcoinSerializeToStream(stream);
+    return stream.toByteArray();
   }
 
   public unsafeBitcoinSerializeForSignature(): Uint8Array {

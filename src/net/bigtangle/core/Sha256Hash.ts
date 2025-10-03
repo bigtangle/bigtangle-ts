@@ -162,10 +162,11 @@ export class Sha256Hash {
         const bufferInput2 = Buffer.isBuffer(subarray2) ? subarray2 : Buffer.from(subarray2);
         digest.update(bufferInput1);
         digest.update(bufferInput2);
-        const hash1 = digest.digest();
-        const digest2 = Sha256Hash.newDigest();
-        digest2.update(hash1);
-        return Buffer.from(digest2.digest());
+        const firstHash = digest.digest();
+        // Simulate Java's digest.digest(firstHash) which does reset(), update(firstHash), digest()
+        digest.reset();  // Reset the digest state
+        digest.update(firstHash);
+        return Buffer.from(digest.digest());
     }
 
     public equals(other: Sha256Hash  ): boolean {
