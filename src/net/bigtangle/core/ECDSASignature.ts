@@ -109,22 +109,40 @@ export class ECDSASignature {
             return Buffer.from([0x02, 0x01, 0x00]); // INTEGER, length=1, value=0
         }
 
-        // Convert the value to bytes
+        // For DER encoding, we need to represent the value as a signed integer
+        // If the value is positive but would be interpreted as negative due to MSB set, 
+        // we need to prepend a 0x00 byte
+        
+        // Convert the value to bytes using big-endian representation
         let hex = value.toString(16);
         if (hex.length % 2 !== 0) {
             hex = '0' + hex; // Ensure even number of hex chars
         }
         let bytes = Buffer.from(hex, 'hex');
         
-        // Remove leading zero bytes as long as they're not needed to maintain sign
-        // A leading zero is only necessary if the first byte has the high bit set (>= 0x80)
-        while (bytes.length > 1 && bytes[0] === 0x00 && (bytes[1] & 0x80) === 0) {
-            bytes = bytes.slice(1);
+        // Remove non-significant leading zeros, but make sure we don't remove 
+        // a zero that's needed to keep the number positive 
+        while (bytes.length > 1 && bytes[0] === 0x00) {
+            // Only remove the leading zero if the next byte doesn't have high bit set
+            // (which would make the positive number appear negative)
+            if ((bytes[1] & 0x80) === 0) {
+                bytes = bytes.slice(1);
+            } else {
+                // If the next byte has high bit set, we need to keep this zero
+                // to maintain the positive sign
+                break;
+            }
         }
         
-        // If the first byte has the high bit set (>= 0x80), prepend 0x00 to indicate positive value
-        if (bytes[0] & 0x80) {
+        // If the first byte has the high bit set, this value would appear negative
+        // in two's complement representation, so prepend a 0x00 to make it positive
+        if ((bytes[0] & 0x80) !== 0) {
             bytes = Buffer.concat([Buffer.from([0x00]), bytes]);
+        }
+        
+        // Verify that bytes length fits in a single byte (DER length field is 1 byte for lengths < 128)
+        if (bytes.length > 127) {
+            throw new Error(`Integer too large for DER encoding (length: ${bytes.length})`);
         }
         
         // Create the DER integer: tag (0x02) + length + value

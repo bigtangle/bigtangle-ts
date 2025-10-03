@@ -89,7 +89,7 @@ describe("RemoteBinaryTests", () => {
 
     // Create outputs - send to the same address to keep funds
     const amount = spendableOutput.getValue()!.subtract(Coin.FEE_DEFAULT);
-    if (amount.getValue().isLessThan(BigInt(0))) {
+    if (amount.getValue() < BigInt(0)) {
       console.log("Insufficient funds for transaction fee, skipping test");
       return;
     }

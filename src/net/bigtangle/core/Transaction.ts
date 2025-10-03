@@ -977,7 +977,9 @@ export class Transaction extends ChildMessage {
       anyoneCanPay
     );
     const signature: ECDSASignature = await key.sign(hash.getBytes());
-    return new TransactionSignature(signature, hashType, anyoneCanPay);
+    // Ensure signature is canonical (S value is low) to follow Bitcoin standard
+    const canonicalSignature = signature.toCanonicalised();
+    return new TransactionSignature(canonicalSignature, hashType, anyoneCanPay);
   }
 
  

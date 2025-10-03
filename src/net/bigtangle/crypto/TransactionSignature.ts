@@ -144,7 +144,8 @@ export class TransactionSignature extends ECDSASignature {
     public encodeToBitcoin(): Uint8Array {
         const derBytes = this.encodeDER();
         // Validate that DER encoding succeeded and produced reasonable length
-        if (derBytes.length === 0 || derBytes.length > 72) {
+        // Bitcoin signatures are typically 70-73 bytes total including sighash
+        if (derBytes.length === 0 || derBytes.length > 73) {
             throw new Error(`Invalid DER signature length: ${derBytes.length}`);
         }
         
