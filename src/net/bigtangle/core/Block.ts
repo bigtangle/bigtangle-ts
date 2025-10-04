@@ -428,7 +428,7 @@ export class Block extends Message {
     private calculateHash(): Sha256Hash {
         const bos = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
         this.writeHeader(bos);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(bos.toByteArray()));
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(bos.toByteArray())));
     }
 
     /**
@@ -437,7 +437,7 @@ export class Block extends Message {
     private calculatePoWHash(): Sha256Hash {
         const bos = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
         this.writeHeader(bos);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(bos.toByteArray()));
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(bos.toByteArray())));
     }
 
     /**
@@ -771,8 +771,8 @@ export class Block extends Message {
                 const right = Math.min(left + 1, levelSize - 1);
                 const leftBytes = tree[levelOffset + left];
                 const rightBytes = tree[levelOffset + right];
-                const leftReversed = Utils.reverseBytes(leftBytes);
-                const rightReversed = Utils.reverseBytes(rightBytes);
+                const leftReversed = Utils.reverseBytes(Buffer.from(leftBytes));
+                const rightReversed = Utils.reverseBytes(Buffer.from(rightBytes));
                 const hashResult = Sha256Hash.hashTwiceRanges(
                     leftReversed, 0, leftReversed.length,
                     rightReversed, 0, rightReversed.length

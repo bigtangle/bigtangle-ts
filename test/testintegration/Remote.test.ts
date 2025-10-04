@@ -2,30 +2,37 @@ import { expect, test } from "vitest";
 import { ObjectMapper } from "jackson-js";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
+import { BlockEvaluation } from "../../src/net/bigtangle/core/BlockEvaluation";
+import { BlockEvaluationDisplay } from "../../src/net/bigtangle/core/BlockEvaluationDisplay";
 import { BlockType } from "../../src/net/bigtangle/core/BlockType";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
 import { ECKey } from "../../src/net/bigtangle/core/ECKey";
 import { KeyValue } from "../../src/net/bigtangle/core/KeyValue";
 import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
+import { MultiSign } from "../../src/net/bigtangle/core/MultiSign";
 import { MultiSignAddress } from "../../src/net/bigtangle/core/MultiSignAddress";
 import { MultiSignBy } from "../../src/net/bigtangle/core/MultiSignBy";
 import { OrderRecord } from "../../src/net/bigtangle/core/OrderRecord";
 import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
 import { Token } from "../../src/net/bigtangle/core/Token";
 import { TokenInfo } from "../../src/net/bigtangle/core/TokenInfo";
+import { TokenKeyValues } from "../../src/net/bigtangle/core/TokenKeyValues";
 import { Tokensums } from "../../src/net/bigtangle/core/Tokensums";
 import { Transaction } from "../../src/net/bigtangle/core/Transaction";
+import { TransactionOutPoint } from "../../src/net/bigtangle/core/TransactionOutPoint";
 import { TransactionInput } from "../../src/net/bigtangle/core/TransactionInput";
 import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
 import { UTXO } from "../../src/net/bigtangle/core/UTXO";
 import { UtilGeneseBlock } from "../../src/net/bigtangle/core/UtilGeneseBlock";
 import { Utils } from "../../src/net/bigtangle/core/Utils";
 import { TransactionSignature } from "../../src/net/bigtangle/crypto/TransactionSignature";
+import { BlockStoreException } from "../../src/net/bigtangle/exception/BlockStoreException";
 import { InsufficientMoneyException } from "../../src/net/bigtangle/exception/InsufficientMoneyException";
 import { NetworkParameters } from "../../src/net/bigtangle/params/NetworkParameters";
 import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalancesResponse";
+import { GetBlockEvaluationsResponse } from "../../src/net/bigtangle/response/GetBlockEvaluationsResponse";
 import { GetTokensResponse } from "../../src/net/bigtangle/response/GetTokensResponse";
 import { MultiSignByRequest } from "../../src/net/bigtangle/response/MultiSignByRequest";
 import { MultiSignResponse } from "../../src/net/bigtangle/response/MultiSignResponse";
@@ -38,7 +45,7 @@ import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { UUIDUtil } from "../../src/net/bigtangle/utils/UUIDUtil";
 import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
-import { SigHash } from "net/bigtangle/core/SigHash";
+import { SigHash } from "../../src/net/bigtangle/core/SigHash";
 
 test("dummy test", () => {});
 export abstract class RemoteTest {
@@ -320,21 +327,21 @@ export abstract class RemoteTest {
   protected async assertHasAvailableToken(
     testKey: ECKey,
     tokenId_: string,
-    amount: number
+    amount: bigint
   ) {
     // Asserts that the given ECKey possesses the given amount of tokens
     const balance = await this.getBalanceByKey(false, testKey);
-    const hashMap = new Map<string, number>();
+    const hashMap = new Map<string, bigint>();
     for (const o of balance) {
       const value = o.getValue();
       if (!value) continue;
 
       const tokenId = Utils.toHexString(value.getTokenid());
-      const current = hashMap.get(tokenId) || 0;
-      hashMap.set(tokenId, current + Number(value.getValue()));
+      const current = hashMap.get(tokenId) || BigInt(0);
+      hashMap.set(tokenId, current + value.getValue());
     }
 
-    expect(amount === 0 ? null : amount).toBe(hashMap.get(tokenId_));
+    expect(amount === BigInt(0) ? null : amount).toBe(hashMap.get(tokenId_));
   }
 
   protected getRandomSha256Hash(): Sha256Hash {
@@ -650,6 +657,23 @@ export abstract class RemoteTest {
     }
 
     return null;
+  }
+  
+  // Translated from Java: protected UTXO getBalance(String tokenid, boolean withZero, List<ECKey> keys)
+  protected async getBalanceForToken(
+    tokenid: string,
+    withZero: boolean,
+    keys: ECKey[]
+  ): Promise<UTXO> {
+    const ulist = await this.getBalanceByKeys(withZero, keys);
+
+    for (const u of ulist) {
+      if (tokenid === u.getTokenId()) {
+        return u;
+      }
+    }
+
+    throw new Error("UTXO not found for tokenid: " + tokenid);
   }
 
   protected async getBalanceAccount(
@@ -1416,7 +1440,7 @@ export abstract class RemoteTest {
     const giveMoneyResult = new Map<string, bigint>();
 
     for (let i = 0; i < 10; i++) {
-      // Use BigInt arithmetic
+      // Use BigInt arithmetic - match Java: 3333000000l / LongMath.pow(2, 1) = 3333000000 / 2
       const amount = BigInt(3333000000) / BigInt(2);
       giveMoneyResult.set(
         ECKey.createNewKey().toAddress(this.networkParameters).toString(),
@@ -1424,13 +1448,14 @@ export abstract class RemoteTest {
       );
     }
 
-    // Add all required parameters for payMoneyToECKeyList
+    // Match Java implementation: payMoneyToECKeyList(null, giveMoneyResult, "payMoneyToWallet1")
+    // This assumes the wallet method has been updated to accept this signature
     const coinList = await this.wallet.calculateAllSpendCandidates(null, false);
     const b = await this.wallet.payMoneyToECKeyList(
       null, // aesKey
       giveMoneyResult,
-      Buffer.from(NetworkParameters.BIGTANGLE_TOKENID_STRING, "hex"),
-      "", // memo
+      Buffer.from(NetworkParameters.BIGTANGLE_TOKENID_STRING, "hex"), // tokenid - inferred from context
+      "payMoneyToWallet1", // memo - matches Java
       coinList,
       0, // fee
       0 // confirmTarget
@@ -1471,22 +1496,23 @@ export abstract class RemoteTest {
       orderRecord.getOfferTokenid()
     ) {
       // sell order and make buy
-      // Convert to BigInt for proper arithmetic
-      // Use BigInt arithmetic to avoid floating point inaccuracies
-      const price =
-        orderRecord.getTargetValue()! / orderRecord.getOfferValue()!;
-
-      // Convert price to number then to BigInt for safety
-      const buyPrice = BigInt(Number(price));
+      // Match Java: long price = orderRecord.getTargetValue() / orderRecord.getOfferValue();
+      // Using BigInt integer division to match Java behavior
+      const targetValue = orderRecord.getTargetValue()!;
+      const offerValue = orderRecord.getOfferValue()!;
+      // Ensure both values are BigInts before division to avoid type errors
+      const bigTargetValue = typeof targetValue === 'bigint' ? targetValue : BigInt(targetValue);
+      const bigOfferValue = typeof offerValue === 'bigint' ? offerValue : BigInt(offerValue);
+      const price = bigTargetValue / bigOfferValue;
       const buyOrder = await this.wallet.buyOrder(
         null, // aesKey
         orderRecord.getOfferTokenid()!,
-        buyPrice,
-        BigInt(Number(orderRecord.getOfferValue())),
+        price, // buyPrice - BigInt result of division
+        bigOfferValue, // offervalue - ensure it's BigInt
         null, // validToTime
         null, // validFromTime
         NetworkParameters.BIGTANGLE_TOKENID_STRING,
-        true // allowRemainder
+        false // allowRemainder - matches Java (was true in TS, should be false like Java)
       );
       blocksAddedAll.push(buyOrder);
       // makeOrderExecutionAndReward(blocksAddedAll);
@@ -1525,4 +1551,138 @@ export abstract class RemoteTest {
    * @throws VerificationException if the given prototype is not compatible with
    *                               the current milestone
    */
+  
+  public async send() {
+    const requestParam = new Map<string, string>();
+    const data = await OkHttp3Util.postAndGetBlock(
+      this.contextRoot + ReqCmd.getTip,
+      this.objectMapper.stringify(Object.fromEntries(requestParam))
+    );
+
+    const rollingBlock = this.networkParameters
+      .getDefaultSerializer()
+      .makeBlock(Buffer.from(Utils.HEX.decode(data)));
+    rollingBlock.solve();
+
+    await OkHttp3Util.post(
+      this.contextRoot + ReqCmd.saveBlock,
+      Buffer.from(rollingBlock.bitcoinSerialize())
+    );
+  }
+
+  private async getBlockInfos(): Promise<BlockEvaluationDisplay[]> {
+    const lastestAmount = "200";
+    const requestParam = new Map<string, any>();
+    requestParam.set("lastestAmount", lastestAmount);
+    const response = await OkHttp3Util.postStringSingle(
+      this.contextRoot + "/" + ReqCmd.findBlockEvaluation,
+      Buffer.from(this.objectMapper.stringify(Object.fromEntries(requestParam)))
+    );
+
+    const getBlockEvaluationsResponse = this.objectMapper.parse(response, {
+      mainCreator: () => [GetBlockEvaluationsResponse],
+    }) as GetBlockEvaluationsResponse;
+    return getBlockEvaluationsResponse.getEvaluations()!;
+  }
+
+  public async createTokenWithKeyValues(
+    key: ECKey,
+    tokename: string,
+    decimals: number,
+    domainname: string,
+    description: string,
+    amount: bigint,
+    increment: boolean,
+    tokenKeyValues: TokenKeyValues | null,
+    tokentype: number,
+    tokenid: string,
+    w: Wallet
+  ): Promise<Block> {
+    await w.importKey(key);
+    const token = Token.buildSimpleTokenInfo2(
+      true,
+      Sha256Hash.ZERO_HASH,
+      tokenid,
+      tokename,
+      description,
+      1,
+      0,
+      amount,
+      !increment,
+      decimals,
+      domainname
+    );
+    token.setTokenKeyValues(tokenKeyValues);
+    token.setTokentype(tokentype);
+    
+    const tokenInfo = new TokenInfo();
+    tokenInfo.setToken(token);
+    
+    // Add multi-sign addresses
+    const addresses = new Array<MultiSignAddress>();
+    addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
+    
+    // Since Wallet doesn't have the exact createToken method as in Java, 
+    // we'll use the saveToken method which is available
+    const basecoin = Coin.valueOf(amount, Buffer.from(tokenid, "hex"));
+    return w.saveToken(tokenInfo, basecoin, key, null, key.getPubKey(), new MemoInfo("createToken"));
+  }
+
+  // This method signature isn't directly supported by the current Wallet implementation
+  // We'll need to adapt based on available methods
+  public async createTokenWithPubkeyAndMemoInfo(
+    key: ECKey,
+    tokename: string,
+    decimals: number,
+    domainname: string,
+    description: string,
+    amount: bigint,
+    increment: boolean,
+    tokenKeyValues: TokenKeyValues | null,
+    tokentype: number,
+    tokenid: string,
+    w: Wallet,
+    pubkeyTo: Buffer,
+    memoInfo: MemoInfo
+  ): Promise<Block> {
+    const token = Token.buildSimpleTokenInfo2(
+      true,
+      Sha256Hash.ZERO_HASH,
+      tokenid,
+      tokename,
+      description,
+      1,
+      0,
+      amount,
+      !increment,
+      decimals,
+      domainname
+    );
+    token.setTokenKeyValues(tokenKeyValues);
+    token.setTokentype(tokentype);
+    
+    const tokenInfo = new TokenInfo();
+    tokenInfo.setToken(token);
+    
+    // Add multi-sign addresses
+    const addresses = new Array<MultiSignAddress>();
+    addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
+    
+    // Use the saveToken method which is available in the Wallet class
+    const basecoin = Coin.valueOf(amount, Buffer.from(tokenid, "hex"));
+    return w.saveToken(tokenInfo, basecoin, key, null, pubkeyTo, memoInfo);
+  }
+
+  // Since BlockWrap doesn't exist in the TypeScript version, we'll just return the block
+  public defaultBlockWrap(block: Block): Block {
+    return block;
+  }
+
+  public async getBlockEvaluation(hash: Sha256Hash, store: any /* BlockStoreInterface */): Promise<BlockEvaluation> {
+    return store.getBlockWrap(hash).getBlockEvaluation();
+  }
+
+  public async getUTXO(out: TransactionOutPoint, store: any /* BlockStoreInterface */): Promise<UTXO> {
+    return store.getTransactionOutput(out.getBlockHash(), out.getTxHash(), out.getIndex());
+  }
 }

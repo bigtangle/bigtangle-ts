@@ -1084,7 +1084,7 @@ export class Transaction extends ChildMessage {
     // make changes to the inputs and outputs.
     // It would not be thread-safe to change the attributes of the
     // transaction object itself.
-    const tx = this.params.getDefaultSerializer().makeTransaction(this.bitcoinSerialize());
+    const tx = this.params.getDefaultSerializer().makeTransaction(Buffer.from(this.bitcoinSerialize()));
 
     // Clear input scripts in preparation for signing. If we're signing
     // a fresh transaction that step isn't very helpful, but it doesn't add much
@@ -1164,7 +1164,7 @@ export class Transaction extends ChildMessage {
     // Note that this is NOT reversed to ensure it will be signed
     // correctly. If it were to be printed out
     // however then we would expect that it is IS reversed.
-    const hash = Sha256Hash.twiceOf(Buffer.from(stream.toByteArray()));
+    const hash = Sha256Hash.twiceOf(stream.toByteArray());
 
     return hash;
   }

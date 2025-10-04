@@ -86,7 +86,7 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                  if (currentScriptPubKey.isSentToRawPubKey()) {
                      // For raw public key outputs, only push the signature
                      console.log("Creating P2PK input script (signature only)");
-                     const newInputScript = ScriptBuilder.createInputScript(signature, null);
+                     const newInputScript = ScriptBuilder.createInputScript(signature, undefined);
                      txIn.setScriptSig(newInputScript);
                      console.log("Input script for P2PK:", newInputScript.getProgram());
                  } else {
