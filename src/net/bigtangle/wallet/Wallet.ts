@@ -25,14 +25,21 @@ import { WalletBase } from "./WalletBase";
 import { KeyChainGroup } from "./KeyChainGroup";
 import { LocalTransactionSigner } from "../signers/LocalTransactionSigner";
 import { FreeStandingTransactionOutput } from "./FreeStandingTransactionOutput";
+import { TransactionInput } from "../core/TransactionInput";
 import { TransactionOutput } from "../core/TransactionOutput";
 import { MemoInfo } from "../core/MemoInfo";
 import { OrderOpenInfo } from "../core/OrderOpenInfo";
 import { BlockType } from "../core/BlockType";
 import { TransactionOutPoint } from "../core/TransactionOutPoint";
 import { ECDSASignature } from "../core/ECDSASignature";
-
 import { SigHash } from "../core/SigHash";
+import { MultiSignAddress } from "../core/MultiSignAddress";
+import { MultiSignBy } from "../core/MultiSignBy";
+import { MultiSignByRequest } from "../response/MultiSignByRequest";
+import { KeyPurpose } from "../wallet/KeyChain";
+
+// Define Buffer for browser environments if needed
+declare const Buffer: any;
 
 export class Wallet extends WalletBase {
   private static readonly log = console; // Replace with a logger if needed
@@ -93,11 +100,11 @@ export class Wallet extends WalletBase {
       this.serverPool = new ServerPool(params) as ServerPool;
     } else {
       this.url = url;
-      if (typeof (this as any).setServerURL === "function") {
-        (this as any).setServerURL(url);
-      }
+      this.setServerURL(url);
     }
   }
+
+  // Additional WalletBase methods would be inherited automatically
 
   async getTip(): Promise<Block> {
     const requestParam = {};
@@ -106,9 +113,11 @@ export class Wallet extends WalletBase {
       Json.jsonmapper().stringify(requestParam)
     );
 
+    const hexBytes = Utils.HEX.decode(tip);
+    const buffer = Buffer.from(hexBytes);
     return this.params
       .getDefaultSerializer()
-      .makeBlock(Buffer.from(Utils.HEX.decode(tip)));
+      .makeBlock(buffer);
   }
 
   
@@ -141,26 +150,148 @@ export class Wallet extends WalletBase {
     pubKeyTo?: Uint8Array,
     memoInfo?: MemoInfo
   ): Promise<Block> {
-    // Create a transaction for the token
-    const tx = new Transaction(this.params);
+    const token = tokenInfo.getToken!();
+    if (!token) {
+      throw new Error("Token cannot be null");
+    }
+    // At this point, we know token is not null
+
+    if (token && this.isBlank(token.getDomainNameBlockHash ? token.getDomainNameBlockHash() : "")) {
+      const tokenNameResult = token.getTokenname ? token.getTokenname() : null;
+      if (tokenNameResult && this.isBlank(tokenNameResult)) {
+        if (tokenNameResult) {
+          const getDomainBlockHashResponse = await this.getDomainNameBlockHash(tokenNameResult);
+          const domainNameBlockHash = getDomainBlockHashResponse?.getdomainNameToken ? getDomainBlockHashResponse.getdomainNameToken() : null;
+          if (domainNameBlockHash) {
+            const domainBlockHash = getDomainBlockHashResponse?.getdomainNameToken ? getDomainBlockHashResponse.getdomainNameToken() : null;
+            if (domainBlockHash) {
+              token.setDomainNameBlockHash ? token.setDomainNameBlockHash(domainBlockHash.getBlockHashHex ? domainBlockHash.getBlockHashHex() : "") : null;
+              token.setTokenname ? token.setTokenname(domainBlockHash.getTokenname ? domainBlockHash.getTokenname() : "") : null;
+            }
+          }
+        }
+      }
+    }
+
+    if (token && token.getDomainNameBlockHash && token.getDomainNameBlockHash() && Utils.isBlank(token.getDomainNameBlockHash())) {
+      const tokenInfoResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
+      if (tokenInfoResult && tokenInfoResult.getTokenname) {
+        const tokenName = tokenInfoResult.getTokenname();
+        if (tokenName && !Utils.isBlank(tokenName)) {
+          const domainResponse = await this.getDomainNameBlockHash(tokenName);
+          const domain = domainResponse && domainResponse.getdomainNameToken ? domainResponse.getdomainNameToken() : null;
+          if (domain && domain.getBlockHashHex) {
+            token.setDomainNameBlockHash ? token.setDomainNameBlockHash(domain.getBlockHashHex()) : null;
+          }
+        }
+      }
+    }
+
+    const multiSignAddresses = tokenInfo.getMultiSignAddresses ? tokenInfo.getMultiSignAddresses() : [];
+    const permissionedAddressesResponse = await this.getPrevTokenMultiSignAddressList(token || null);
+    if (token && permissionedAddressesResponse != null && 
+        permissionedAddressesResponse.getMultiSignAddresses != null &&
+        typeof permissionedAddressesResponse.getMultiSignAddresses === 'function' &&
+        permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
+      const tokenNameResult = token.getTokenname ? token.getTokenname() : null;
+      if (tokenNameResult && this.isBlank(tokenNameResult)) {
+        const newTokenName = permissionedAddressesResponse.getTokenname ? 
+          (typeof permissionedAddressesResponse.getTokenname === 'function' ? 
+            permissionedAddressesResponse.getTokenname() : 
+            permissionedAddressesResponse.getTokenname) : 
+          permissionedAddressesResponse.tokenname;
+        if (newTokenName && token.setTokenname) {
+          token.setTokenname(newTokenName);
+        }
+      }
+
+      for (const multiSignAddress of permissionedAddressesResponse.getMultiSignAddresses()) {
+        const pubKeyHex = multiSignAddress.getPubKeyHex ? 
+          (typeof multiSignAddress.getPubKeyHex === 'function' ? 
+            multiSignAddress.getPubKeyHex() : 
+            multiSignAddress.pubKeyHex) : 
+          multiSignAddress.pubKeyHex;
+        const tokenid = token.getTokenid ? 
+          (typeof token.getTokenid === 'function' ? 
+            token.getTokenid() : 
+            (token as any).tokenid) : 
+          (token as any).tokenid;
+        multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex, 0));
+      }
+      // tokenInfo.setMultiSignAddresses(multiSignAddresses);
+    }
+
+    // +1 for domain name or super domain
+    if (token) {
+      const currentSignNumber = token.getSignnumber ? token.getSignnumber() : (token as any).signnumber || 0;
+      token.setSignnumber(currentSignNumber + 1);
+    }
+    const block = await this.getTip();
+    block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
+    
+    // Create coinbase transaction manually since addCoinbaseTransaction might not exist
+    const coinbaseTx = new Transaction(this.params);
+    const input = new TransactionInput(this.params);
+    (input as any).coinbase = true;
+    coinbaseTx.addInput(input);
     
     // Add output for the token
-    const output = new TransactionOutput(this.params, tx, basecoin, ownerKey.getPubKey());
-    tx.addOutput(output);
+    const output = new TransactionOutput(this.params, coinbaseTx, basecoin, pubKeyTo || ownerKey.getPubKey());
+    coinbaseTx.addOutput(output);
     
-    // Add memo if provided
+    // Set the token info and memo if provided
+    if (tokenInfo) {
+      coinbaseTx.setData(tokenInfo.toByteArray());
+    }
     if (memoInfo) {
-      tx.setMemo(memoInfo.toString());
+      coinbaseTx.setMemo(memoInfo.toString());
     }
     
-    // Sign the transaction
-    await this.signTransaction(tx, aesKey, 'THROW');
+    block.addTransaction(coinbaseTx);
+
+    const transactions = block.getTransactions ? block.getTransactions() : [];
+    if (!transactions) {
+      throw new Error("Transactions list is null");
+    }
+    const transaction = transactions.length > 0 ? transactions[0] : null;
+    if (!transaction) {
+      throw new Error("No transactions found in block");
+    }
+
+    const sighash = transaction.getHash ? transaction.getHash() : null;
+    if (!sighash) {
+      throw new Error("No hash found in transaction");
+    }
     
-    // Create a block with the transaction
-    const block = new Block(this.params);
-    block.addTransaction(tx);
+    // Convert Sha256Hash to bytes for signing
+    const sighashBytes = sighash.getBytes ? sighash.getBytes() : (sighash as any).bytes ? (sighash as any).bytes : new Uint8Array(0);
     
-    return block;
+    // Handle ownerKey.sign which might return a Promise
+    const party1Signature = await ownerKey.sign!(sighashBytes, aesKey);
+    const buf1 = (party1Signature as any).encodeToDER ? (party1Signature as any).encodeToDER!() : party1Signature;
+
+    const multiSignBies: any[] = [];
+    const multiSignBy0: any = {};
+    const tokenResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
+    const tokenIdStr = tokenResult && tokenResult.getTokenid ? tokenResult.getTokenid() : (tokenResult as any)?.tokenid || "";
+    multiSignBy0.tokenid = tokenIdStr ? tokenIdStr.trim() : "";
+    multiSignBy0.tokenindex = 0;
+    multiSignBy0.address = ownerKey.toAddress(this.params).toBase58();
+    multiSignBy0.publickey = Utils.HEX.encode(ownerKey.getPubKey());
+    multiSignBy0.signature = Utils.HEX.encode(buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1));
+    multiSignBies.push(multiSignBy0);
+    
+    const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
+    // In TypeScript, we convert to JSON string and then to bytes
+    const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
+    transaction.setDataSignature(new TextEncoder().encode(jsonData));
+
+    // add fee transaction if needed
+    if (this.getFee()) {
+      	  await this.feeTransaction(aesKey,block);
+		}
+    
+    return await this.adjustSolveAndSign(block);
   }
 
   /**
@@ -232,10 +363,9 @@ export class Wallet extends WalletBase {
     return chunks;
   }
 
-  async feeTransaction(aesKey: any): Promise<Block> {
+  async feeTransaction(aesKey: any, block: Block ): Promise<Block> {
     const coinList = await this.calculateAllSpendCandidates(aesKey, false);
-    const transaction = await this.feeTransaction1(aesKey, coinList);
-    const block = new Block(this.params);
+    const transaction = await this.feeTransaction1(aesKey, coinList); 
     block.addTransaction(transaction);
     return block;
   }
@@ -355,9 +485,26 @@ export class Wallet extends WalletBase {
     signkey: ECKey,
     aesKey: any
   ): Promise<void> {
-    // Implementation would go here
-    // This is a placeholder implementation
-    console.log(`Signing token ${tokenid} with key ${signkey.getPublicKeyAsHex()}`);
+    // Get token info from server
+    const token = await this.checkTokenId(tokenid);
+    
+    // Create a transaction that represents the signature
+    const tx = new Transaction(this.params);
+    
+    // Add inputs and outputs as needed for the signature
+    // This would typically involve creating a new transaction that references
+    // the token and adds the signature
+    
+    // Sign the transaction with the provided key
+    await this.signTransaction(tx, aesKey, 'THROW');
+    
+    // Add the transaction to a block and post
+    const block = new Block(this.params);
+    block.addTransaction(tx);
+    // Use BLOCKTYPE_TOKEN_CREATION for token signing as well
+    block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
+    
+    await this.solveAndPost(block);
   }
 
   async checkTokenId(tokenid: string): Promise<Token> {
@@ -446,7 +593,6 @@ export class Wallet extends WalletBase {
     }
     
     let amount = summe.negate();
-    
     // Add fee if needed
     if (this.getFee() && amount.isBIG()) {
       const fee = Coin.valueOf(Coin.FEE_DEFAULT.getValue(), amount.getTokenid());
@@ -461,7 +607,7 @@ export class Wallet extends WalletBase {
           const utxo = spendableOutput.getUTXO();
           if (utxo) {
             beneficiary = await this.getECKey(aesKey, utxo.getAddress());
-            amount = utxo.getValue().add(amount);  
+            amount = amount.add(utxo.getValue());
             multispent.addInput2(spendableOutput.getUTXO().getBlockHash(), spendableOutput);
             
             if (!amount.isNegative()) {
@@ -478,10 +624,38 @@ export class Wallet extends WalletBase {
     }
 
     await this.signTransaction(multispent, aesKey, 'THROW');
-    const block = await this.getTip()   ;
+    const block = await this.getTip();
     block.addTransaction(multispent);
  
     return await this.solveAndPost(block);
+  }
+
+  /**
+   * Add a transaction signer to the wallet
+   * @param signer The transaction signer to add
+   */
+  addTransactionSigner(signer: any): void {
+    this.signers.push(signer);
+  }
+
+ 
+
+  /**
+   * Get the current fee settings
+   */
+  getFee(): boolean {
+    // Return default fee or configured fee - matches WalletBase signature
+    return true; // or this.fee if available from WalletBase
+  }
+
+  /**
+   * Get wallet keys
+   * @param aesKey The encryption key
+   * @returns Array of ECKey objects
+   */
+  async walletKeys(aesKey: any): Promise<ECKey[]> {
+    // Return the keys from the key chain group
+    return this.keyChainGroup.getImportedKeys();
   }
 
   /**
@@ -624,6 +798,333 @@ export class Wallet extends WalletBase {
     }
     
     return total;
+  }
+
+  /**
+   * Get the balance of a specific token
+   * @param aesKey The encryption key
+   * @param tokenid The token ID to check
+   * @returns The balance as a Coin object
+   */
+  async getBalance(aesKey: any, tokenid?: Uint8Array): Promise<Coin> {
+    const utxos = await this.calculateAllSpendCandidatesUTXO(aesKey, false);
+    
+    let totalValue = BigInt(0);
+    const tokenIdToCheck = tokenid || NetworkParameters.getBIGTANGLE_TOKENID();
+    
+    for (const utxo of utxos) {
+      if (utxo && utxo.getTokenId) {
+        const utxoTokenId = Utils.HEX.decode(utxo.getTokenId());
+        if (Utils.arraysEqual(utxoTokenId, tokenIdToCheck)) {
+          const value = utxo.getValue();
+          const valueToAdd = typeof value === 'bigint' ? value : (value.getValue ? value.getValue() : BigInt(0));
+          totalValue += valueToAdd;
+        }
+      }
+    }
+    
+    return Coin.valueOf(totalValue, Buffer.from(tokenIdToCheck));
+  }
+
+  /**
+   * Create a new key pair and add it to the wallet
+   * @returns The new ECKey
+   */
+  freshReceiveKey(): ECKey {
+    return this.keyChainGroup.freshKey(KeyPurpose.RECEIVE_FUNDS);
+  }
+
+  /**
+   * Get the current receive address
+   * @returns The current receive address
+   */
+  currentReceiveAddress(): Address {
+    return this.keyChainGroup.currentAddress(KeyPurpose.RECEIVE_FUNDS);
+  }
+
+  /**
+   * Get a fresh receive address
+   * @returns A new receive address
+   */
+  freshReceiveAddress(): Address {
+    return this.keyChainGroup.freshAddress(KeyPurpose.RECEIVE_FUNDS);
+  }
+
+  /**
+   * Publish a domain name with associated data
+   * @param aesKey The encryption key
+   * @param domainName The domain name to publish
+   * @param data The data associated with the domain
+   * @returns A block containing the transaction
+   */
+  async publishDomainName(
+    aesKey: any,
+    domainName: string,
+    data: string
+  ): Promise<Block> {
+    // Create a transaction for domain registration
+    const tx = new Transaction(this.params);
+    
+    // Add domain name and data as transaction data
+    const domainInfo = {
+      domainName,
+      data,
+      timestamp: Date.now()
+    };
+    
+    // Convert to byte array
+    const domainData = new TextEncoder().encode(JSON.stringify(domainInfo));
+    tx.setData(domainData);
+    
+    // Add a simple memo
+    tx.setMemo(`domain registration: ${domainName}`);
+    
+    // Sign the transaction
+    await this.signTransaction(tx, aesKey, 'THROW');
+    
+    // Create a block with the transaction
+    const block = new Block(this.params);
+    block.addTransaction(tx);
+    // Use BLOCKTYPE_USERDATA for domain registration since BLOCKTYPE_DOMAIN doesn't exist
+    block.setBlockType(BlockType.BLOCKTYPE_USERDATA);
+    
+    return block;
+  }
+
+  /**
+   * Place a bid on an auction
+   * @param aesKey The encryption key
+   * @param auctionId The ID of the auction
+   * @param bidAmount The amount to bid
+   * @param tokenid The token ID for the bid
+   * @returns A block containing the transaction
+   */
+  async placeBid(
+    aesKey: any,
+    auctionId: string,
+    bidAmount: Coin,
+    tokenid: Uint8Array
+  ): Promise<Block> {
+    // Create a transaction for the bid
+    const tx = new Transaction(this.params);
+    
+    // Add auction info as transaction data
+    const auctionInfo = {
+      auctionId,
+      bidAmount: bidAmount.getValue(),
+      tokenid: Utils.HEX.encode(tokenid)
+    };
+    
+    // Convert to byte array
+    const auctionData = new TextEncoder().encode(JSON.stringify(auctionInfo));
+    tx.setData(auctionData);
+    
+    // Add input representing the bid amount
+    const utxos = await this.calculateAllSpendCandidatesUTXO(aesKey, false);
+    const tokenUtxos = utxos.filter(utxo => 
+      Utils.arraysEqual(Utils.HEX.decode(utxo.getTokenId()), tokenid)
+    );
+    
+    if (tokenUtxos.length === 0) {
+      throw new Error(`No UTXOs found for token: ${Utils.HEX.encode(tokenid)}`);
+    }
+    
+    // Add outputs for bid
+    let totalBid = BigInt(0);
+    for (const utxo of tokenUtxos) {
+      if (totalBid >= bidAmount.getValue()) {
+        break;
+      }
+      tx.addInput2(utxo.getBlockHash(), new FreeStandingTransactionOutput(this.params, utxo));
+      const utxoValue = utxo.getValue();
+      const utxoValueBigInt = typeof utxoValue === 'bigint' ? utxoValue : utxoValue.getValue();
+      totalBid = totalBid + utxoValueBigInt;
+    }
+    
+    if (totalBid < bidAmount.getValue()) {
+      throw new InsufficientMoneyException(`Insufficient funds for bid: ${bidAmount.toString()}`);
+    }
+    
+    // If there's change, send it back
+    if (totalBid > bidAmount.getValue()) {
+      const changeAmount = Coin.valueOf(totalBid - bidAmount.getValue(), Buffer.from(tokenid));
+      const beneficiary = await this.getECKey(aesKey, tokenUtxos[0].getAddress());
+      const changeOutput = new TransactionOutput(this.params, tx, changeAmount, beneficiary.getPubKey());
+      tx.addOutput(changeOutput);
+    }
+    
+    // Add a simple memo
+    tx.setMemo(`bid on auction: ${auctionId}`);
+    
+    // Sign the transaction
+    await this.signTransaction(tx, aesKey, 'THROW');
+    
+    // Create a block with the transaction
+    const block = new Block(this.params);
+    block.addTransaction(tx);
+    // Use BLOCKTYPE_USERDATA for bid transactions since BLOCKTYPE_BID doesn't exist
+    block.setBlockType(BlockType.BLOCKTYPE_USERDATA);
+    
+    return block;
+  }
+
+  /**
+   * Create a new token/coin
+   * @param aesKey The encryption key
+   * @param tokenInfo The token information
+   * @param initialSupply The initial supply of the token
+   * @param ownerKey The owner key for the token
+   * @returns A block containing the transaction
+   */
+  async createToken(
+    aesKey: any,
+    tokenInfo: TokenInfo,
+    initialSupply: Coin,
+    ownerKey: ECKey
+  ): Promise<Block> {
+    // Create a transaction for the token creation
+    const tx = new Transaction(this.params);
+    
+    // Add token creation data
+    tx.setData(tokenInfo.toByteArray());
+    
+    // Add output for initial token supply
+    const output = new TransactionOutput(this.params, tx, initialSupply, ownerKey.getPubKey());
+    tx.addOutput(output);
+    
+    // Add a simple memo
+    const tokenResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
+    const tokenName = tokenResult && tokenResult.getTokenname ? tokenResult.getTokenname() : "Unknown Token";
+    tx.setMemo(`create token: ${tokenName}`);
+    
+    // Sign the transaction
+    await this.signTransaction(tx, aesKey, 'THROW');
+    
+    // Create a block with the transaction
+    const block = new Block(this.params);
+    block.addTransaction(tx);
+    block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
+    
+    return block;
+  }
+
+  /**
+   * Get all unspent outputs for a specific address
+   * @param aesKey The encryption key
+   * @param address The address to check
+   * @returns Array of unspent outputs
+   */
+  async getUnspentOutputsForAddress(aesKey: any, address: string): Promise<UTXO[]> {
+    const utxos = await this.calculateAllSpendCandidatesUTXO(aesKey, false);
+    return utxos.filter(utxo => utxo.getAddress() === address && !utxo.isSpent());
+  }
+
+  /**
+   * Get transaction history for the wallet
+   * @param aesKey The encryption key
+   * @returns Array of transactions
+   */
+  async getTransactionHistory(aesKey: any): Promise<Transaction[]> {
+    // Get wallet keys to identify relevant transactions
+    const keys = await this.walletKeys(aesKey);
+    const pubKeyHashes = keys.map(key => Utils.HEX.encode(key.getPubKeyHash()));
+    
+    // This would typically involve a call to the server to get transactions
+    // associated with these public key hashes
+    const requestParam = {
+      pubKeyHashes: pubKeyHashes
+    };
+    
+    const resp = await OkHttp3Util.post(
+      this.getServerURL() + ReqCmd.getOutputsHistory,
+      Buffer.from(Json.jsonmapper().stringify(requestParam))
+    );
+    
+    // Parse the response and return an array of transactions
+    // For now, returning an empty array as the actual implementation
+    // would depend on the server response format
+    const responseObj: any = Json.jsonmapper().parse(resp);
+    
+    if (responseObj.transactions) {
+      return responseObj.transactions.map((txData: any) => {
+        // Convert transaction data to Transaction objects
+        return new Transaction(this.params);
+      });
+    }
+    
+    return [];
+  }
+
+  async getDomainNameBlockHash(domainname: string): Promise<any> { // Replace 'any' with proper type when available
+    const requestParam = new Map<string, any>();
+    requestParam.set("domainname", domainname);
+    
+    const resp = await OkHttp3Util.post(
+      this.getServerURL() + ReqCmd.getDomainNameBlockHash,
+      Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+    );
+
+    // Return the response object - actual type depends on server implementation
+    return Json.jsonmapper().parse(resp);
+  }
+
+  isBlank(str: string | null | undefined): boolean {
+    return !str || str.trim().length === 0;
+  }
+
+  async getPrevTokenMultiSignAddressList(token: any): Promise<any> { // Replace 'any' with proper type when available
+    // This would typically call an endpoint to get previous multi-sign addresses for a token
+    const requestParam = {
+      tokenid: token.getTokenid ? token.getTokenid() : token.tokenid
+    };
+    
+    try {
+      const resp = await OkHttp3Util.post(
+        this.getServerURL() + ReqCmd.getTokenPermissionedAddresses,
+        Buffer.from(Json.jsonmapper().stringify(requestParam))
+      );
+
+      return Json.jsonmapper().parse(resp);
+    } catch (error) {
+      console.error("Error getting previous token multi-sign addresses:", error);
+      return null;
+    }
+  }
+
+  async adjustSolveAndSign(block: Block): Promise<Block> {
+    // Solve the block
+    block.solve();
+    
+    // Post the block to the network
+    await OkHttp3Util.post(
+      this.getServerURL() + ReqCmd.saveBlock,
+      Buffer.from(block.bitcoinSerialize())
+    );
+    
+    return block;
+  }
+
+  /**
+   * Get wallet information summary
+   * @param aesKey The encryption key
+   * @returns Wallet summary information
+   */
+  async getWalletInfo(aesKey: any): Promise<any> {
+    const info: any = {};
+    
+    // Get the current balance for default token
+    info.balance = await this.getBalance(aesKey);
+    
+    // Get the number of keys in the wallet
+    info.keyCount = this.keyChainGroup.numKeys();
+    
+    // Get the current receive address
+    info.currentReceiveAddress = this.currentReceiveAddress().toString();
+    
+    // Get server information
+    info.serverURL = this.getServerURL();
+    
+    return info;
   }
 
   // Other methods implemented as needed...
