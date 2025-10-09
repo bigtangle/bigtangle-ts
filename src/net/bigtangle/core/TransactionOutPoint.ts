@@ -245,15 +245,7 @@ export class TransactionOutPoint extends ChildMessage {
             throw new Error("Input is not connected so cannot retrieve key");
         }
         const connectedScript = connectedOutput.getScriptPubKey();
-        console.log("connectedOutput  : " + connectedOutput);
-        console.log("Connected script: " + connectedScript);
-        console.log("Script program: " + Utils.HEX.encode(connectedScript.getProgram()));
-        console.log("Script type: " + connectedScript.getScriptType());
-        console.log("Is sent to address: " + connectedScript.isSentToAddress());
-        console.log("Is sent to raw pubkey: " + connectedScript.isSentToRawPubKey());
-        console.log("Is pay to script hash: " + connectedScript.isPayToScriptHash());
-        console.log("Is sent to multisig: " + connectedScript.isSentToMultiSig());
-        
+     
         if (connectedScript.isSentToAddress()) {
             const addressBytes = connectedScript.getPubKeyHash();
             // This method might return a Promise, so we need to await it

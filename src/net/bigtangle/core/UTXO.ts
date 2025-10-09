@@ -250,11 +250,10 @@ export class UTXO extends SpentBlock {
     }
 
     public static fromJSONObject(data: any): UTXO {
-        console.log("Creating UTXO from JSON:", JSON.stringify(data, null, 2));
+      //  console.log("Creating UTXO from JSON:", JSON.stringify(data, null, 2));
         const utxo = new UTXO();
         Object.assign(utxo, data);
-
-        console.log("Created UTXO:", utxo.toString());
+ 
          
         if (data.value) {
             utxo.setValue(Coin.fromJSON(data.value));
@@ -271,7 +270,7 @@ export class UTXO extends SpentBlock {
         if (data.blockHashHex) { 
             utxo.setBlockHash( Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.blockHashHex))));
         }
-        console.log("Created UTXO:", utxo.toString());
+ 
         return utxo;
     }
 }

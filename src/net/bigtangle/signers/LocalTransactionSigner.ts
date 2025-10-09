@@ -77,25 +77,21 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
             const currentScriptPubKey = connectedOutput.getScriptPubKey();
             try {
                 const signature = await tx.calculateSignature(i, key, currentScriptPubKey.getProgram(),  SigHash.ALL, false);
-       
-                 console.log("Generated signature:", signature.toString());
-                 console.log("Connected script type - Is sent to raw pubkey:", currentScriptPubKey.isSentToRawPubKey());
-                 
                  // For P2PK outputs (scriptPubKey is PUSHDATA(pubkey) OP_CHECKSIG), 
                  // the scriptSig should only contain the signature, not signature + public key
                  if (currentScriptPubKey.isSentToRawPubKey()) {
                      // For raw public key outputs, only push the signature
-                     console.log("Creating P2PK input script (signature only)");
+                    
                      const newInputScript = ScriptBuilder.createInputScript(signature, undefined);
                      txIn.setScriptSig(newInputScript);
-                     console.log("Input script for P2PK:", newInputScript.getProgram());
+                  
                  } else {
                      // For P2PKH outputs (scriptPubKey is OP_DUP OP_HASH160 PUSHDATA(pubKeyHash) OP_EQUALVERIFY OP_CHECKSIG),
                      // the scriptSig should contain the signature and public key
-                     console.log("Creating P2PKH input script (signature + public key)");
+               
                      const newInputScript = ScriptBuilder.createInputScript(signature, key);
                      txIn.setScriptSig(newInputScript);
-                     console.log("Input script for P2PKH:", newInputScript.getProgram());
+                
                  }
             } catch (e: any) {
                 if (e instanceof MissingPrivateKeyException) {

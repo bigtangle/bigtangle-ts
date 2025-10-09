@@ -140,8 +140,7 @@ export class Wallet extends WalletBase {
   }
 
 
-  // Other methods implemented as needed...
-
+ 
   async saveToken(
     tokenInfo: TokenInfo,
     basecoin: Coin,
@@ -150,51 +149,46 @@ export class Wallet extends WalletBase {
     pubKeyTo?: Uint8Array,
     memoInfo?: MemoInfo
   ): Promise<Block> {
-    const token = tokenInfo.getToken!();
+    // If pubKeyTo is not provided, use the owner key's public key
+    if (!pubKeyTo) {
+      pubKeyTo = ownerKey.getPubKey();
+    }
+    
+    // If memoInfo is not provided, create a default memo
+    if (!memoInfo) {
+      memoInfo = new MemoInfo("coinbase");
+    }
+    const token = tokenInfo.getToken();
     if (!token) {
       throw new Error("Token cannot be null");
     }
-    // At this point, we know token is not null
 
-    if (token && this.isBlank(token.getDomainNameBlockHash ? token.getDomainNameBlockHash() : "")) {
-      const tokenNameResult = token.getTokenname ? token.getTokenname() : null;
-      if (tokenNameResult && this.isBlank(tokenNameResult)) {
-        if (tokenNameResult) {
-          const getDomainBlockHashResponse = await this.getDomainNameBlockHash(tokenNameResult);
-          const domainNameBlockHash = getDomainBlockHashResponse?.getdomainNameToken ? getDomainBlockHashResponse.getdomainNameToken() : null;
-          if (domainNameBlockHash) {
-            const domainBlockHash = getDomainBlockHashResponse?.getdomainNameToken ? getDomainBlockHashResponse.getdomainNameToken() : null;
-            if (domainBlockHash) {
-              token.setDomainNameBlockHash ? token.setDomainNameBlockHash(domainBlockHash.getBlockHashHex ? domainBlockHash.getBlockHashHex() : "") : null;
-              token.setTokenname ? token.setTokenname(domainBlockHash.getTokenname ? domainBlockHash.getTokenname() : "") : null;
-            }
-          }
-        }
+    // Handle domain name block hash if needed
+    if (Utils.isBlank(token.getDomainNameBlockHash()) && Utils.isBlank(token.getTokenname ? token.getTokenname() : "")) {
+      const domainName = token.getTokenname ? token.getTokenname() : "";
+      const getDomainBlockHashResponse = await this.getDomainNameBlockHash(domainName || "");
+      const domainNameBlockHash = getDomainBlockHashResponse.getdomainNameToken ? getDomainBlockHashResponse.getdomainNameToken() : null;
+      if (domainNameBlockHash) {
+        token.setDomainNameBlockHash(domainNameBlockHash.getBlockHashHex ? domainNameBlockHash.getBlockHashHex() || "" : "");
+        token.setTokenname(domainNameBlockHash.getTokenname ? domainNameBlockHash.getTokenname() || "" : "");
       }
     }
 
-    if (token && token.getDomainNameBlockHash && token.getDomainNameBlockHash() && Utils.isBlank(token.getDomainNameBlockHash())) {
-      const tokenInfoResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
-      if (tokenInfoResult && tokenInfoResult.getTokenname) {
-        const tokenName = tokenInfoResult.getTokenname();
-        if (tokenName && !Utils.isBlank(tokenName)) {
-          const domainResponse = await this.getDomainNameBlockHash(tokenName);
-          const domain = domainResponse && domainResponse.getdomainNameToken ? domainResponse.getdomainNameToken() : null;
-          if (domain && domain.getBlockHashHex) {
-            token.setDomainNameBlockHash ? token.setDomainNameBlockHash(domain.getBlockHashHex()) : null;
-          }
-        }
+    if (Utils.isBlank(token.getDomainNameBlockHash()) && !Utils.isBlank(token.getTokenname ? token.getTokenname() : "")) {
+      const domainResponse = await this.getDomainNameBlockHash((token.getTokenname ? token.getTokenname() : "") || "");
+      const domain = domainResponse && domainResponse.getdomainNameToken ? domainResponse.getdomainNameToken() : null;
+      if (domain && domain.getBlockHashHex) {
+        token.setDomainNameBlockHash(domain.getBlockHashHex() || "");
       }
     }
 
     const multiSignAddresses = tokenInfo.getMultiSignAddresses ? tokenInfo.getMultiSignAddresses() : [];
-    const permissionedAddressesResponse = await this.getPrevTokenMultiSignAddressList(token || null);
-    if (token && permissionedAddressesResponse != null && 
+    const permissionedAddressesResponse = await this.getPrevTokenMultiSignAddressList(token);
+    if (permissionedAddressesResponse != null && 
         permissionedAddressesResponse.getMultiSignAddresses != null &&
-        typeof permissionedAddressesResponse.getMultiSignAddresses === 'function' &&
         permissionedAddressesResponse.getMultiSignAddresses().length > 0) {
-      const tokenNameResult = token.getTokenname ? token.getTokenname() : null;
-      if (tokenNameResult && this.isBlank(tokenNameResult)) {
+      
+      if (Utils.isBlank(token.getTokenname ? token.getTokenname() : "")) {
         const newTokenName = permissionedAddressesResponse.getTokenname ? 
           (typeof permissionedAddressesResponse.getTokenname === 'function' ? 
             permissionedAddressesResponse.getTokenname() : 
@@ -218,21 +212,21 @@ export class Wallet extends WalletBase {
           (token as any).tokenid;
         multiSignAddresses.push(new MultiSignAddress(tokenid, "", pubKeyHex, 0));
       }
-      // tokenInfo.setMultiSignAddresses(multiSignAddresses);
     }
 
     // +1 for domain name or super domain
-    if (token) {
-      const currentSignNumber = token.getSignnumber ? token.getSignnumber() : (token as any).signnumber || 0;
-      token.setSignnumber(currentSignNumber + 1);
-    }
+    const currentSignNumber = token.getSignnumber ? token.getSignnumber() : (token as any).signnumber || 0;
+    token.setSignnumber(currentSignNumber + 1);
+    
     const block = await this.getTip();
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
     
-    // Create coinbase transaction manually since addCoinbaseTransaction might not exist
+    // Create coinbase transaction - need to add a method in Block to do this
     const coinbaseTx = new Transaction(this.params);
+    
+    // Add input for the coinbase transaction
     const input = new TransactionInput(this.params);
-    (input as any).coinbase = true;
+    (input as any).setCoinbase(true);
     coinbaseTx.addInput(input);
     
     // Add output for the token
@@ -250,15 +244,12 @@ export class Wallet extends WalletBase {
     block.addTransaction(coinbaseTx);
 
     const transactions = block.getTransactions ? block.getTransactions() : [];
-    if (!transactions) {
-      throw new Error("Transactions list is null");
-    }
-    const transaction = transactions.length > 0 ? transactions[0] : null;
-    if (!transaction) {
+    if (!transactions || transactions.length === 0) {
       throw new Error("No transactions found in block");
     }
+    const transaction = transactions[0];
 
-    const sighash = transaction.getHash ? transaction.getHash() : null;
+    const sighash = transaction.getHash();
     if (!sighash) {
       throw new Error("No hash found in transaction");
     }
@@ -267,18 +258,18 @@ export class Wallet extends WalletBase {
     const sighashBytes = sighash.getBytes ? sighash.getBytes() : (sighash as any).bytes ? (sighash as any).bytes : new Uint8Array(0);
     
     // Handle ownerKey.sign which might return a Promise
-    const party1Signature = await ownerKey.sign!(sighashBytes, aesKey);
+    const party1Signature = await ownerKey.sign(sighashBytes, aesKey);
     const buf1 = (party1Signature as any).encodeToDER ? (party1Signature as any).encodeToDER!() : party1Signature;
 
-    const multiSignBies: any[] = [];
-    const multiSignBy0: any = {};
+    const multiSignBies: MultiSignBy[] = [];
+    const multiSignBy0 = new MultiSignBy();
     const tokenResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
     const tokenIdStr = tokenResult && tokenResult.getTokenid ? tokenResult.getTokenid() : (tokenResult as any)?.tokenid || "";
-    multiSignBy0.tokenid = tokenIdStr ? tokenIdStr.trim() : "";
-    multiSignBy0.tokenindex = 0;
-    multiSignBy0.address = ownerKey.toAddress(this.params).toBase58();
-    multiSignBy0.publickey = Utils.HEX.encode(ownerKey.getPubKey());
-    multiSignBy0.signature = Utils.HEX.encode(buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1));
+    multiSignBy0.setTokenid(tokenIdStr ? tokenIdStr.trim() : "");
+    multiSignBy0.setTokenindex(0);
+    multiSignBy0.setAddress(ownerKey.toAddress(this.params).toBase58());
+    multiSignBy0.setPublickey(Utils.HEX.encode(ownerKey.getPubKey()));
+    multiSignBy0.setSignature(Utils.HEX.encode(buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1)));
     multiSignBies.push(multiSignBy0);
     
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
@@ -288,8 +279,9 @@ export class Wallet extends WalletBase {
 
     // add fee transaction if needed
     if (this.getFee()) {
-      	  await this.feeTransaction(aesKey,block);
-		}
+      const feeTx = await this.feeTransaction1(aesKey, await this.calculateAllSpendCandidates(aesKey, false));
+      block.addTransaction(feeTx);
+    }
     
     return await this.adjustSolveAndSign(block);
   }
@@ -1094,7 +1086,7 @@ export class Wallet extends WalletBase {
   async adjustSolveAndSign(block: Block): Promise<Block> {
     // Solve the block
     block.solve();
-    
+    console.log("Solved block with nonce:", block.toString()  );
     // Post the block to the network
     await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.saveBlock,
