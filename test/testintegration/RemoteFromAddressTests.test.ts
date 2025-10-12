@@ -168,7 +168,8 @@ class RemoteFromAddressTests extends RemoteTest {
 
     const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
 
-    await this.wallet.signToken(key.getPublicKeyAsHex(), signkey, null);
+    // Use the wallet's multiSign method which matches the Java implementation
+    await this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
   }
 }
 

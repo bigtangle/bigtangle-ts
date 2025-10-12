@@ -358,7 +358,14 @@ export abstract class RemoteTest {
     token: Token
   ): Promise<PermissionedAddressesResponse> {
     const requestParam = new Map<string, string>();
-    requestParam.set("domainNameBlockHash", token.getDomainNameBlockHash()!);
+    // Check if domainNameBlockHash is null or undefined before adding to requestParam
+    const domainNameBlockHash = token.getDomainNameBlockHash();
+    if (domainNameBlockHash && domainNameBlockHash !== "") {
+      requestParam.set("domainNameBlockHash", domainNameBlockHash);
+    } else {
+      // If domainNameBlockHash is null or empty, use a default or just tokenid
+      requestParam.set("tokenid", token.getTokenid() || "");
+    }
     const resp = await OkHttp3Util.postStringSingle(
       this.contextRoot + ReqCmd.getTokenPermissionedAddresses,
       Buffer.from(this.objectMapper.stringify(Object.fromEntries(requestParam)))
@@ -1340,21 +1347,25 @@ export abstract class RemoteTest {
       Buffer.from(this.objectMapper.stringify(multiSignByRequest))
     );
 
-    // add fee
+    // add fee - we need proper inputs for the fee transaction
     const w = await Wallet.fromKeysURL(
       this.networkParameters,
       [outKey],
       this.contextRoot
     );
-    // Create a coin list for the fee transaction
-    // This is a simplified approach - in reality, you'd need to get actual spendable outputs
-    const coinList: FreeStandingTransactionOutput[] = [];
-    const feeBlock = await w.feeTransaction1(
-      aesKey,
-      coinList
-    ); 
-   
-        block.addTransaction(feeBlock); 
+    // Get actual spendable outputs for the fee transaction
+    const coinList = await w.calculateAllSpendCandidates(aesKey, false);
+    if (coinList.length > 0) {
+      // Create the fee transaction using existing UTXOs
+      const feeTx = await w.feeTransaction1(
+        aesKey,
+        coinList
+      ); 
+      block.addTransaction(feeTx); 
+    } else {
+      // If no UTXOs are available, this is an issue - the key needs funds to pay fees
+      console.warn("No UTXOs available for fee transaction - make sure the key has funds to pay fees");
+    }
 
     // save block
     const adjustedBlock = await this.adjustSolve(block);

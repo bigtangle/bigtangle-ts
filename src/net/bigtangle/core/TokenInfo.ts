@@ -1,6 +1,7 @@
 import { DataClass } from './DataClass';
 import { Token } from './Token';
 import { MultiSignAddress } from './MultiSignAddress';
+import { Utils } from '../utils/Utils';
  
 import { ObjectMapper, JsonProperty } from 'jackson-js';
 /**
@@ -28,6 +29,13 @@ export class TokenInfo extends DataClass {
             const replacer = (key: string, value: any) => {
                 if (typeof value === 'bigint') {
                     return value.toString();
+                }
+                // For Sha256Hash objects, serialize them as objects with bytes field 
+                if (value && value.getBytes && typeof value.getBytes === 'function') {
+                    // Return an object with bytes field as byte array
+                    return {
+                        bytes: Array.from(value.getBytes())  // Convert Buffer to byte array
+                    };
                 }
                 return value;
             };

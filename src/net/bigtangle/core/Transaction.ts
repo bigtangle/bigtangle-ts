@@ -322,7 +322,8 @@ export class Transaction extends ChildMessage {
     transaction.addOutput(output);
 
     if (tokenInfo) {
-      transaction.setDataClassName(tokenInfo.classname());
+      // Use the actual class name instead of calling .classname()
+      transaction.setDataClassName("TokenInfo");
       transaction.setData(tokenInfo.toByteArray());
     }
 
