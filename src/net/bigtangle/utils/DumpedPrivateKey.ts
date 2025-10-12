@@ -44,7 +44,7 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
         throw new AddressFormatException('Wrong number of bytes for a private key, not 32 or 33');
       }
       // Debug: print decoded private key bytes
-      console.log('DumpedPrivateKey decoded bytes:', Array.from(this.bytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+   //   console.log('DumpedPrivateKey decoded bytes:', Array.from(this.bytes).map(b => b.toString(16).padStart(2, '0')).join(''));
     } else if (args.length === 3 && args[1] instanceof Uint8Array) {
       // Constructor with params, keyBytes, and compressed
       const [params, keyBytes, compressed] = args as [NetworkParameters, Uint8Array, boolean];

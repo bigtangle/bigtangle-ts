@@ -313,12 +313,16 @@ export class Transaction extends ChildMessage {
     memoInfo: any | null = null // Use any for now to fix MemoInfo error
   ): Transaction {
     const transaction = new Transaction(params);
-    const input = new TransactionInput(params);
-    // Use direct property access for coinbase since setCoinBase doesn't exist
-    (input as any).coinbase = true;
+    
+    // Create a coinbase transaction output first
+    const output = new TransactionOutput(params, transaction, value, to);
+    
+    // Create the coinbase input using the proper factory method
+    const input = TransactionInput.fromCoinBase(params, transaction, output);
+    // Override the script bytes to use the proper coinbase script (e.g., block height info)
+    input.setScriptBytes(new Uint8Array([0, 0])); // Two zero bytes for coinbase
     transaction.addInput(input);
 
-    const output = new TransactionOutput(params, transaction, value, to);
     transaction.addOutput(output);
 
     if (tokenInfo) {

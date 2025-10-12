@@ -272,8 +272,8 @@ export class TransactionOutput extends ChildMessage {
     const valuebytes = new BigIntegerConverter(
       this.value.getValue()
     ).toByteArray();
-    console.log(valuebytes.length);
-    console.log(valuebytes.toString());
+    //console.log(valuebytes.length);
+    //console.log(valuebytes.toString());
     stream.write(new VarInt(valuebytes.length).encode());
     stream.write(valuebytes);
 

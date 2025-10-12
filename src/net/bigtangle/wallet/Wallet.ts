@@ -399,13 +399,10 @@ export class Wallet extends WalletBase {
     
     // Send the addresses array directly as JSON
     const jsonString = Json.jsonmapper().stringify(pubKeyHashs);
-    console.log("Sending addresses array to getOutputs:", jsonString);
-    
+     
     // Create Buffer from the JSON string directly
     const buffer = Buffer.from(jsonString, 'utf8');
-    
-    console.log("Buffer content:", buffer.toString('utf8'));
-    
+     
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getOutputs,
       buffer

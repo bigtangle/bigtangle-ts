@@ -319,9 +319,9 @@ export class Script {
             throw new ScriptException("Script not a standard CHECKLOCKTIMVERIFY transaction: " + this.toString());
         }
         if (!this.chunks[4].data) throw new ScriptException("No data in chunk 4 for CLTV expiry");
-        console.log("getCLTVPaymentChannelExpiry chunks[4].data:", this.chunks[4].data);
+      //  console.log("getCLTVPaymentChannelExpiry chunks[4].data:", this.chunks[4].data);
         const result = Script.castToBigInteger(this.chunks[4].data, 5);
-        console.log("getCLTVPaymentChannelExpiry result:", result.toString());
+      //  console.log("getCLTVPaymentChannelExpiry result:", result.toString());
         return result;
     }
 

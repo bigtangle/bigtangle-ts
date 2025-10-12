@@ -5,7 +5,7 @@ import { Protos } from './Protos'; // For Protos.Wallet.EncryptionType
 export class KeyCrypter {
     encrypt(plainBytes: Uint8Array, aesKey: KeyParameter): EncryptedData {
         // Simplified: Dummy encryption
-        console.log("Dummy encrypting data...");
+       // console.log("Dummy encrypting data...");
         const encryptedBytes = new Uint8Array(plainBytes.length);
         for (let i = 0; i < plainBytes.length; i++) {
             encryptedBytes[i] = plainBytes[i] ^ 0xFF; // Simple XOR for dummy
@@ -16,7 +16,7 @@ export class KeyCrypter {
 
     decrypt(encryptedData: EncryptedData, aesKey: KeyParameter): Uint8Array {
         // Simplified: Dummy decryption
-        console.log("Dummy decrypting data...");
+       // console.log("Dummy decrypting data...");
         const decryptedBytes = new Uint8Array(encryptedData.encryptedBytes.length);
         for (let i = 0; i < encryptedData.encryptedBytes.length; i++) {
             decryptedBytes[i] = encryptedData.encryptedBytes[i] ^ 0xFF; // Simple XOR for dummy

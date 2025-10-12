@@ -135,8 +135,8 @@ export class ECKey {
   public static publicPointFromPrivate(privKey: bigint): ECPoint {
     // Ensure the private key is within valid range [1, N-1] where N is the curve order
     if (privKey < 1n || privKey >= CURVE_N) {
-      console.log(`DEBUG: Private key validation - privKey: ${privKey.toString(16)}, N: ${CURVE_N.toString(16)}`);
-      console.log(`DEBUG: Comparison - privKey < 1n: ${privKey < 1n}, privKey >= N: ${privKey >= CURVE_N}`);
+    //  console.log(`DEBUG: Private key validation - privKey: ${privKey.toString(16)}, N: ${CURVE_N.toString(16)}`);
+    //  console.log(`DEBUG: Comparison - privKey < 1n: ${privKey < 1n}, privKey >= N: ${privKey >= CURVE_N}`);
       throw new Error(`invalid private key: out of range [1..N-1]`);
     }
     

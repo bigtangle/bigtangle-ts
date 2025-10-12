@@ -282,15 +282,7 @@ export class Utils {
       );
     }
     const result = tools.readUInt32(bytes, offset, "LE");
-    console.log(
-      `Utils.readUint32: bytes[${offset}]=${bytes[offset].toString(
-        16
-      )}, bytes[${offset + 1}]=${bytes[offset + 1].toString(16)}, bytes[${
-        offset + 2
-      }]=${bytes[offset + 2].toString(16)}, bytes[${offset + 3}]=${bytes[
-        offset + 3
-      ].toString(16)}, result=${result}`
-    );
+ 
     return result;
   }
 
@@ -409,7 +401,7 @@ export class Utils {
     includeLength: boolean
   ): Uint8Array {
     let v = typeof value === 'number' ? BigInt(value) : value;
-    console.log("encodeMPI value:", v.toString());
+    
     if (v === 0n) {
       if (!includeLength) {
         return new Uint8Array(0);
@@ -454,7 +446,7 @@ export class Utils {
       resultBytes[0] |= 0x80;
     }
 
-    console.log("encodeMPI resultBytes:", resultBytes);
+    
     if (includeLength) {
       const finalResult = new Uint8Array(resultBytes.length + 4);
       Utils.uint32ToByteArrayBE(resultBytes.length, finalResult, 0);
