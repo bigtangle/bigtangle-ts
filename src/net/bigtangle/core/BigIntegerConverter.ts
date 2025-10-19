@@ -109,44 +109,23 @@ class BigIntegerConverter {
   static fromByteArray(bytes: Uint8Array): BigIntegerConverter {
     if (bytes.length === 0) return new BigIntegerConverter(0n);
     
-    // Check if the number is negative (MSB set)
-    const isNegative = (bytes[0] & 0x80) !== 0;
+    // DEBUG: Add very clear indicator that the fixed BigIntegerConverter is being used
+    console.log('=== USING FIXED BIGINTEGERCONVERTER FROMBYTEARRAY ===');
+    console.log('Processing bytes:', Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
     
-    if (isNegative) {
-      // Convert from two's complement to positive value
-      // First, invert all bits
-      const invertedBytes = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) {
-        invertedBytes[i] = ~bytes[i] & 0xFF;
-      }
-      
-      // Then add 1
-      let carry = 1;
-      for (let i = invertedBytes.length - 1; i >= 0 && carry > 0; i--) {
-        const sum = invertedBytes[i] + carry;
-        invertedBytes[i] = sum & 0xFF;
-        carry = sum >> 8;
-      }
-      
-      // Convert to bigint
-      let result = 0n;
-      for (let i = 0; i < invertedBytes.length; i++) {
-        result = (result << 8n) | BigInt(invertedBytes[i]);
-      }
-      
-      // Make negative
-      result = -result;
-      
-      return new BigIntegerConverter(result);
-    } else {
-      // Positive number
-      let result = 0n;
-      for (let i = 0; i < bytes.length; i++) {
-        result = (result << 8n) | BigInt(bytes[i]);
-      }
-      
-      return new BigIntegerConverter(result);
+    // For Bitcoin transaction values, always treat as unsigned
+    // The MSB being set does not indicate a negative number in Bitcoin context
+    let result = 0n;
+    for (let i = 0; i < bytes.length; i++) {
+      result = (result << 8n) | BigInt(bytes[i]);
     }
+    
+    // DEBUG: Show the result
+    console.log('Result value:', result.toString());
+    console.log('=== END FIXED BIGINTEGERCONVERTER FROMBYTEARRAY ===');
+    
+    // Return the unsigned interpretation for Bitcoin transaction values
+    return new BigIntegerConverter(result);
   }
   
   public getValue(): bigint {
@@ -182,3 +161,16 @@ export function testValue(value: bigint): void {
 }
 
 export { BigIntegerConverter };
+
+// Test function to verify the specific issue with 10000000
+export function testSpecificIssue(): void {
+  const originalValue = 10000000n;
+  console.log('\n=== Testing Specific Issue with 10000000 ===');
+  testValue(originalValue);
+  
+  // Also test the negative value that was being produced
+  const negativeValue = -6777216n;
+  console.log('\n=== Testing Negative Value (-6777216) ===');
+  testValue(negativeValue);
+}
+

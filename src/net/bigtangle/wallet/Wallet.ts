@@ -202,7 +202,7 @@ export class Wallet extends WalletBase {
         const newTokenName = permissionedAddressesResponse.getTokenname ? 
           (typeof permissionedAddressesResponse.getTokenname === 'function' ? 
             permissionedAddressesResponse.getTokenname() : 
-            permissionedAddressesResponse.getTokenname) : 
+            permissionedAddressesResponse.tokenname) : 
           permissionedAddressesResponse.tokenname;
         if (newTokenName && token.setTokenname) {
           token.setTokenname(newTokenName);
@@ -224,23 +224,20 @@ export class Wallet extends WalletBase {
       }
     }
 
-    // +1 for domain name or super domain
+    // +1 for domain name or super domain - This matches the Java implementation
     const currentSignNumber = token.getSignnumber ? token.getSignnumber() : (token as any).signnumber || 0;
     token.setSignnumber(currentSignNumber + 1);
     
     const block = await this.getTip();
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
     
-    // Use the proper createCoinbaseTransaction method like Java implementation
-    const tokenCreationTx = Transaction.createCoinbaseTransaction(
-      this.params,
+    // Use the proper addCoinbaseTransaction method like Java implementation
+    block.addCoinbaseTransaction(
       Buffer.from(pubKeyTo),
       basecoin,
       tokenInfo,
       memoInfo
     );
-    
-    block.addTransaction(tokenCreationTx);
 
     const transactions = block.getTransactions ? block.getTransactions() : [];
     if (!transactions || transactions.length === 0) {
@@ -262,7 +259,7 @@ export class Wallet extends WalletBase {
 
     const multiSignBies: MultiSignBy[] = [];
 
-    // First signature (owner key) - similar to the working method
+    // First signature (owner key)
     let multiSignBy0 = new MultiSignBy();
     const tokenResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
     const tokenIdStr = tokenResult && tokenResult.getTokenid ? tokenResult.getTokenid() : (tokenResult as any)?.tokenid || "";
@@ -272,36 +269,20 @@ export class Wallet extends WalletBase {
     multiSignBy0.setPublickey(Utils.HEX.encode(ownerKey.getPubKey()));
     multiSignBy0.setSignature(Utils.HEX.encode(buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1)));
     multiSignBies.push(multiSignBy0);
-
-    // Add second signature from wallet key, similar to Java client approach
-    const walletKeys = await this.walletKeys(aesKey);
-    if (walletKeys.length > 0) {
-        const secondKey = walletKeys[0];  // Use the first wallet key as second signer
-        if (secondKey && secondKey.getPublicKeyAsHex() !== ownerKey.getPublicKeyAsHex()) {
-            const secondSignature = await secondKey.sign(sighashBytes, aesKey);
-            const buf2 = (secondSignature as any).encodeToDER ? (secondSignature as any).encodeToDER!() : secondSignature;
-            
-            const multiSignBy1 = new MultiSignBy();
-            multiSignBy1.setTokenid(tokenIdStr ? tokenIdStr.trim() : "");
-            multiSignBy1.setTokenindex(0);
-            multiSignBy1.setAddress(secondKey.toAddress(this.params).toBase58());
-            multiSignBy1.setPublickey(Utils.HEX.encode(secondKey.getPubKey()));
-            multiSignBy1.setSignature(Utils.HEX.encode(buf2 instanceof Uint8Array ? buf2 : new Uint8Array(buf2)));
-            multiSignBies.push(multiSignBy1);
-        }
-    }
     
+    // This follows the Java implementation more closely
+    // In the Java code, after creating the first signature, it's added to the transaction
+    // The exact same approach as the Java implementation
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
     // In TypeScript, we convert to JSON string and then to bytes
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
-    transaction.setDataSignature(new TextEncoder().encode(jsonData));
+    transaction.setDataSignature(Buffer.from(jsonData));
 
     // Add fee transaction like the Java implementation does
-    // This creates the 2-transaction structure that the server expects
     if (this.getFee()) {
-        const coinList = await this.calculateAllSpendCandidates(aesKey, false);
-        const feeTx = await this.feeTransaction1(aesKey, coinList);
-        block.addTransaction(feeTx);
+      const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+      const feeTx = await this.feeTransaction1(aesKey, coinList);
+      block.addTransaction(feeTx);
     }
     
     return await this.adjustSolveAndSign(block);
@@ -542,7 +523,7 @@ export class Wallet extends WalletBase {
     );
 
     const trimmedResp = resp.trim();
-    const multiSignResponse = Json.jsonmapper().parse(trimmedResp, {
+    const multiSignResponse: MultiSignResponse = Json.jsonmapper().parse(trimmedResp, {
       mainCreator: () => [MultiSignResponse],
     });
 
@@ -571,7 +552,7 @@ export class Wallet extends WalletBase {
     if (transaction.getDataSignature() === null) {
       multiSignBies = new Array<MultiSignBy>();
     } else {
-      const multiSignByRequest = Json.jsonmapper().parse(
+      const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().parse(
         transaction.getDataSignature()!.toString(),
         { mainCreator: () => [MultiSignByRequest] }
       );
@@ -1153,7 +1134,11 @@ export class Wallet extends WalletBase {
 
   async getDomainNameBlockHash(domainname: string): Promise<any> { // Replace 'any' with proper type when available
     const requestParam = new Map<string, any>();
-    requestParam.set("domainname", domainname);
+    // Handle empty string the same way as Java - convert to null or omit
+    if (domainname && domainname.trim() !== "") {
+      requestParam.set("domainname", domainname);
+    }
+    // If domainname is empty, we don't set it at all, letting the server use default
     
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getDomainNameBlockHash,
@@ -1199,10 +1184,10 @@ export class Wallet extends WalletBase {
   async adjustSolveAndSign(block: Block): Promise<Block> {
     // Solve the block
     block.solve();
-    console.log("Solved block with nonce:", block.toString()  );
-    // Post the block to the network
+    //console.log("Solved block with nonce:", block.toString()  );
+    // Post the block to the network using signToken endpoint as in Java implementation
     await OkHttp3Util.post(
-      this.getServerURL() + ReqCmd.saveBlock,
+      this.getServerURL() + ReqCmd.signToken,
       Buffer.from(block.bitcoinSerialize())
     );
     

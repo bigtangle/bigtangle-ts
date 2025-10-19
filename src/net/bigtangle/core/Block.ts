@@ -36,6 +36,11 @@ import { OrderOpenInfo } from './OrderOpenInfo';
 import { TokenInfo } from './TokenInfo';
 import { ContractExecutionResult } from './ContractExecutionResult';
 import { OrderExecutionResult } from './OrderExecutionResult';
+import { ScriptBuilder } from '../script/ScriptBuilder';
+import { ECKey } from './ECKey';
+import { TransactionInput } from './TransactionInput';
+import { TransactionOutput } from './TransactionOutput';
+import { TransactionOutPoint } from './TransactionOutPoint';
 import { Buffer } from 'buffer';
 
 /**
@@ -991,4 +996,66 @@ export class Block extends Message {
         this.height = height;
         this.hash = null;
     }
+
+    /**
+     * Add a coinbase transaction to this block.
+     * This is used for token creation and other coinbase operations.
+     */
+    public addCoinbaseTransaction(pubKeyTo: Uint8Array, value: any, tokenInfo: any | null = null, memoInfo: any | null = null): void {
+        this.unCacheTransactions();
+        if (this.transactions === null) {
+            this.transactions = [];
+        }
+
+        const coinbase = new Transaction(this.params!);
+        if (tokenInfo != null) {
+            coinbase.setDataClassName("TokenInfo");  // Using class name instead of DataClassName.TOKEN.name()
+            const buf = tokenInfo.toByteArray();
+            coinbase.setData(buf);
+        }
+        coinbase.setMemo(memoInfo ? memoInfo.toString() : null);
+        
+        // Create script builder to add counter data to scriptSig
+        const inputBuilder = new ScriptBuilder();
+        // Add a simple counter to distinguish transactions (simplified from Java)
+        const counterBytes = new Uint8Array([Block.txCounter, Block.txCounter >> 8]);
+        Block.txCounter = (Block.txCounter + 1) % 65536; // Keep counter within 16-bit range
+        inputBuilder.data(counterBytes);
+
+        // Create the coinbase transaction input with counter data
+        // In Bitcoin, coinbase transaction inputs have special characteristics
+        // They have a zero hash for previous output (all zeros) and index 0xFFFFFFFF
+        const scriptBytes = inputBuilder.build().getProgram();
+        const input = TransactionInput.fromScriptBytes(this.params!, coinbase, scriptBytes);
+        
+        // For a proper coinbase transaction, the outpoint in the input should have special values
+        // The outpoint should have zero hash and index 0xFFFFFFFF (0xFFFFFFFF)
+        const outpoint = TransactionOutPoint.fromTransactionOutPoint4(
+            this.params!,
+            0xFFFFFFFF, // -1 when interpreted as signed 32-bit, special value for coinbase
+            Sha256Hash.ZERO_HASH, // zero tx hash
+            Sha256Hash.ZERO_HASH  // zero block hash
+        );
+        input.setOutpoint(outpoint);
+        
+        coinbase.addInput1(input);
+
+        // Create output to specified public key - ensure the correct token ID and value are used
+        const ecKey = ECKey.fromPublic(pubKeyTo);
+        const scriptPubKey = ScriptBuilder.createOutputScript(ecKey);
+        // Create output with the value that contains the correct token ID and amount
+        // Ensure the value object is properly constructed to avoid serialization issues
+        const output = new TransactionOutput(this.params!, coinbase, value, scriptPubKey.getProgram());
+
+        coinbase.addOutput(output);
+
+        this.transactions.push(coinbase);
+        coinbase.setParent(this);
+        // Note: Simplified length calculation
+        // coinbase.length = coinbase.unsafeBitcoinSerialize().length;
+        // this.adjustLength(this.transactions.length, coinbase.length);
+    }
 }
+
+// Add static counter for transaction uniqueness
+(Block as any).txCounter = 0;

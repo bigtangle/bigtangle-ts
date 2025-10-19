@@ -314,8 +314,10 @@ export class Transaction extends ChildMessage {
   ): Transaction {
     const transaction = new Transaction(params);
     
-    // Create a coinbase transaction output first
-    const output = new TransactionOutput(params, transaction, value, to);
+    // Create ECKey from public key bytes, then use ScriptBuilder to create output script
+    const ecKey = ECKey.fromPublic(to);
+    const script = ScriptBuilder.createOutputScript(ecKey);
+    const output = new TransactionOutput(params, transaction, value, script.getProgram());
     
     // Create the coinbase input using the proper factory method
     const input = TransactionInput.fromCoinBase(params, transaction, output);

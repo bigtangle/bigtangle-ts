@@ -47,7 +47,6 @@ import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/Fr
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
 import { SigHash } from "../../src/net/bigtangle/core/SigHash";
 
-test("dummy test", () => {});
 export abstract class RemoteTest {
   public objectMapper = new ObjectMapper();
   public contextRoot = "http://localhost:8088/";

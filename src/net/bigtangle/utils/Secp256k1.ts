@@ -1,4 +1,3 @@
-import bigInt from 'big-integer';
 import * as secp256k1 from 'secp256k1';
 
 // Curve parameters for secp256k1
@@ -7,10 +6,10 @@ const CURVE_N_HEX = "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd03
 
 // Export curve parameters
 export const CURVE = {
-    n: bigInt(CURVE_N_HEX, 16),
+    n: BigInt(`0x${CURVE_N_HEX}`),
     // g is not directly used in this implementation, but keeping for compatibility
     g: null,
 };
 
-// HALF_CURVE_ORDER = CURVE.n.shiftRight(1)
-export const HALF_CURVE_ORDER = CURVE.n.shiftRight(1);
+// HALF_CURVE_ORDER = CURVE.n / 2 (equivalent to shiftRight(1) in big-integer)
+export const HALF_CURVE_ORDER = CURVE.n >> 1n;

@@ -1,4 +1,3 @@
-import bigInt from 'big-integer';
 import { ECKey } from '../core/ECKey';
 import { ECPoint } from '../core/ECPoint';
 import { Digest } from './ConcatKDFBytesGenerator';
@@ -12,7 +11,7 @@ import { Utils } from '../utils/Utils';
 
 export interface BasicAgreement {
     init(privKey: CipherParameters): void;
-    calculateAgreement(pubKey: CipherParameters): import('big-integer').BigInteger;
+    calculateAgreement(pubKey: CipherParameters): bigint;
     getFieldSize(): number;
 }
 
@@ -80,7 +79,7 @@ export interface EphemeralKeyPairGenerator {
 
 export class ECDHBasicAgreement implements BasicAgreement {
     private readonly curve: any = { curve: "secp256k1" };
-    private privateKey: import('big-integer').BigInteger | null = null;
+    private privateKey: bigint | null = null;
 
     init(privKey: CipherParameters): void {
         if (privKey instanceof ECPrivateKeyParameters) {
@@ -90,7 +89,7 @@ export class ECDHBasicAgreement implements BasicAgreement {
         }
     }
 
-    calculateAgreement(pubKey: CipherParameters): import('big-integer').BigInteger {
+    calculateAgreement(pubKey: CipherParameters): bigint {
         if (!this.privateKey) {
             throw new Error("Private key not initialized");
         }
@@ -192,7 +191,7 @@ export class AESEngine implements BufferedBlockCipher {
 }
 
 export class ECPrivateKeyParameters implements CipherParameters {
-    constructor(public d: import('big-integer').BigInteger, public curve: any) {}
+    constructor(public d: bigint, public curve: any) {}
 }
 
 export class ECPublicKeyParameters implements CipherParameters {
@@ -301,8 +300,8 @@ export class IESEngine {
         return this.mac;
     }
 
-    // Helper: BigInteger to Uint8Array (length bytes)
-    private static bigIntegerToBytes(bi: import('big-integer').BigInteger, length: number): Uint8Array {
+    // Helper: BigInt to Uint8Array (length bytes)
+    private static bigIntegerToBytes(bi: bigint, length: number): Uint8Array {
         let hex = bi.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
         let bytes = Buffer.from(hex, 'hex');

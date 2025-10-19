@@ -1,7 +1,5 @@
 import { ECPoint } from '../core/ECPoint';
 
-import bigInt from 'big-integer';
-
 /**
  * A wrapper around ECPoint that delays decoding of the point for as long as possible. This is useful because point
  * encode/decode in Bouncy Castle is quite slow especially on Dalvik, as it often involves decompression/recompression.
@@ -48,11 +46,9 @@ export class LazyECPoint {
 
     public timesPow2(e: number): ECPoint {
         // Ensure exponentiation uses BigInteger for compatibility with ECPoint.multiply
-        // bigInt handles string conversion from bigint
         const exp = BigInt(2) ** BigInt(e);
-        // If ECPoint.multiply expects BigInteger, convert
-        // @ts-ignore: bigInt may be required by multiply
-        return this.get().multiply(bigInt(exp.toString()));
+        // Convert bigint to string then back to BigInt-compatible format if ECPoint.multiply expects it
+        return this.get().multiply(exp);
     }
 
     // Assuming ECFieldElement and related methods are handled within ECPoint or a separate utility
@@ -72,9 +68,8 @@ export class LazyECPoint {
     }
 
     public multiply(k: bigint): ECPoint {
-        // Convert bigint to BigInteger before passing to multiply if required
-        // @ts-ignore: bigInt may be required by multiply
-        return this.get().multiply(bigInt(k.toString()));
+        // Pass the bigint directly if ECPoint.multiply accepts it
+        return this.get().multiply(k);
     }
 
     public subtract(b: ECPoint): ECPoint {
