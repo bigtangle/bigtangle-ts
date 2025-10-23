@@ -224,9 +224,10 @@ export class Wallet extends WalletBase {
       }
     }
 
-    // +1 for domain name or super domain - This matches the Java implementation
-    const currentSignNumber = token.getSignnumber ? token.getSignnumber() : (token as any).signnumber || 0;
-    token.setSignnumber(currentSignNumber + 1);
+    // For first-time token creation, don't increment the sign number here
+    // The sign number indicates total signatures required, but during initial creation
+    // we only provide the first signature and subsequent signatures are added via pullBlockDoMultiSign
+    // The original sign number from token creation should remain as is for initial submission
     
     const block = await this.getTip();
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
@@ -283,6 +284,8 @@ export class Wallet extends WalletBase {
       const coinList = await this.calculateAllSpendCandidates(aesKey, false);
       const feeTx = await this.feeTransaction1(aesKey, coinList);
       block.addTransaction(feeTx);
+      // Must recalculate merkle root after adding transaction
+      block.setMerkleRoot(null); // This will trigger recalculation when accessed
     }
     
     return await this.adjustSolveAndSign(block);

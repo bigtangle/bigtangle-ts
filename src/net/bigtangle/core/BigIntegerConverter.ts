@@ -109,9 +109,6 @@ class BigIntegerConverter {
   static fromByteArray(bytes: Uint8Array): BigIntegerConverter {
     if (bytes.length === 0) return new BigIntegerConverter(0n);
     
-    // DEBUG: Add very clear indicator that the fixed BigIntegerConverter is being used
-    console.log('=== USING FIXED BIGINTEGERCONVERTER FROMBYTEARRAY ===');
-    console.log('Processing bytes:', Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
     
     // For Bitcoin transaction values, always treat as unsigned
     // The MSB being set does not indicate a negative number in Bitcoin context
@@ -119,11 +116,7 @@ class BigIntegerConverter {
     for (let i = 0; i < bytes.length; i++) {
       result = (result << 8n) | BigInt(bytes[i]);
     }
-    
-    // DEBUG: Show the result
-    console.log('Result value:', result.toString());
-    console.log('=== END FIXED BIGINTEGERCONVERTER FROMBYTEARRAY ===');
-    
+ 
     // Return the unsigned interpretation for Bitcoin transaction values
     return new BigIntegerConverter(result);
   }
