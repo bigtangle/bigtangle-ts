@@ -47,7 +47,7 @@ import { UUIDUtil } from "../../src/net/bigtangle/utils/UUIDUtil";
 import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
 import { SigHash } from "../../src/net/bigtangle/core/SigHash";
-
+import { TokenType } from "../../src/net/bigtangle/core/TokenType";
 export abstract class RemoteTest {
   public objectMapper = new ObjectMapper();
   public contextRoot = "http://localhost:8088/";
@@ -1167,6 +1167,37 @@ export abstract class RemoteTest {
     }) as TokenIndexResponse;
   }
 
+  // create a token with multi sign
+  protected async createMultiSigToken(
+    key: ECKey,
+    tokename: string,
+    decimals: number,
+    domainname: string,
+    description: string,
+    amount: bigint
+  ) {
+      await this.createToken(
+        key,
+        tokename,
+        decimals,
+        domainname,
+        description,
+        amount,
+        true,
+        null,
+        TokenType.currency,
+        key.getPublicKeyAsHex(),
+        await Wallet.fromKeysURL(this.networkParameters, [key], this.contextRoot)
+      );
+      const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
+
+      // Note: The multiSign method may need to be implemented in the Wallet class
+      // This is an approximation of the Java wallet.multiSign call
+    await 	this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
+
+     
+    }
+
   public async pullBlockDoMultiSign(
     tokenid: string,
     outKey: ECKey,
@@ -1292,18 +1323,20 @@ export abstract class RemoteTest {
       amount,
       !increment,
       decimals,
-      ""
+      domainname  // Use domainname instead of empty string
     );
     token.setTokenKeyValues(tokenKeyValues);
     token.setTokentype(tokentype);
     const addresses = new Array<MultiSignAddress>();
     addresses.push(new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex()));
-    // Note: Wallet.createToken method signature may differ in actual implementation
-    return w.saveToken(
-      this.createTokenInfo(token, addresses),
-      new Coin(amount, Buffer.from(Utils.HEX.decode(tokenid))),
+    
+    // Use the Wallet's createToken method which properly handles domain name resolution
+    return w.createToken(
       key,
-      null,
+      domainname,
+      increment,
+      token,
+      addresses,
       key.getPubKey(),
       new MemoInfo("createToken")
     );

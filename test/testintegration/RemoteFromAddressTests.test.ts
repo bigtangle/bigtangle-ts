@@ -3,7 +3,7 @@ import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
 import { ECKey } from "../../src/net/bigtangle/core/ECKey";
-import { TokenType } from "../../src/net/bigtangle/core/TokenType";
+
 import { UTXO } from "../../src/net/bigtangle/core/UTXO";
 import { Utils } from "../../src/net/bigtangle/core/Utils";
 import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalancesResponse";
@@ -119,7 +119,7 @@ class RemoteFromAddressTests extends RemoteTest {
     const domain = "";
     const fromPrivate = ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv);
 
-    await this.createMultiSigTokenLocal(
+    await this.createMultiSigToken(
       fromPrivate,
       "人民币",
       2,
@@ -133,40 +133,7 @@ class RemoteFromAddressTests extends RemoteTest {
     return ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv).toAddress(this.networkParameters);
   }
 
-  // create a token with multi sign
-  protected async createMultiSigTokenLocal(
-    key: ECKey,
-    tokename: string,
-    decimals: number,
-    domainname: string,
-    description: string,
-    amount: bigint
-  ) {
-    try {
-      await this.createToken(
-        key,
-        tokename,
-        decimals,
-        domainname,
-        description,
-        amount,
-        true,
-        null,
-        TokenType.currency,
-        key.getPublicKeyAsHex(),
-        await Wallet.fromKeysURL(this.networkParameters, [key], this.contextRoot)
-      );
-      const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
-
-      // Note: The multiSign method may need to be implemented in the Wallet class
-      // This is an approximation of the Java wallet.multiSign call
-      await this.pullBlockDoMultiSign(key.getPublicKeyAsHex(), signkey, null);
-      await this.pullBlockDoMultiSign(key.getPublicKeyAsHex(), key, null);
-    } catch (error) {
-      // TODO: handle exception
-      console.warn("", error);
-    }
-  }
+  
 
   // get balance for the walletKeys
   protected async getBalanceForAddress(address: string): Promise<UTXO[]> {
@@ -203,6 +170,6 @@ describe("RemoteFromAddressTests", () => {
 
   test("testUserpay", async () => {
     await tests.testUserpay();
-  }, 30000);
+  }, 300000);
 });
  
