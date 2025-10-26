@@ -44,6 +44,7 @@ import { Message } from "./Message";
 import { MessageSerializer } from "./MessageSerializer";
 import { ScriptBuilder } from "../script/ScriptBuilder";
 import { TransactionSignature } from "../crypto/TransactionSignature";
+import { JsonProperty } from "jackson-js";
 
 import { UnsafeByteArrayOutputStream } from "./UnsafeByteArrayOutputStream";
 
@@ -74,36 +75,36 @@ export class Transaction extends ChildMessage {
   );
 
   // These are bitcoin serialized.
-  public version: number = 1;
-  private inputs: TransactionInput[] = [];
-  private outputs: TransactionOutput[] = [];
+  @JsonProperty() public version: number = 1;
+  @JsonProperty() private inputs: TransactionInput[] = [];
+  @JsonProperty() private outputs: TransactionOutput[] = [];
 
-  private lockTime: number = 0;
+  @JsonProperty() private lockTime: number = 0;
 
   // This is an in memory helper only.
-  private hash: Sha256Hash | null = null;
+  @JsonProperty() private hash: Sha256Hash | null = null;
 
   // Records a map of which blocks the transaction has appeared in
-  private appearsInHashes: Map<Sha256Hash, number> | null = null;
+  @JsonProperty() private appearsInHashes: Map<Sha256Hash, number> | null = null;
 
   // Tracks optimal encoding message size (mirror of Java field)
-  private optimalEncodingMessageSize: number = 0;
+  @JsonProperty() private optimalEncodingMessageSize: number = 0;
 
-  private purpose: Purpose = Purpose.UNKNOWN;
+  @JsonProperty() private purpose: Purpose = Purpose.UNKNOWN;
 
   /**
    * This field can be used to record the memo of the payment request that
    * initiated the transaction. It's optional.
    */
-  private memo: string | null = null;
+  @JsonProperty() private memo: string | null = null;
 
-  private data: Uint8Array | null = null;
+  @JsonProperty() private data: Uint8Array | null = null;
 
-  private dataSignature: Uint8Array | null = null;
+  @JsonProperty() private dataSignature: Uint8Array | null = null;
 
-  private dataClassName: string | null = null;
+  @JsonProperty() private dataClassName: string | null = null;
 
-  private toAddressInSubtangle: Uint8Array | null = null;
+  @JsonProperty() private toAddressInSubtangle: Uint8Array | null = null;
 
   public getData(): Uint8Array | null {
     return this.data;

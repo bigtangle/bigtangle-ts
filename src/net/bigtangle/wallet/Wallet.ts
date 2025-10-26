@@ -525,68 +525,58 @@ export class Wallet extends WalletBase {
     const resp: string = await OkHttp3Util.postStringSingle(
       this.getServerURL() + ReqCmd.getTokenSignByAddress,
       Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
-    );
-
-    const trimmedResp = resp.trim();
-    const multiSignResponse: MultiSignResponse = Json.jsonmapper().parse(trimmedResp, {
-      mainCreator: () => [MultiSignResponse],
-    });
-
-    // This would need to get the MultiSignResponse type
-    if (!multiSignResponse || typeof multiSignResponse.getMultiSigns !== 'function') {
-      console.log("No multi-sign data available or wrong response type");
-      return;
+    ); 
+    // First parse to plain object to get the raw data
+    const rawResponse: any = Json.jsonmapper().parse(resp);
+    
+    // Manually construct MultiSignResponse and MultiSign instances to ensure proper deserialization
+    const multiSignResponse = new MultiSignResponse();
+    multiSignResponse.setSignCount(rawResponse.signCount || 0);
+    
+    // Convert plain objects in the array to proper MultiSign instances
+    if (rawResponse.multiSigns && Array.isArray(rawResponse.multiSigns)) {
+      const multiSigns: MultiSign[] = [];
+      for (const rawMultiSign of rawResponse.multiSigns) {
+        const multiSign = new MultiSign();
+        multiSign.setId(rawMultiSign.id || null);
+        multiSign.setTokenid(rawMultiSign.tokenid || null);
+        multiSign.setTokenindex(rawMultiSign.tokenindex || 0);
+        multiSign.setBlockhashHex(rawMultiSign.blockhashHex || null);
+        multiSign.setAddress(rawMultiSign.address || null);
+        multiSign.setSign(rawMultiSign.sign || 0);
+        multiSigns.push(multiSign);
+      }
+      multiSignResponse.setMultiSigns(multiSigns);
+    } else {
+      multiSignResponse.setMultiSigns(null);
     }
+
     
     const multiSigns = multiSignResponse.getMultiSigns();
     if (!multiSigns || multiSigns.length === 0) {
-      console.log("No multi-sign data to process");
+      console.error("No multi-sign data found for tokenid: " + tokenid);
       return;
     }
     
-    // Process the first multi-sign data
-    const multiSignData: any = multiSigns[0];
-    
-    // Ensure multiSign is a proper MultiSign instance, not just a plain object
-    let multiSign: any;
-    if (typeof multiSignData.getBlockhashHex === 'function') {
-      // Already a proper MultiSign instance
-      multiSign = multiSignData;
-    } else {
-      // It's a plain object, so create a proper MultiSign instance
-      multiSign = new MultiSign();
-      if (multiSignData.blockbytes) {
-        multiSign.setBlockbytes(multiSignData.blockbytes);
-      }
-      if (multiSignData.tokenid) {
-        multiSign.setTokenid(multiSignData.tokenid);
-      }
-      if (multiSignData.tokenindex !== undefined) {
-        multiSign.setTokenindex(multiSignData.tokenindex);
-      }
-      if (multiSignData.address) {
-        multiSign.setAddress(multiSignData.address);
-      }
-      if (multiSignData.sign !== undefined) {
-        multiSign.setSign(multiSignData.sign);
-      }
-      if (multiSignData.id) {
-        multiSign.setId(multiSignData.id);
-      }
+    const multiSign = multiSigns[0];
+    // Get the block from the hash - with proper Jackson configuration, multiSign should be a class instance
+    const blockhashHex = multiSign.getBlockhashHex();
+    if (!blockhashHex || blockhashHex === "") {
+      console.error("blockhashHex is null or empty");
+      return;
     }
-
-    // Get the block from the hash
-    const payloadBytes = Buffer.from(multiSign.getBlockhashHex() as string, "hex");
+    const payloadBytes = Buffer.from(Utils.HEX.decode(blockhashHex));
     const block0 = this.params.getDefaultSerializer().makeBlock(payloadBytes);
     const transaction = block0.getTransactions()![0];
 
     // Get existing multi-sign by data or create new array
     let multiSignBies: MultiSignBy[] | null = null;
-    if (transaction.getDataSignature() === null) {
+    const dataSignature = transaction.getDataSignature();
+    if (dataSignature === null) {
       multiSignBies = new Array<MultiSignBy>();
     } else {
       const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().parse(
-        transaction.getDataSignature()!.toString(),
+       new TextDecoder().decode(dataSignature),
         { mainCreator: () => [MultiSignByRequest] }
       );
       multiSignBies = multiSignByRequest.getMultiSignBies()!;
@@ -598,6 +588,7 @@ export class Wallet extends WalletBase {
     const signatureBytes = partySignature.encodeToDER();
 
     const multiSignBy = new MultiSignBy();
+    // With proper Jackson configuration, multiSign should now be a proper class instance
     multiSignBy.setTokenid(multiSign.getTokenid()!);
     multiSignBy.setTokenindex(multiSign.getTokenindex()!);
     multiSignBy.setAddress(signkey.toAddress(this.params).toBase58());

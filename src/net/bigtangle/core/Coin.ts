@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 
 import { MonetaryFormat } from "../utils/MonetaryFormat";
-import { JsonCreator } from "jackson-js";
+import { JsonCreator, JsonProperty } from "jackson-js";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { Utils } from "./Utils";
 
@@ -18,8 +18,8 @@ export class Coin implements IMonetary, IComparable<Coin> {
   public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOfString(-1n, "bc");
   public static readonly FEE_DEFAULT: Coin = Coin.valueOfString(1000n, "bc");
 
-  public value: bigint;
-  public tokenid: Buffer;
+  @JsonProperty() public value: bigint;
+  @JsonProperty() public tokenid: Buffer;
 
   constructor(satoshis?: bigint, tokenid?: Buffer | string) {
     this.value = satoshis || 0n;

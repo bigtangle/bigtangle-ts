@@ -1,25 +1,37 @@
 import { Utils } from '../utils/Utils';
+import { JsonProperty } from "jackson-js";
 
 export class MultiSign {
-    private id: string | null = null;
-    private tokenid: string | null = null;
-    private tokenindex: number = 0;
-    private blockbytes: Uint8Array | null = null;
-    private address: string | null = null;
-    private sign: number = 0;
+    @JsonProperty() private id: string | null = null;
+    @JsonProperty() private tokenid: string | null = null;
+    @JsonProperty() private tokenindex: number = 0;
+    @JsonProperty() public blockhashHex: string | null = null;
+    @JsonProperty() private address: string | null = null;
+    @JsonProperty() private sign: number = 0;
 
     public getBlockhashHex(): string {
-        if (this.blockbytes === null) {
+        if (this.blockhashHex === null) {
             return "";
         }
-        return Utils.HEX.encode(this.blockbytes);
+        return this.blockhashHex;
     }
     
     public setBlockhashHex(blockhashHex: string | null): void {
-        if (blockhashHex === null) {
-            this.blockbytes = null;
+        this.blockhashHex = blockhashHex;
+    }
+    
+    public getBlockbytes(): Uint8Array | null {
+        if (this.blockhashHex === null) {
+            return null;
+        }
+        return Utils.HEX.decode(this.blockhashHex);
+    }
+    
+    public setBlockbytes(blockbytes: Uint8Array | null): void {
+        if (blockbytes === null) {
+            this.blockhashHex = null;
         } else {
-            this.blockbytes = Utils.HEX.decode(blockhashHex);
+            this.blockhashHex = Utils.HEX.encode(blockbytes);
         }
     }
 
@@ -55,14 +67,6 @@ export class MultiSign {
         this.tokenindex = tokenindex;
     }
 
-    public getBlockbytes(): Uint8Array | null {
-        return this.blockbytes;
-    }
-
-    public setBlockbytes(blockbytes: Uint8Array | null): void {
-        this.blockbytes = blockbytes;
-    }
-
     public getAddress(): string | null {
         return this.address;
     }
@@ -72,6 +76,6 @@ export class MultiSign {
     }
 
     public toString(): string {
-        return `MultiSign [id=${this.id}, tokenid=${this.tokenid}, tokenindex=${this.tokenindex}, blockbytes=${this.blockbytes ? Utils.HEX.encode(this.blockbytes) : 'null'}, address=${this.address}, sign=${this.sign}]`;
+        return `MultiSign [id=${this.id}, tokenid=${this.tokenid}, tokenindex=${this.tokenindex}, blockbytes=${this.blockhashHex ? this.blockhashHex : 'null'}, address=${this.address}, sign=${this.sign}]`;
     }
 }

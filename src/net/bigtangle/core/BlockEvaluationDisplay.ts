@@ -4,12 +4,13 @@ import { BlockMCMC } from './BlockMCMC';
 import { ProbabilityBlock } from '../utils/ProbabilityBlock';
 import { Sha256Hash } from './Sha256Hash';
 import { NetworkParameters } from '../params/NetworkParameters';
+import { JsonProperty } from "jackson-js";
 
 export class BlockEvaluationDisplay extends BlockEvaluation {
-    private blockType: BlockType | null = null;
-    private latestchainnumber: number = 0;
-    private mcmc: BlockMCMC | null = null;
-    private totalrating: number = 0;
+    @JsonProperty() private blockType: BlockType | null = null;
+    @JsonProperty() private latestchainnumber: number = 0;
+    @JsonProperty() private mcmc: BlockMCMC | null = null;
+    @JsonProperty() private totalrating: number = 0;
 
     public setMcmcWithDefault(mcmc: BlockMCMC | null): void {
         if (mcmc === null) {

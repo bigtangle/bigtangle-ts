@@ -38,13 +38,18 @@ import { Buffer } from "buffer";
 import { Transaction } from "./Transaction";
 import { TransactionOutPoint } from "./TransactionOutPoint";
 import { BigIntegerConverter, bytesToBigInt } from "./BigIntegerConverter";
+import { JsonProperty } from "jackson-js";
 
 const { checkArgument, checkNotNull, checkState } = Preconditions;
 
 /**
  * <p>
- * A TransactionOutput message contains a scriptPubKey that controls who is able
- * to spend its value. It is a sub-part of the Transaction message.
+ * A transaction represents the movement of coins from some addresses to some
+ * other addresses.
+ * </p>
+ *
+ * <p>
+ * Transactions are the fundamental atoms and have many powerful features.
  * </p>
  *
  * <p>
@@ -54,15 +59,15 @@ const { checkArgument, checkNotNull, checkState } = Preconditions;
 export class TransactionOutput extends ChildMessage {
   // The output's value is kept as a native type in order to save class
   // instances.
-  private value: Coin;
+  @JsonProperty() private value: Coin;
 
   // A transaction output has a script used for authenticating that the
   // redeemer is allowed to spend
   // this output.
-  private scriptBytes: Uint8Array;
+  @JsonProperty() private scriptBytes: Uint8Array;
 
   // The script bytes are parsed and turned into a Script on demand.
-  private scriptPubKey: Script | null = null;
+  @JsonProperty() private scriptPubKey: Script | null = null;
 
   // These fields are not Bitcoin serialized. They are used for tracking
   // purposes in our wallet
@@ -72,13 +77,13 @@ export class TransactionOutput extends ChildMessage {
   // set it means this output was owned by
   // us and used in one of our own transactions (eg, because it is a change
   // output).
-  private availableForSpending: boolean = true;
-  private spentBy: TransactionInput | null = null;
+  @JsonProperty() private availableForSpending: boolean = true;
+  @JsonProperty() private spentBy: TransactionInput | null = null;
 
-  private scriptLen: number = 0;
-  private tokenLen: number = 0;
+  @JsonProperty() private scriptLen: number = 0;
+  @JsonProperty() private tokenLen: number = 0;
 
-  private description: string | null = null;
+  @JsonProperty() private description: string | null = null;
 
   public constructor(
     params: NetworkParameters  ,

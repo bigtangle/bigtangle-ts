@@ -1,9 +1,11 @@
+import { JsonProperty } from "jackson-js";
+
 export class MultiSignBy {
-    private tokenid: string | null = null;
-    private tokenindex: number = 0;
-    private address: string | null = null;
-    private publickey: string | null = null;
-    private signature: string | null = null;
+    @JsonProperty() private tokenid: string | null = null;
+    @JsonProperty() private tokenindex: number = 0;
+    @JsonProperty() private address: string | null = null;
+    @JsonProperty() private publickey: string | null = null;
+    @JsonProperty() private signature: string | null = null;
 
     public getTokenid(): string | null {
         return this.tokenid;

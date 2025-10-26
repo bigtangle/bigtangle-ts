@@ -1,8 +1,9 @@
 import { PayMultiSign } from './PayMultiSign';
+import { JsonProperty } from "jackson-js";
 
 export class PayMultiSignExt extends PayMultiSign {
   
-    private realSignnumber: number = 0;
+    @JsonProperty() private realSignnumber: number = 0;
 
     
 

@@ -1,11 +1,12 @@
 import { Utils } from '../utils/Utils';
+import { JsonProperty } from "jackson-js";
 
 export class PayMultiSignAddress {
-    private orderid: string | null = null;
-    private pubKey: string | null = null;
-    private sign: number = 0;
-    private signInputData: Uint8Array | null = null;
-    private signIndex: number = 0;
+    @JsonProperty() private orderid: string | null = null;
+    @JsonProperty() private pubKey: string | null = null;
+    @JsonProperty() private sign: number = 0;
+    @JsonProperty() private signInputData: Uint8Array | null = null;
+    @JsonProperty() private signIndex: number = 0;
 
     public getSignIndex(): number {
         return this.signIndex;

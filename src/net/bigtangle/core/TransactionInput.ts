@@ -39,6 +39,7 @@ import { ScriptBuilder } from '../script/ScriptBuilder';
 import { Transaction } from './Transaction';
 import { TransactionOutput } from './TransactionOutput';
 import { Buffer } from 'buffer';
+import { JsonProperty } from "jackson-js";
 
 /**
  * <p>
@@ -62,22 +63,22 @@ export class TransactionInput extends ChildMessage {
 
     // Allows for altering transactions after they were broadcast. Values below
     // NO_SEQUENCE-1 mean it can be altered.
-    private sequence: number = 0;
+    @JsonProperty() private sequence: number = 0;
     // Data needed to connect to the output of the transaction we're gathering coins
     // from.
-    private outpoint: TransactionOutPoint;
+    @JsonProperty() private outpoint: TransactionOutPoint;
     // The "script bytes" might not actually be a script. In coinbase transactions
     // where new coins are minted there
     // is no input transaction, so instead the scriptBytes contains some extra stuff
     // (like a rollover nonce) that we
     // don't care about much. The bytes are turned into a Script object (cached
     // below) on demand via a getter.
-    private scriptBytes: Uint8Array;
+    @JsonProperty() private scriptBytes: Uint8Array;
     // The Script object obtained from parsing scriptBytes. Only filled in on demand
     // and if the transaction is not
     // coinbase.
-    private scriptSig: Script | null = null;
-    protected value: Coin | null = null;
+    @JsonProperty() private scriptSig: Script | null = null;
+    @JsonProperty() protected value: Coin | null = null;
     
     public static fromCoinBase(params: NetworkParameters, parentTransaction: Transaction, output: TransactionOutput): TransactionInput {
         const a = new TransactionInput(params);

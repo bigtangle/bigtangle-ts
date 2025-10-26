@@ -1,18 +1,19 @@
 
+import { JsonProperty } from "jackson-js";
 
 export class PayMultiSign {
-    private orderid: string | null = null;
-    private tokenid: string | null = null;
-    private toaddress: string | null = null;
-    private blockhashHex: string | null = null;
-    private blockhash: Uint8Array | null = null;
-    private amount: bigint | null = null;
-    private minsignnumber: number = 0;
-    private pubKeyHex: string | null = null;
-    private outputHashHex: string | null = null;
-    private outputindex: number = 0;
-    private sign: number = 0;
-    private signcount: number = 0;
+    @JsonProperty() private orderid: string | null = null;
+    @JsonProperty() private tokenid: string | null = null;
+    @JsonProperty() private toaddress: string | null = null;
+    @JsonProperty() private blockhashHex: string | null = null;
+    @JsonProperty() private blockhash: Uint8Array | null = null;
+    @JsonProperty() private amount: bigint | null = null;
+    @JsonProperty() private minsignnumber: number = 0;
+    @JsonProperty() private pubKeyHex: string | null = null;
+    @JsonProperty() private outputHashHex: string | null = null;
+    @JsonProperty() private outputindex: number = 0;
+    @JsonProperty() private sign: number = 0;
+    @JsonProperty() private signcount: number = 0;
 
     public getOutputHashHex(): string | null {
         return this.outputHashHex;

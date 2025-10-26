@@ -1,9 +1,10 @@
 import { Sha256Hash } from './Sha256Hash';
+import { JsonProperty } from "jackson-js";
 
 export class OutputsMulti {
-    private hash: Sha256Hash | null = null;
-    private toAddress: string | null = null;
-    private outputIndex: number = 0;
+    @JsonProperty() private hash: Sha256Hash | null = null;
+    @JsonProperty() private toAddress: string | null = null;
+    @JsonProperty() private outputIndex: number = 0;
 
     constructor(hash?: Sha256Hash, toAddress?: string, outputIndex?: number) {
         if (hash) this.hash = hash;
