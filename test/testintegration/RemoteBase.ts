@@ -824,9 +824,12 @@ export abstract class RemoteTest {
       if (multiSignResponse.getMultiSigns()?.length === 0)
         continue;
 
-      const blockhashHex = multiSignResponse
-        .getMultiSigns()![Number(tokenindex_)].getBlockhashHex();
-      const payloadBytes = Buffer.from(Utils.HEX.decode(blockhashHex!));
+      const multiSignAtIndex = multiSignResponse.getMultiSigns()![Number(tokenindex_)];
+      const blockhashHex = multiSignAtIndex.getBlockhashHex();
+      
+      if (!blockhashHex) continue;
+      
+      const payloadBytes = Buffer.from(Utils.HEX.decode(blockhashHex));
 
       const block0 = this.networkParameters
         .getDefaultSerializer()
@@ -1193,7 +1196,7 @@ export abstract class RemoteTest {
 
       // Note: The multiSign method may need to be implemented in the Wallet class
       // This is an approximation of the Java wallet.multiSign call
-    await 	this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
+    await 	this.wallet.multiSign(signkey, key.getPublicKeyAsHex(), null);
 
      
     }
@@ -1225,8 +1228,11 @@ export abstract class RemoteTest {
       return null;
     const multiSign = multiSignResponse.getMultiSigns()![0];
 
+    const blockhashHex = multiSign.getBlockhashHex();
+    if (!blockhashHex) return null;
+
     const payloadBytes = Buffer.from(
-      multiSign.getBlockhashHex() as string,
+      blockhashHex as string,
       "hex"
     );
     const block0 = this.networkParameters

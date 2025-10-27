@@ -143,7 +143,8 @@ export class ECKey {
     // Convert directly to Uint8Array
     const privKeyBytes = ECKey.bigIntToBytes(privKey, 32);
     const pubKey = secp256k1.publicKeyCreate(privKeyBytes);
-    return ECPoint.decodePoint(pubKey);
+    // Ensure pubKey is Uint8Array format to maintain consistency
+    return ECPoint.decodePoint(new Uint8Array(pubKey));
   }
 
   public getPrivKeyBytes(): Uint8Array {
@@ -245,6 +246,8 @@ export class ECKey {
     const r = ECKey.createBigInteger(1, rBytes);
     const s = ECKey.createBigInteger(1, sBytes);
     const signature = new ECDSASignature(r, s);
+    
+    // Check if the original signature is already canonical, if not we need to canonicalize
     return signature.toCanonicalised();
   }
 
@@ -252,29 +255,45 @@ export class ECKey {
         if (!this.pub) {
             throw new Error("Public key is not available for verification");
         }
-        return this.verifyWithPubKey(data, signature, this.pub.encode(true));
+        // Use the same compression setting as was used for creating the public key
+        return this.verifyWithPubKey(data, signature, this.pub.encode(this.isCompressed()));
     }
 
     public verifyWithPubKey(data: Uint8Array, signature: Uint8Array, pub: Uint8Array): boolean {
-        // If signature is in DER format (starts with 0x30), use as is for verification
-        if (signature.length > 64 && signature[0] === 0x30) {
-            try {
-                // The DER signature can be used directly with ecdsaVerify
-                return secp256k1.ecdsaVerify(signature, data, pub);
-            } catch (e) {
-                // If verification fails, return false
-                return false;
+        try {
+            // Convert to Buffer format which secp256k1 expects
+            const dataBuffer = Buffer.from(data);
+            const pubBuffer = Buffer.from(pub);
+            
+            // Check if this is a DER format signature (starts with 0x30)
+            if (signature.length > 0 && signature[0] === 0x30) {
+                // Instead of using ecdsaVerify directly with DER, decode the DER signature
+                // and verify using the raw r, s values (secp256k1 library can handle this properly)
+                try {
+                    // Use ECDSASignature to decode the DER format
+                    const decodedSig = ECDSASignature.decodeFromDER(signature);
+                    
+                    // Create a compact signature format (64 bytes: r + s)
+                    const rBytes = ECKey.bigIntToBytes(decodedSig.r, 32);
+                    const sBytes = ECKey.bigIntToBytes(decodedSig.s, 32);
+                    const compactSig = new Uint8Array([...rBytes, ...sBytes]);
+                    
+                    // Verify using the compact format
+                    const compactSigBuffer = Buffer.from(compactSig);
+                    return secp256k1.ecdsaVerify(compactSigBuffer, dataBuffer, pubBuffer);
+                } catch (decodeError) {
+                    // If DER decoding fails, try direct verification (for backwards compatibility)
+                    const signatureBuffer = Buffer.from(signature);
+                    return secp256k1.ecdsaVerify(signatureBuffer, dataBuffer, pubBuffer);
+                }
+            } else {
+                // This is likely a compact format signature
+                const signatureBuffer = Buffer.from(signature);
+                return secp256k1.ecdsaVerify(signatureBuffer, dataBuffer, pubBuffer);
             }
-        } else {
-            // For compact format (64 bytes), we need to convert to DER first
-            // But this is a simplified approach - we should check if it's actually compact format
-            try {
-                // Try to verify with the signature as is
-                return secp256k1.ecdsaVerify(signature, data, pub);
-            } catch (e) {
-                // If verification fails, return false
-                return false;
-            }
+        } catch (e) {
+            // If verification fails, return false
+            return false;
         }
     }
 

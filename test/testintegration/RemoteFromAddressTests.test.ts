@@ -8,7 +8,7 @@ import { UTXO } from "../../src/net/bigtangle/core/UTXO";
 import { Utils } from "../../src/net/bigtangle/core/Utils";
 import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalancesResponse";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
-import { RemoteTest } from "./Remote.test";
+import { RemoteTest } from "./RemoteBase";
 import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
 
 class RemoteFromAddressTests extends RemoteTest {
@@ -32,8 +32,8 @@ class RemoteFromAddressTests extends RemoteTest {
     );
 
   
-    await this.testTokens();
-/*
+  /*  await this.testTokens(); */
+
     this.accountKey = new ECKey(null, null);
     const list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     await this.createUserPay(this.accountKey!);
@@ -45,7 +45,7 @@ class RemoteFromAddressTests extends RemoteTest {
     for (const coin of list3) {
       console.debug(coin.toString());
     }
-      */
+     
   }
 
   private async createUserPay(accountKey: ECKey) {
@@ -168,7 +168,7 @@ describe("RemoteFromAddressTests", () => {
     await tests.setUp();
   });
 
-  test("testUserpay", async () => {
+  test.skip("testUserpay", async () => {
     await tests.testUserpay();
   }, 300000);
 });

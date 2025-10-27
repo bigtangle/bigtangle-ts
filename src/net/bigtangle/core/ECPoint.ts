@@ -3,7 +3,21 @@ export class ECPoint {
     private compressed: boolean = true;
 
     constructor(pubKey: Uint8Array) {
-        this.pubKey = pubKey;
+        // Handle case where pubKey is a Buffer object rather than a proper Uint8Array
+        if (Buffer.isBuffer(pubKey)) {
+            // Convert Buffer to Uint8Array
+            this.pubKey = new Uint8Array(pubKey);
+        }
+        // Handle case where pubKey is a serialized Buffer object (from JSON)
+        else if ((pubKey as any).type === 'Buffer' && (pubKey as any).data) {
+            // Convert serialized Buffer to proper Uint8Array
+            this.pubKey = new Uint8Array((pubKey as any).data);
+        } else if (pubKey instanceof Uint8Array) {
+            this.pubKey = pubKey;
+        } else {
+            // Convert anything else to proper Uint8Array
+            this.pubKey = new Uint8Array(pubKey);
+        }
     }
 
     public static decodePoint(encoded: Uint8Array): ECPoint {
@@ -12,31 +26,48 @@ export class ECPoint {
 
     public encode(compressed?: boolean): Uint8Array {
         const shouldCompress = compressed ?? this.compressed;
-        // secp256k1 library can handle compression
-        try {
-            // If already in correct format, return as is
-            if (this.pubKey.length === 33 && shouldCompress) {
-                return this.pubKey;
-            } else if (this.pubKey.length === 65 && !shouldCompress) {
+        
+        // If already in correct format, return as is
+        if ((this.pubKey.length === 33 && shouldCompress) || (this.pubKey.length === 65 && !shouldCompress)) {
+            // Ensure we always return Uint8Array not Buffer
+            if (this.pubKey instanceof Uint8Array) {
                 return this.pubKey;
             } else {
-                // Need to convert format
-                // If input is compressed (33 bytes) but we want uncompressed (65 bytes)
-                if (this.pubKey.length === 33 && !shouldCompress) {
-                    const uncompressed = require('secp256k1').publicKeyConvert(this.pubKey, false);
-                    return uncompressed;
-                }
-                // If input is uncompressed (65 bytes) but we want compressed (33 bytes)
-                else if (this.pubKey.length === 65 && shouldCompress) {
-                    const compressed = require('secp256k1').publicKeyConvert(this.pubKey, true);
-                    return compressed;
-                }
+                // If it's a Buffer object, convert it to Uint8Array
+                return new Uint8Array(this.pubKey);
             }
-        } catch (e) {
-            // If conversion fails, return original
-            return this.pubKey;
         }
-        return this.pubKey;
+        
+        // If we need to convert format, try using secp256k1 conversion
+        try {
+            // Import secp256k1 library to perform conversion
+            const secp256k1Lib = require('secp256k1');
+            
+            // If input is compressed (33 bytes) but we want uncompressed (65 bytes)
+            if (this.pubKey.length === 33 && !shouldCompress) {
+                const uncompressed = secp256k1Lib.publicKeyConvert(this.pubKey, false);
+                return new Uint8Array(uncompressed);
+            }
+            // If input is uncompressed (65 bytes) but we want compressed (33 bytes)
+            else if (this.pubKey.length === 65 && shouldCompress) {
+                const compressed = secp256k1Lib.publicKeyConvert(this.pubKey, true);
+                return new Uint8Array(compressed);
+            }
+        } catch (e: any) {
+            // If conversion fails, return original but ensure it's Uint8Array
+            if (this.pubKey instanceof Uint8Array) {
+                return this.pubKey;
+            } else {
+                return new Uint8Array(this.pubKey);
+            }
+        }
+        
+        // Fallback - ensure we always return Uint8Array
+        if (this.pubKey instanceof Uint8Array) {
+            return this.pubKey;
+        } else {
+            return new Uint8Array(this.pubKey);
+        }
     }
 
     public decompress(): ECPoint {
@@ -80,9 +111,15 @@ export class ECPoint {
     }
 
     public add(other: ECPoint): ECPoint {
-        // EC point addition requires more complex implementation with secp256k1
-        // This is non-trivial with the secp256k1 library and would need significant work
-        throw new Error("EC point addition not implemented with secp256k1 library");
+        try {
+            const secp256k1 = require('secp256k1');
+            // For secp256k1 public keys, point addition is done with publicKeyCombine
+            const result = secp256k1.publicKeyCombine([this.pubKey, other.pubKey], true);
+            return new ECPoint(result);
+        } catch (e: any) {
+            // Fallback error if secp256k1 library doesn't support this function
+            throw new Error("EC point addition not implemented with secp256k1 library: " + e.message);
+        }
     }
 
     public multiply(k: bigint): ECPoint {
@@ -149,7 +186,7 @@ export class ECPoint {
         try {
             // Use secp256k1 library to validate the public key
             return require('secp256k1').publicKeyVerify(this.pubKey);
-        } catch (e) {
+        } catch (e: any) {
             return false;
         }
     }
