@@ -888,7 +888,7 @@ export class Block extends Message {
         // TODO: Implement adjustLength
         // this.adjustLength(transactions.size(), t.length);
         // Force a recalculation next time the values are needed.
-        this.merkleRoot = null;
+        this.setMerkleRoot( null);
         this.hash = null;
     }
 

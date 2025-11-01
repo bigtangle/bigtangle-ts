@@ -9,7 +9,7 @@ import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
 import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 
 import { TokenType } from "../../src/net/bigtangle/core/TokenType";
-import { RemoteTest } from "./RemoteBase";
+import { RemoteTest } from "./RemoteTest";
 import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
 import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { Utils } from "../../src/net/bigtangle/core/Utils";

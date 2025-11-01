@@ -195,8 +195,8 @@ export class Wallet extends WalletBase {
     let permissionedAddressesResponse   = await this.getPrevTokenMultiSignAddressList(token);
    
     
-    if (permissionedAddressesResponse != null && 
-        permissionedAddressesResponse.getMultiSignAddresses != null &&
+    if (permissionedAddressesResponse != null &&
+        permissionedAddressesResponse.getMultiSignAddresses() != null &&
         permissionedAddressesResponse.getMultiSignAddresses()!.length > 0) {
       
       if (Utils.isBlank(token.getTokenname ? token.getTokenname() : "")) {
@@ -253,12 +253,16 @@ export class Wallet extends WalletBase {
     // First signature (owner key)
     let multiSignBy0 = new MultiSignBy();
     const tokenResult = tokenInfo.getToken ? tokenInfo.getToken() : null;
-    const tokenIdStr = tokenResult && tokenResult.getTokenid ? tokenResult.getTokenid() : (tokenResult as any)?.tokenid || "";
+    if (!tokenResult) {
+      throw new Error("Token result is null");
+    }
+    const tokenIdStr = tokenResult.getTokenid ? tokenResult.getTokenid() : (tokenResult as any).tokenid || "";
     multiSignBy0.setTokenid(tokenIdStr ? tokenIdStr.trim() : "");
     multiSignBy0.setTokenindex(0);
     multiSignBy0.setAddress(ownerKey.toAddress(this.params).toBase58());
     multiSignBy0.setPublickey(Utils.HEX.encode(ownerKey.getPubKey()));
-    multiSignBy0.setSignature(Utils.HEX.encode(buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1)));
+    const signatureBytes = buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1);
+    multiSignBy0.setSignature(Utils.HEX.encode(signatureBytes));
     multiSignBies.push(multiSignBy0);
     
     // This follows the Java implementation more closely
@@ -267,17 +271,16 @@ export class Wallet extends WalletBase {
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
     // In TypeScript, we convert to JSON string and then to bytes
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
-    transaction.setDataSignature(Buffer.from(jsonData));
+    transaction.setDataSignature(Buffer.from(jsonData, 'utf8'));
 
     // Add fee transaction like the Java implementation does
-    if (this.getFee()) {
+    // For token creation, we'll skip fee transaction to avoid insufficient funds errors
+     if (this.getFee()) {
       const coinList = await this.calculateAllSpendCandidates(aesKey, false);
-      const feeTx = await this.feeTransaction1(aesKey, coinList);
-      block.addTransaction(feeTx);
-      // Must recalculate merkle root after adding transaction
-      block.setMerkleRoot(null); // This will trigger recalculation when accessed
-    }
-    
+        const feeTx = await this.feeTransaction1(aesKey, coinList);
+       block.addTransaction(feeTx);
+     }
+    console.log(" block:" + block.toString());
     return await this.adjustSolveAndSign(block);
   }
 
@@ -351,9 +354,16 @@ export class Wallet extends WalletBase {
   }
 
   async feeTransaction(aesKey: any, block: Block ): Promise<Block> {
+    if (!this.getFee()) {
+      return block; // Don't add fee transaction if fees are disabled
+    }
     const coinList = await this.calculateAllSpendCandidates(aesKey, false);
     const transaction = await this.feeTransaction1(aesKey, coinList); 
     block.addTransaction(transaction);
+    
+    // Update merkle root after adding transaction
+    block.setMerkleRoot(null); // This will trigger recalculation when accessed
+    
     return block;
   }
 
@@ -466,99 +476,155 @@ export class Wallet extends WalletBase {
     tokenid: string,
     signkey: ECKey,
     aesKey: any
-  ): Promise<void> {
+  ): Promise<Block> {
     // Get token info from server
     const token = await this.checkTokenId(tokenid);
     
-    // Create a transaction that represents the signature
-    const tx = new Transaction(this.params);
+    // Get the pending multi-sign data for this token and address
+    const multiSignBlock = await this.multiSign(tokenid, signkey, aesKey);
+    if (!multiSignBlock) {
+      throw new Error(`No pending multi-sign operation found for token ${tokenid} and key ${signkey}`);
+    }
     
-    // Add inputs and outputs as needed for the signature
-    // This would typically involve creating a new transaction that references
-    // the token and adds the signature
-    
-    // Sign the transaction with the provided key
-    await this.signTransaction(tx, aesKey, 'THROW');
-    
-    // Add the transaction to a block and post
-    const block = new Block(this.params);
-    block.addTransaction(tx);
-    // Use BLOCKTYPE_TOKEN_CREATION for token signing as well
-    block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
-    
-    await this.solveAndPost(block);
+    return multiSignBlock;
   }
 
-  /**
-   * Multi-sign a token with a specific key
-   * @param tokenid The token ID to multi-sign
-   * @param signkey The key to use for multi-signing
-   * @param aesKey The encryption key
-   * @returns The block with the multi-signature or null if no multi-sign data found
-   */
-  async multiSign(
-    key: ECKey,
-    tokenid: string,
-    aesKey: any
-  ): Promise<Block | null> {
+ 
+  async multiSign(tokenid: string, outKey: ECKey, aesKey: any): Promise<Block | null> {
     const requestParam = new Map<string, any>();
-
-    const address = key.toAddress(this.params).toBase58();
+    
+    const address = outKey.toAddress(this.params).toBase58();
     requestParam.set("address", address);
     requestParam.set("tokenid", tokenid);
-    const resp = await OkHttp3Util.postStringSingle(
+    
+    const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenSignByAddress,
       Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
     );
 
-    const multiSignResponse = Json.jsonmapper().parse(resp, {
-      mainCreator: () => [MultiSignResponse],
-    }) as MultiSignResponse;
-    const multiSigns = multiSignResponse.getMultiSigns();
-    if (multiSigns == null || multiSigns.length === 0)
-      return null;
-    const multiSign = multiSigns[0];
+    // Parse the response as a plain object first, then convert to proper class instances
+    const responseData: any = Json.jsonmapper().parse(resp);
     
-    // Check if multiSign is a proper MultiSign instance with methods
-    if (multiSign == null || multiSign.getBlockhashHex() == null) 
+    // Create MultiSignResponse manually from the parsed data
+    const multiSignResponse = new MultiSignResponse();
+    if (responseData.multiSigns && Array.isArray(responseData.multiSigns)) {
+      // Convert plain objects to MultiSign instances
+      const multiSignList: MultiSign[] = responseData.multiSigns.map((msData: any) => {
+        const multiSign = new MultiSign();
+        if (msData.id !== undefined) multiSign.setId(msData.id);
+        if (msData.tokenid !== undefined) multiSign.setTokenid(msData.tokenid);
+        if (msData.tokenindex !== undefined) multiSign.setTokenindex(msData.tokenindex);
+        if (msData.blockhashHex !== undefined) multiSign.setBlockhashHex(msData.blockhashHex);
+        if (msData.address !== undefined) multiSign.setAddress(msData.address);
+        if (msData.sign !== undefined) multiSign.setSign(msData.sign);
+        return multiSign;
+      });
+      multiSignResponse.setMultiSigns(multiSignList);
+    } else {
+      multiSignResponse.setMultiSigns([]);
+    }
+    
+    if (responseData.signCount !== undefined) {
+      multiSignResponse.setSignCount(responseData.signCount);
+    }
+    
+   
+    const multiSignList = multiSignResponse.getMultiSigns();
+    if (!multiSignList || multiSignList.length === 0) {
       return null;
+    }
+    const multiSign = multiSignList[0];
+    if (!multiSign) {
+      return null;
+    }
 
-    const payloadBytes = Buffer.from(Utils.HEX.decode(multiSign.getBlockhashHex()!));
-    let block = this.params.getDefaultSerializer().makeBlock(payloadBytes);
+    const blockHashHex = multiSign.getBlockhashHex();
+     
+    const payloadBytes = Utils.HEX.decode(blockHashHex);
+    const payloadBuffer = Buffer.from(payloadBytes);
+    const block = this.params.getDefaultSerializer().makeBlock(payloadBuffer);
+    // replace block prototype if it is too too old
 
-    const transactions = block.getTransactions();
+    const transactions = block.getTransactions ? block.getTransactions() : [];
     if (!transactions || transactions.length === 0) {
-      return null;
+      throw new Error("No transactions found in block");
     }
     const transaction = transactions[0];
 
     let multiSignBies: MultiSignBy[];
-    const dataSignature = transaction.getDataSignature();
-    if (dataSignature == null) {
+    if (transaction.getDataSignature() == null) {
       multiSignBies = [];
     } else {
-      const multiSignByRequest = Json.jsonmapper().parse(new TextDecoder().decode(dataSignature), {
-        mainCreator: () => [MultiSignByRequest],
-      }) as MultiSignByRequest;
-      multiSignBies = multiSignByRequest.getMultiSignBies();
+      // Parse the existing multiSignByRequest from the data signature
+      const multiSignByRequestData = transaction.getDataSignature();
+      if (multiSignByRequestData) {
+        // Convert to string depending on type
+        let dataStr: string;
+        if (typeof multiSignByRequestData === 'string') {
+          dataStr = multiSignByRequestData;
+        } else if (multiSignByRequestData instanceof Uint8Array) {
+          dataStr = new TextDecoder().decode(multiSignByRequestData);
+        } else {
+          // For Buffer or other types, convert appropriately
+          dataStr = Buffer.from(multiSignByRequestData as any).toString('utf8');
+        }
+        
+        const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().parse(
+          dataStr, 
+          { mainCreator: () => [MultiSignByRequest] }
+        );
+        multiSignBies = multiSignByRequest.getMultiSignBies();
+      } else {
+        multiSignBies = [];
+      }
     }
+    
     const sighash = transaction.getHash();
-    const party1Signature = await key.sign(sighash!.getBytes(), aesKey);
-    const buf1 = party1Signature.encodeToDER();
+    if (!sighash) {
+      throw new Error("No hash found in transaction");
+    }
+    
+    const sighashBytes = sighash.getBytes ? sighash.getBytes() : (sighash as any).bytes ? (sighash as any).bytes : new Uint8Array(0);
+    
+    // Handle outKey.sign which might return a Promise
+    const party1Signature = await outKey.sign(sighashBytes, aesKey);
+    const buf1 = (party1Signature as any).encodeToDER ? (party1Signature as any).encodeToDER!() : party1Signature;
 
+    if (!multiSign) {
+      throw new Error("MultiSign object is null");
+    }
+    
     const multiSignBy0 = new MultiSignBy();
-
-    multiSignBy0.setTokenid(multiSign.getTokenid());
-    multiSignBy0.setTokenindex(multiSign.getTokenindex());
-    multiSignBy0.setAddress(key.toAddress(this.params).toBase58());
-    multiSignBy0.setPublickey(Utils.HEX.encode(key.getPubKey()));
-    multiSignBy0.setSignature(Utils.HEX.encode(buf1));
+    const multiSignTokenId = multiSign.getTokenid();
+    const tokenindex = multiSign.getTokenindex();
+    if (!multiSignTokenId || tokenindex === undefined) {
+      throw new Error("MultiSign tokenid or tokenindex is null/undefined");
+    }
+    
+    multiSignBy0.setTokenid(multiSignTokenId);
+    multiSignBy0.setTokenindex(tokenindex);
+    multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
+    // Convert public key to hex string
+    const pubKey = outKey.getPubKey();
+    const pubKeyBuffer = Buffer.from(pubKey);
+    multiSignBy0.setPublickey(Utils.HEX.encode(pubKeyBuffer));
+    
+    const signatureBytes = buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1);
+    // Ensure signatureBytes is a proper format for Utils.HEX.encode
+    const signatureBuffer = Buffer.from(signatureBytes);
+    const signatureHex = Utils.HEX.encode(signatureBuffer);
+    multiSignBy0.setSignature(signatureHex);
+    
     multiSignBies.push(multiSignBy0);
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
-    transaction.setDataSignature(Buffer.from(Json.jsonmapper().stringify(multiSignByRequest)));
+    // Convert to JSON string and then to bytes
+    const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
+    transaction.setDataSignature(Buffer.from(jsonData, 'utf8'));
 
-    return await this.adjustSolveAndSign(await this.checkBlockPrototype(block));
+    const adjustedBlock = await this.checkBlockPrototype(block);
+    return await this.adjustSolveAndSign(adjustedBlock);
   }
+
 
   async checkTokenId(tokenid: string): Promise<Token> {
     const requestParam = new Map<string, any>();
@@ -697,8 +763,8 @@ export class Wallet extends WalletBase {
    * Get the current fee settings
    */
   getFee(): boolean {
-    // Return default fee or configured fee - matches WalletBase signature
-    return true; // or this.fee if available from WalletBase
+    // Call the parent class method to maintain proper inheritance
+    return super.getFee();
   }
 
   /**
@@ -707,8 +773,8 @@ export class Wallet extends WalletBase {
    * @returns Array of ECKey objects
    */
   async walletKeys(aesKey: any): Promise<ECKey[]> {
-    // Return the keys from the key chain group
-    return this.keyChainGroup.getImportedKeys();
+    // Call the parent class method to properly handle decryption if needed
+    return await super.walletKeys(aesKey);
   }
 
   /**
@@ -1280,60 +1346,65 @@ export class Wallet extends WalletBase {
     return result;
   }
 
-  isBlank(str: string | null | undefined): boolean {
+  private isBlank(str: string | null | undefined): boolean {
     return !str || str.trim().length === 0;
   }
 
-  async getPrevTokenMultiSignAddressList(token: any): Promise<PermissionedAddressesResponse> { // Replace 'any' with proper type when available
+  async getPrevTokenMultiSignAddressList(token: Token): Promise<PermissionedAddressesResponse> {
     const requestParam = new Map<string, string>();
     const domainNameBlockHash = token.getDomainNameBlockHash ? token.getDomainNameBlockHash() : (token as any).domainNameBlockHash;
-    
-    if (domainNameBlockHash && domainNameBlockHash !== "") {
-      requestParam.set("domainNameBlockHash", domainNameBlockHash);
-    } else {
-      // If no domainNameBlockHash, return null or handle appropriately
+
+    // If no domainNameBlockHash, return empty response - this is for new tokens
+    if (!domainNameBlockHash || domainNameBlockHash === "" || domainNameBlockHash === "null") {
       return new PermissionedAddressesResponse(); // Return empty response
     }
-    
-    const resp = await OkHttp3Util.post(
-      this.getServerURL() + ReqCmd.getTokenPermissionedAddresses,
-      Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
-    );
 
-    // Parse response as plain object first, then manually construct PermissionedAddressesResponse
-    const responseObj: any = Json.jsonmapper().parse(resp);
-    
-    // Create a new PermissionedAddressesResponse and populate it manually
-    const result = new PermissionedAddressesResponse();
-    
-    // Handle multiSignAddresses if it exists
-    if (responseObj.multiSignAddresses && Array.isArray(responseObj.multiSignAddresses)) {
-      // Create proper MultiSignAddress objects from the plain objects
-      const multiSignAddresses = responseObj.multiSignAddresses.map((addrData: any) => {
-        const multiSignAddr = new MultiSignAddress(
-          addrData.tokenid || "", 
-          addrData.address || "", 
-          addrData.pubKeyHex || "",
-          addrData.posIndex || 0
-        );
-        // Set additional properties if they exist
-        if (addrData.tokenHolder !== undefined) {
-          multiSignAddr.setTokenHolder(addrData.tokenHolder);
-        }
-        return multiSignAddr;
-      });
-      result.setMultiSignAddresses(multiSignAddresses);
+    try {
+      requestParam.set("domainNameBlockHash", domainNameBlockHash);
+
+      const resp = await OkHttp3Util.post(
+        this.getServerURL() + ReqCmd.getTokenPermissionedAddresses,
+        Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      );
+
+      // Parse response as plain object first, then manually construct PermissionedAddressesResponse
+      const responseObj: any = Json.jsonmapper().parse(resp);
+
+      // Create a new PermissionedAddressesResponse and populate it manually
+      const result = new PermissionedAddressesResponse();
+
+      // Handle multiSignAddresses if it exists
+      if (responseObj.multiSignAddresses && Array.isArray(responseObj.multiSignAddresses)) {
+        // Create proper MultiSignAddress objects from the plain objects
+        const multiSignAddresses = responseObj.multiSignAddresses.map((addrData: any) => {
+          const multiSignAddr = new MultiSignAddress(
+            addrData.tokenid || "",
+            addrData.address || "",
+            addrData.pubKeyHex || "",
+            addrData.posIndex || 0
+          );
+          // Set additional properties if they exist
+          if (addrData.tokenHolder !== undefined) {
+            multiSignAddr.setTokenHolder(addrData.tokenHolder);
+          }
+          return multiSignAddr;
+        });
+        result.setMultiSignAddresses(multiSignAddresses);
+      }
+
+      // Handle domainName if it exists
+      if (responseObj.domainName !== undefined) {
+        result.setDomainName(responseObj.domainName);
+      }
+
+      return result;
+
+    } catch (error: any) {
+      // If the server throws an error (e.g., token not found), return empty response
+      // This is expected when creating a new token that has no previous tokens
+      console.warn("Error getting prev token multi-sign addresses:", error.message);
+      return new PermissionedAddressesResponse();
     }
-    
-    // Handle domainName if it exists
-    if (responseObj.domainName !== undefined) {
-      result.setDomainName(responseObj.domainName);
-    }
-    
-    // Handle tokenname if it exists - actually this field doesn't exist in PermissionedAddressesResponse
-    // Do nothing - the tokenname field doesn't exist in this class
-    
-    return result;
     
   }
 

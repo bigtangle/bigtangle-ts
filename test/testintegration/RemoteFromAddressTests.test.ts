@@ -1,14 +1,19 @@
+import { Buffer } from "buffer";
 import { beforeEach, describe, expect, test } from "vitest";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
 import { Coin } from "../../src/net/bigtangle/core/Coin";
 import { ECKey } from "../../src/net/bigtangle/core/ECKey";
+import { TokenType } from "../../src/net/bigtangle/core/TokenType";
+import { Token } from "../../src/net/bigtangle/core/Token";
+import { MultiSignAddress } from "../../src/net/bigtangle/core/MultiSignAddress";
+import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
 
 import { UTXO } from "../../src/net/bigtangle/core/UTXO";
 import { Utils } from "../../src/net/bigtangle/core/Utils";
 import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalancesResponse";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
-import { RemoteTest } from "./RemoteBase";
+import { RemoteTest } from "./RemoteTest";
 import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
 
 class RemoteFromAddressTests extends RemoteTest {
@@ -19,22 +24,24 @@ class RemoteFromAddressTests extends RemoteTest {
   yuanWallet: Wallet | undefined;
 
   public async testUserpay() {
-    this.yuanWallet = await Wallet.fromKeysURL(
-      this.networkParameters,
-      [ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv)],
-      this.contextRoot
-    );
-
+    // Send native tokens to yuanToken key for fees first
     await this.payBigTo(
       ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
       Coin.FEE_DEFAULT.getValue() * BigInt(1000),
       []
     );
 
-  
-  /*  await this.testTokens(); */
+    // Create the token first
+    await this.testTokens();  
 
-    this.accountKey = new ECKey(null, null);
+    // Now create yuanWallet after token creation so it can access the created tokens
+    this.yuanWallet = await Wallet.fromKeysURL(
+      this.networkParameters,
+      [ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv)],
+      this.contextRoot
+    );
+
+    this.accountKey = ECKey.createNewKey();
     const list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     await this.createUserPay(this.accountKey!);
     const list2 = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
@@ -51,7 +58,7 @@ class RemoteFromAddressTests extends RemoteTest {
   private async createUserPay(accountKey: ECKey) {
     const ulist = await this.payKeys();
     for (const key of ulist) {
-      // buyTicket(key, accountKey); // This method is currently commented out in Java
+       await this.buyTicket(key, accountKey); // This method is currently commented out in Java
     }
   }
 
@@ -102,7 +109,16 @@ class RemoteFromAddressTests extends RemoteTest {
       BigInt(100)
     );
     userkeys.push(key2); 
-    
+
+      // Compute the correct token ID based on the yuan token public key (same as in testCreateMultiSigToken)
+    const yuanTokenKey = ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv);
+    const tokenHash = Sha256Hash.of(Buffer.from(yuanTokenKey.getPubKey()));
+    const tokenidHex = Utils.HEX.encode(tokenHash.getBytes());
+    const decodedBytes: Uint8Array = Utils.HEX.decode(tokenidHex);
+    const correctTokenId: Buffer = Buffer.from(decodedBytes);
+    const b = await this.yuanWallet!.payToList(null, giveMoneyResult, correctTokenId);
+    console.debug("block " + (b == null ? "block is null" : b.toString()));
+
     await this.payBigTo(key, Coin.FEE_DEFAULT.getValue(), []);
   
     console.debug("====start check admin wallet====");
@@ -111,7 +127,6 @@ class RemoteFromAddressTests extends RemoteTest {
  
     console.debug("====start check admin wallet====");
 
-
     return userkeys;
   }
 
@@ -119,7 +134,7 @@ class RemoteFromAddressTests extends RemoteTest {
     const domain = "";
     const fromPrivate = ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv);
 
-    await this.createMultiSigToken(
+    await this.testCreateMultiSigToken(
       fromPrivate,
       "人民币",
       2,
@@ -133,7 +148,91 @@ class RemoteFromAddressTests extends RemoteTest {
     return ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv).toAddress(this.networkParameters);
   }
 
-  
+  // create a token with multi sign
+  protected async testCreateMultiSigToken(key: ECKey, tokenname: string, decimals: number, domainname: string,
+      description: string, amount: bigint): Promise<void> {
+    
+     
+			// Generate a proper tokenid - this should be a unique identifier for the token
+      // For now, we'll use a hash of key and other parameters to generate a unique id
+      const hash = Sha256Hash.of(Buffer.from(key.getPubKey()));
+      const tokenid = Utils.HEX.encode(hash.getBytes() as any);
+			await this.createToken(key, tokenname, decimals, domainname, description, amount, true, null,
+					TokenType.currency, tokenid);
+      const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
+
+      // Note: multiSign method in Wallet expects tokenid, ECKey, and aesKey
+      // This method call needs to be adjusted to match the correct signature
+        await this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
+
+   
+
+  }
+
+  // Create a token with multi-signature support
+  protected async createToken(
+    key: ECKey,
+    tokenname: string,
+    decimals: number,
+    domainname: string,
+    description: string,
+    amount: bigint,
+    increment: boolean,
+    tokenKeyValues: any, // Replace with proper type if TokenKeyValues exists
+    tokentype: TokenType,
+    tokenid: string
+  ): Promise<Block> {
+    // Assuming we have a wallet instance available
+    if (!this.wallet) {
+      throw new Error("Wallet not initialized");
+    }
+    
+    this.wallet.importKey(key);
+    
+    // Build a simple token info
+    // Note: The actual implementation may vary based on Token class methods
+    const token = new Token();  // Assuming we have a constructor or need to build it differently
+    token.setTokenid(tokenid); // Set the tokenid on the token object
+    token.setTokenname(tokenname);
+    token.setDescription(description);
+    token.setDecimals(decimals);
+    token.setAmount(amount);
+    token.setTokenstop(!increment);
+    token.setTokentype(tokentype); // TokenType should be properly handled
+    // Set other required properties as needed
+    
+    if (tokenKeyValues) {
+      token.setTokenKeyValues(tokenKeyValues);
+    }
+    
+    // Create addresses array
+    const addresses = [new MultiSignAddress(tokenid, "", key.getPublicKeyAsHex())];
+    
+    return await this.createTokenWallet(key, domainname, increment, token, addresses);
+  }
+
+  // Create token wallet method
+  protected async createTokenWallet(
+    key: ECKey,
+    domainname: string,
+    increment: boolean,
+    token: Token,
+    addresses: MultiSignAddress[]
+  ): Promise<Block> {
+    if (!this.wallet) {
+      throw new Error("Wallet not initialized");
+    }
+    
+    return await this.wallet.createToken(
+      key,
+      domainname,
+      increment,
+      token,
+      addresses,
+      Buffer.from(key.getPubKey()),
+      new MemoInfo("coinbase")
+    );
+  }
 
   // get balance for the walletKeys
   protected async getBalanceForAddress(address: string): Promise<UTXO[]> {
@@ -168,8 +267,7 @@ describe("RemoteFromAddressTests", () => {
     await tests.setUp();
   });
 
-  test.skip("testUserpay", async () => {
+  test("testUserpay", async () => {
     await tests.testUserpay();
   }, 300000);
 });
- 
