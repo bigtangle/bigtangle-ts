@@ -1,6 +1,8 @@
+import { Buffer } from 'buffer';
 import { DataClass } from './DataClass';
 import { Token } from './Token';
 import { MultiSignAddress } from './MultiSignAddress';
+import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
  
 import { ObjectMapper, JsonProperty } from 'jackson-js';
@@ -45,8 +47,8 @@ export class TokenInfo extends DataClass {
             throw new Error(e);
         } 
     }
-
-    public parse(buf: Uint8Array): TokenInfo {
+ 
+      public parse(buf: Uint8Array): TokenInfo {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         const objectMapper = new ObjectMapper();
         const parsed = objectMapper.parse(jsonStr, { 
@@ -79,6 +81,32 @@ export class TokenInfo extends DataClass {
             token.setBlockHash(tokenData.blockHash);
             parsed.setToken(token);
         }
+        
+        // Handle MultiSignAddress deserialization
+        if (parsed.multiSignAddresses && Array.isArray(parsed.multiSignAddresses)) {
+            const reconstructedAddresses: MultiSignAddress[] = [];
+            for (const addrData of parsed.multiSignAddresses) {
+                const addr = new MultiSignAddress();
+                if (addrData.tokenid !== undefined) addr.setTokenid(addrData.tokenid);
+                if (addrData.address !== undefined) addr.setAddress(addrData.address);
+                if (addrData.pubKeyHex !== undefined) addr.setPubKeyHex(addrData.pubKeyHex);
+                if (addrData.posIndex !== undefined) addr.setPosIndex(addrData.posIndex);
+                if (addrData.tokenHolder !== undefined) addr.setTokenHolder(addrData.tokenHolder);
+                
+                // Handle blockhash if it exists
+                if (addrData.blockhash && addrData.blockhash.bytes) {
+                    const hashBytes = Buffer.from(addrData.blockhash.bytes);
+                    const sha256Hash = Sha256Hash.wrap(hashBytes);
+                    if (sha256Hash) {
+                        addr.setBlockhash(sha256Hash);
+                    }
+                }
+                
+                reconstructedAddresses.push(addr);
+            }
+            parsed.setMultiSignAddresses(reconstructedAddresses);
+        }
+        
         return parsed;
     }
 
@@ -86,7 +114,7 @@ export class TokenInfo extends DataClass {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         try {
             const objectMapper = new ObjectMapper();
-            return objectMapper.parse(jsonStr, { 
+            const parsed = objectMapper.parse(jsonStr, { 
                 mainCreator: () => [TokenInfo],
                 features: {
                     deserialization: {
@@ -94,6 +122,33 @@ export class TokenInfo extends DataClass {
                     }
                 }
             }) as TokenInfo;
+            
+            // Handle MultiSignAddress deserialization
+            if (parsed.multiSignAddresses && Array.isArray(parsed.multiSignAddresses)) {
+                const reconstructedAddresses: MultiSignAddress[] = [];
+                for (const addrData of parsed.multiSignAddresses) {
+                    const addr = new MultiSignAddress();
+                    if (addrData.tokenid !== undefined) addr.setTokenid(addrData.tokenid);
+                    if (addrData.address !== undefined) addr.setAddress(addrData.address);
+                    if (addrData.pubKeyHex !== undefined) addr.setPubKeyHex(addrData.pubKeyHex);
+                    if (addrData.posIndex !== undefined) addr.setPosIndex(addrData.posIndex);
+                    if (addrData.tokenHolder !== undefined) addr.setTokenHolder(addrData.tokenHolder);
+                    
+                    // Handle blockhash if it exists
+                    if (addrData.blockhash && addrData.blockhash.bytes) {
+                        const hashBytes = Buffer.from(addrData.blockhash.bytes);
+                        const sha256Hash = Sha256Hash.wrap(hashBytes);
+                        if (sha256Hash) {
+                            addr.setBlockhash(sha256Hash);
+                        }
+                    }
+                    
+                    reconstructedAddresses.push(addr);
+                }
+                parsed.setMultiSignAddresses(reconstructedAddresses);
+            }
+            
+            return parsed;
         } catch (e: any) {
             throw new Error(e);
         }

@@ -168,6 +168,18 @@ describe('SerializationTest', () => {
 
     test('testTokenInfoSerialization', () => {
         const addresses: MultiSignAddress[] = [];
+        
+        // Create some MultiSignAddress objects to test serialization
+        const multiSignAddr1 = new MultiSignAddress('token1', 'address1', 'pubKeyHex1', 1);
+        multiSignAddr1.setPosIndex(0);
+        multiSignAddr1.setBlockhash(getRandomSha256Hash());
+        
+        const multiSignAddr2 = new MultiSignAddress('token2', 'address2', 'pubKeyHex2', 2);
+        multiSignAddr2.setPosIndex(1);
+        multiSignAddr2.setBlockhash(getRandomSha256Hash());
+        
+        addresses.push(multiSignAddr1, multiSignAddr2);
+        
         const tokens = Token.buildSimpleTokenInfo(
             true, // confirmed
             null, // prevblockhash
@@ -197,6 +209,22 @@ describe('SerializationTest', () => {
         expect(Buffer.compare(bytes1, bytes2)).toBe(0);
         expect(info1.getMultiSignAddresses().length).toBe(
             info2.getMultiSignAddresses().length,
+        );
+        // Verify that the MultiSignAddress data is preserved after serialization/deserialization
+        expect(info1.getMultiSignAddresses()[0].getAddress()).toBe(
+            info2.getMultiSignAddresses()[0].getAddress()
+        );
+        expect(info1.getMultiSignAddresses()[0].getTokenid()).toBe(
+            info2.getMultiSignAddresses()[0].getTokenid()
+        );
+        expect(info1.getMultiSignAddresses()[0].getPubKeyHex()).toBe(
+            info2.getMultiSignAddresses()[0].getPubKeyHex()
+        );
+        expect(info1.getMultiSignAddresses()[0].getTokenHolder()).toBe(
+            info2.getMultiSignAddresses()[0].getTokenHolder()
+        );
+        expect(info1.getMultiSignAddresses()[1].getAddress()).toBe(
+            info2.getMultiSignAddresses()[1].getAddress()
         );
         expect(info1.getToken()!.getAmount()).toBe(info2.getToken()!.getAmount());
         expect(info1.getToken()!.getBlockHash()).toBe(

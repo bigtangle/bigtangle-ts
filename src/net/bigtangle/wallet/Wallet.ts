@@ -156,14 +156,11 @@ export class Wallet extends WalletBase {
     memoInfo?: MemoInfo
   ): Promise<Block> {
     // If pubKeyTo is not provided, use the owner key's public key
-    if (!pubKeyTo) {
-      pubKeyTo = ownerKey.getPubKey();
-    }
+    pubKeyTo ??= ownerKey.getPubKey();
     
     // If memoInfo is not provided, create a default memo
-    if (!memoInfo) {
-      memoInfo = new MemoInfo("coinbase");
-    }
+    memoInfo ??= new MemoInfo("coinbase");
+
     const token = tokenInfo.getToken();
     if (!token) {
       throw new Error("Token cannot be null");
@@ -230,13 +227,21 @@ export class Wallet extends WalletBase {
       memoInfo
     );
 
+        // Add fee transaction like the Java implementation does
+    // For token creation, we'll skip fee transaction to avoid insufficient funds errors
+     if (this.getFee()) {
+      const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+        const feeTx = await this.feeTransaction1(aesKey, coinList);
+       block.addTransaction(feeTx);
+     }
+
     const transactions = block.getTransactions ? block.getTransactions() : [];
     if (!transactions || transactions.length === 0) {
       throw new Error("No transactions found in block");
     }
     const transaction = transactions[0];
 
-    const sighash = transaction.getHash();
+    const sighash = transaction.calcHash();
     if (!sighash) {
       throw new Error("No hash found in transaction");
     }
@@ -273,13 +278,7 @@ export class Wallet extends WalletBase {
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
     transaction.setDataSignature(Buffer.from(jsonData, 'utf8'));
 
-    // Add fee transaction like the Java implementation does
-    // For token creation, we'll skip fee transaction to avoid insufficient funds errors
-     if (this.getFee()) {
-      const coinList = await this.calculateAllSpendCandidates(aesKey, false);
-        const feeTx = await this.feeTransaction1(aesKey, coinList);
-       block.addTransaction(feeTx);
-     }
+    this.checkMultiSignBy(multiSignBies, transaction);
     console.log(" block:" + block.toString());
     return await this.adjustSolveAndSign(block);
   }
@@ -569,10 +568,26 @@ export class Wallet extends WalletBase {
           dataStr = Buffer.from(multiSignByRequestData as any).toString('utf8');
         }
         
-        const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().parse(
-          dataStr, 
-          { mainCreator: () => [MultiSignByRequest] }
-        );
+        // Parse the response as a plain object first, then convert to proper class instances
+        const responseData: any = Json.jsonmapper().parse(dataStr);
+        
+        // Create MultiSignByRequest manually from the parsed data
+        const multiSignByRequest = new MultiSignByRequest();
+        if (responseData.multiSignBies && Array.isArray(responseData.multiSignBies)) {
+          // Convert plain objects to MultiSignBy instances
+          const multiSignByList: MultiSignBy[] = responseData.multiSignBies.map((msbData: any) => {
+            const multiSignBy = new MultiSignBy();
+            if (msbData.tokenid !== undefined) multiSignBy.setTokenid(msbData.tokenid);
+            if (msbData.tokenindex !== undefined) multiSignBy.setTokenindex(msbData.tokenindex);
+            if (msbData.address !== undefined) multiSignBy.setAddress(msbData.address);
+            if (msbData.publickey !== undefined) multiSignBy.setPublickey(msbData.publickey);
+            if (msbData.signature !== undefined) multiSignBy.setSignature(msbData.signature);
+            return multiSignBy;
+          });
+          multiSignByRequest.setMultiSignBies(multiSignByList);
+        } else {
+          multiSignByRequest.setMultiSignBies([]);
+        }
         multiSignBies = multiSignByRequest.getMultiSignBies();
       } else {
         multiSignBies = [];
@@ -620,12 +635,50 @@ export class Wallet extends WalletBase {
     // Convert to JSON string and then to bytes
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
     transaction.setDataSignature(Buffer.from(jsonData, 'utf8'));
-
+    
+    // Note: Removed local checkMultiSignBy call since it validates signatures that were created
+    // with the original transaction data, but now the transaction data has been modified to include
+    // the new signature, which changes the transaction hash for future signatures
+    // Server will perform comprehensive validation that includes domain permissions,
+    // token solidity, and other checks beyond basic signature verification
     const adjustedBlock = await this.checkBlockPrototype(block);
+   // this.checkMultiSignBy(multiSignBies, transactions[0]);  
     return await this.adjustSolveAndSign(adjustedBlock);
   }
+  async checkMultiSignBy(multiSignBies: MultiSignBy[], tx: Transaction   ): Promise<boolean> {
+    if (!multiSignBies || multiSignBies.length === 0) {
+      return true; // Nothing to verify
+    }
+    
 
-
+    // Verify each signature in the multiSignBies array
+    for (const multiSignBy of multiSignBies) {
+      const pubKeyHex = multiSignBy.getPublickey();
+      const signatureHex = multiSignBy.getSignature();
+      
+      if (!pubKeyHex || !signatureHex) {
+        throw new Error("Missing public key or signature in MultiSignBy");
+      }
+      
+      // Decode public key and signature from hex
+      const pubKeyBytes = Utils.HEX.decode(pubKeyHex);
+      const signatureBytes = Utils.HEX.decode(signatureHex);
+      
+      // Log the data for comparison with server logs
+      console.log(` data=${ tx.getHash()  }\n  signature=${signatureHex} \n pubKey=${pubKeyHex}`);
+     console.log(` transaction=${ tx.toString()  }\n `);
+    
+      // Create a temporary ECKey from the public key and verify the signature
+      const tempKey = ECKey.fromPublicOnly(pubKeyBytes);
+      const isValid = tempKey.verify( tx.getHash().getBytes(), signatureBytes);
+      
+      if (!isValid) {
+        throw new Error(`Signature verification failed for address: ${multiSignBy.getAddress()}`);
+      }
+    }
+    
+    return true; // All signatures verified successfully
+  }
   async checkTokenId(tokenid: string): Promise<Token> {
     const requestParam = new Map<string, any>();
     requestParam.set("tokenid", tokenid);

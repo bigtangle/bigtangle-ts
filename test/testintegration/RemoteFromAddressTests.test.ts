@@ -161,8 +161,8 @@ class RemoteFromAddressTests extends RemoteTest {
 					TokenType.currency, tokenid);
       const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
 
-      // Note: multiSign method in Wallet expects tokenid, ECKey, and aesKey
-      // This method call needs to be adjusted to match the correct signature
+      // Note: In the Java client, the tokenid parameter is actually the public key as hex
+      // This is how the original Java code works
         await this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
 
    

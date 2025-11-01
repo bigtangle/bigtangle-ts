@@ -1001,11 +1001,9 @@ export class Block extends Message {
      * Add a coinbase transaction to this block.
      * This is used for token creation and other coinbase operations.
      */
-    public addCoinbaseTransaction(pubKeyTo: Uint8Array, value: any, tokenInfo: any | null = null, memoInfo: any | null = null): void {
+    public addCoinbaseTransaction(pubKeyTo: Uint8Array, value: any, tokenInfo: TokenInfo | null = null, memoInfo: any | null = null): void {
         this.unCacheTransactions();
-        if (this.transactions === null) {
-            this.transactions = [];
-        }
+        this.transactions ??= [];
 
         const coinbase = new Transaction(this.params!);
         if (tokenInfo != null) {

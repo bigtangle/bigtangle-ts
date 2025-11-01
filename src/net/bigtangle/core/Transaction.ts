@@ -363,6 +363,11 @@ export class Transaction extends ChildMessage {
     return this.hash;
   }
 
+   public calcHash(): Sha256Hash {
+    this.hash = null;
+    return this.getHash();
+   }
+
   private calculateMemoLen(): number {
     let len = 4;
     if (this.memo !== null) {
