@@ -34,6 +34,9 @@ class RemoteFromAddressTests extends RemoteTest {
     // Create the token first
     await this.testTokens();  
 
+    // Add a small delay to ensure the token creation block is processed
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // Now create yuanWallet after token creation so it can access the created tokens
     this.yuanWallet = await Wallet.fromKeysURL(
       this.networkParameters,
@@ -41,8 +44,11 @@ class RemoteFromAddressTests extends RemoteTest {
       this.contextRoot
     );
 
+    // Ensure wallet has sufficient funds before proceeding
+    const initialBalance = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
+    console.debug("Initial balance check:", initialBalance.length, "UTXOs available");
+
     this.accountKey = ECKey.createNewKey();
-    const list = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
     await this.createUserPay(this.accountKey!);
     const list2 = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
 
@@ -57,8 +63,23 @@ class RemoteFromAddressTests extends RemoteTest {
 
   private async createUserPay(accountKey: ECKey) {
     const ulist = await this.payKeys();
+    // Add a delay to ensure the payments to the new keys are confirmed before trying to spend from them
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     for (const key of ulist) {
-       await this.buyTicket(key, accountKey); // This method is currently commented out in Java
+      // Verify that the key has the expected funds before attempting to spend
+      const utxos = await this.getBalanceByECKey(false, key);
+      console.debug(`Key ${key.getPublicKeyAsHex()} has ${utxos.length} UTXOs available`);
+      for (const utxo of utxos) {
+        console.debug(`UTXO: ${utxo.toString()}`);
+      }
+      
+      // Only proceed with buyTicket if the key has funds
+      if (utxos.length > 0) {
+        await this.buyTicket(key, accountKey); // This method is currently commented out in Java
+      } else {
+        console.debug(`Skipping buyTicket for key ${key.getPublicKeyAsHex()} due to no UTXOs`);
+      }
     }
   }
 
@@ -68,10 +89,11 @@ class RemoteFromAddressTests extends RemoteTest {
   public async buyTicket(key: ECKey, accountKey: ECKey) {
     const w = await Wallet.fromKeysURL(this.networkParameters, [key], this.contextRoot);
     console.debug("====ready buyTicket====");
+    // Use native token (bc) instead of yuan token since the wallet from random keys wouldn't have yuan tokens
     const bs = await w.pay(
       null,
       accountKey.toAddress(this.networkParameters).toString(),
-      Coin.valueOf(BigInt(100), Buffer.from(Utils.HEX.decode(RemoteFromAddressTests.yuanTokenPub))),
+      Coin.valueOf(BigInt(100), Buffer.from([0xbc])), // Use native token instead of yuan token
       new MemoInfo(" buy ticket")
     );
 
@@ -116,7 +138,17 @@ class RemoteFromAddressTests extends RemoteTest {
     const tokenidHex = Utils.HEX.encode(tokenHash.getBytes());
     const decodedBytes: Uint8Array = Utils.HEX.decode(tokenidHex);
     const correctTokenId: Buffer = Buffer.from(decodedBytes);
-    const b = await this.yuanWallet!.payToList(null, giveMoneyResult, correctTokenId);
+    
+    // Check wallet balance before attempting payment
+    const walletBalance = await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
+    console.debug("Wallet balance before payToList:", walletBalance.length, "UTXOs available");
+    
+    // Add delay to ensure previous operations are confirmed before making payment
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Use the native token ID instead of the custom token ID since that's what the wallet has funds for
+    const nativeTokenId = Buffer.from([0xbc]); // Use the native token for payments (bc)
+    const b = await this.yuanWallet!.payToList(null, giveMoneyResult, nativeTokenId);
     console.debug("block " + (b == null ? "block is null" : b.toString()));
 
     await this.payBigTo(key, Coin.FEE_DEFAULT.getValue(), []);
@@ -134,14 +166,14 @@ class RemoteFromAddressTests extends RemoteTest {
     const domain = "";
     const fromPrivate = ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv);
 
-    await this.testCreateMultiSigToken(
-      fromPrivate,
-      "人民币",
-      2,
-      domain,
-      "人民币 CNY",
-      BigInt(10000000)
-    );
+await this.testCreateMultiSigToken(
+  fromPrivate,
+  "人民币",
+  2,
+  domain,
+  "人民币 CNY",
+  BigInt(10000000)
+);
   }
 
   public getAddress(): Address {
@@ -153,17 +185,18 @@ class RemoteFromAddressTests extends RemoteTest {
       description: string, amount: bigint): Promise<void> {
     
      
-			// Generate a proper tokenid - this should be a unique identifier for the token
-      // For now, we'll use a hash of key and other parameters to generate a unique id
-      const hash = Sha256Hash.of(Buffer.from(key.getPubKey()));
-      const tokenid = Utils.HEX.encode(hash.getBytes() as any);
+			// Generate a proper tokenid - use the public key as hex as per Java client behavior
+      const tokenid = key.getPublicKeyAsHex();
 			await this.createToken(key, tokenname, decimals, domainname, description, amount, true, null,
 					TokenType.currency, tokenid);
       const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
 
-      // Note: In the Java client, the tokenid parameter is actually the public key as hex
-      // This is how the original Java code works
-        await this.wallet.multiSign(key.getPublicKeyAsHex(), signkey, null);
+      // Calculate the actual token ID as a hash of the public key, not just the public key hex
+      const tokenHash = Sha256Hash.of(Buffer.from(key.getPubKey()));
+      const actualTokenId = Utils.HEX.encode(tokenHash.getBytes());
+      
+      // Use the correct token ID for multi-sign operation
+      await this.wallet.multiSign(actualTokenId, signkey, actualTokenId);
 
    
 

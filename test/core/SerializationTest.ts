@@ -203,8 +203,11 @@ describe('SerializationTest', () => {
         info1.setToken(tokens);
         info1.setMultiSignAddresses(addresses);
         const bytes1 = info1.toByteArray();
+        
+        // Test the parse functionality specifically
         const info2 = new TokenInfo().parse(bytes1);
         const bytes2 = info2.toByteArray();
+        console.log(Utils.HEX.encode(bytes1));
 
         expect(Buffer.compare(bytes1, bytes2)).toBe(0);
         expect(info1.getMultiSignAddresses().length).toBe(
@@ -258,6 +261,10 @@ describe('SerializationTest', () => {
         expect(info1.getToken()!.isTokenstop()).toBe(
             info2.getToken()!.isTokenstop(),
         );
+          expect(info1.getToken()!.getDomainNameBlockHash()).toBe(
+            info2.getToken()!.getDomainNameBlockHash(),
+        );
+       
     });
 
     test('testKeyValueSerialization', () => {

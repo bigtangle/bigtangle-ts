@@ -665,8 +665,8 @@ export class Wallet extends WalletBase {
       const signatureBytes = Utils.HEX.decode(signatureHex);
       
       // Log the data for comparison with server logs
-      console.log(` data=${ tx.getHash()  }\n  signature=${signatureHex} \n pubKey=${pubKeyHex}`);
-     console.log(` transaction=${ tx.toString()  }\n `);
+    //  console.log(` transactionHash=${tx.getHash()  }\n signature=${signatureHex} \n pubKey=${pubKeyHex}`);
+     // console.log(` transaction=${Utils.HEX.encode(tx.unsafeBitcoinSerialize())  }\n `);
     
       // Create a temporary ECKey from the public key and verify the signature
       const tempKey = ECKey.fromPublicOnly(pubKeyBytes);

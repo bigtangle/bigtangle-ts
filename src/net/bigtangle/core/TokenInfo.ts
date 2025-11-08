@@ -6,6 +6,7 @@ import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
  
 import { ObjectMapper, JsonProperty } from 'jackson-js';
+import { j } from 'vite/dist/node/types.d-aGj9QkWt';
 /**
  * TokenInfo class represents information about a token and its associated multi-signature addresses.
  * It provides methods to serialize the object to a byte array, parse from a byte array,
@@ -42,13 +43,14 @@ export class TokenInfo extends DataClass {
                 return value;
             };
             const jsonStr = JSON.stringify(this, replacer);
+            console.log( " TokenInfo=" +   jsonStr   );
             return new TextEncoder().encode(jsonStr);
         } catch (e: any) {
             throw new Error(e);
         } 
     }
  
-      public parse(buf: Uint8Array): TokenInfo {
+    public parse(buf: Uint8Array): TokenInfo {
         const jsonStr = new TextDecoder('utf-8').decode(buf);
         const objectMapper = new ObjectMapper();
         const parsed = objectMapper.parse(jsonStr, { 
@@ -87,15 +89,16 @@ export class TokenInfo extends DataClass {
             const reconstructedAddresses: MultiSignAddress[] = [];
             for (const addrData of parsed.multiSignAddresses) {
                 const addr = new MultiSignAddress();
-                if (addrData.tokenid !== undefined) addr.setTokenid(addrData.tokenid);
-                if (addrData.address !== undefined) addr.setAddress(addrData.address);
-                if (addrData.pubKeyHex !== undefined) addr.setPubKeyHex(addrData.pubKeyHex);
-                if (addrData.posIndex !== undefined) addr.setPosIndex(addrData.posIndex);
-                if (addrData.tokenHolder !== undefined) addr.setTokenHolder(addrData.tokenHolder);
+                const addrObj = addrData as any;
+                if (addrObj.tokenid !== undefined) addr.setTokenid(addrObj.tokenid);
+                if (addrObj.address !== undefined) addr.setAddress(addrObj.address);
+                if (addrObj.pubKeyHex !== undefined) addr.setPubKeyHex(addrObj.pubKeyHex);
+                if (addrObj.posIndex !== undefined) addr.setPosIndex(addrObj.posIndex);
+                if (addrObj.tokenHolder !== undefined) addr.setTokenHolder(addrObj.tokenHolder);
                 
                 // Handle blockhash if it exists
-                if (addrData.blockhash && addrData.blockhash.bytes) {
-                    const hashBytes = Buffer.from(addrData.blockhash.bytes);
+                if (addrObj.blockhash && addrObj.blockhash.bytes) {
+                    const hashBytes = Buffer.from(addrObj.blockhash.bytes);
                     const sha256Hash = Sha256Hash.wrap(hashBytes);
                     if (sha256Hash) {
                         addr.setBlockhash(sha256Hash);
@@ -111,44 +114,9 @@ export class TokenInfo extends DataClass {
     }
 
     public parseChecked(buf: Uint8Array): TokenInfo {
-        const jsonStr = new TextDecoder('utf-8').decode(buf);
-        try {
-            const objectMapper = new ObjectMapper();
-            const parsed = objectMapper.parse(jsonStr, { 
-                mainCreator: () => [TokenInfo],
-                features: {
-                    deserialization: {
-                        FAIL_ON_UNKNOWN_PROPERTIES: false
-                    }
-                }
-            }) as TokenInfo;
-            
-            // Handle MultiSignAddress deserialization
-            if (parsed.multiSignAddresses && Array.isArray(parsed.multiSignAddresses)) {
-                const reconstructedAddresses: MultiSignAddress[] = [];
-                for (const addrData of parsed.multiSignAddresses) {
-                    const addr = new MultiSignAddress();
-                    if (addrData.tokenid !== undefined) addr.setTokenid(addrData.tokenid);
-                    if (addrData.address !== undefined) addr.setAddress(addrData.address);
-                    if (addrData.pubKeyHex !== undefined) addr.setPubKeyHex(addrData.pubKeyHex);
-                    if (addrData.posIndex !== undefined) addr.setPosIndex(addrData.posIndex);
-                    if (addrData.tokenHolder !== undefined) addr.setTokenHolder(addrData.tokenHolder);
-                    
-                    // Handle blockhash if it exists
-                    if (addrData.blockhash && addrData.blockhash.bytes) {
-                        const hashBytes = Buffer.from(addrData.blockhash.bytes);
-                        const sha256Hash = Sha256Hash.wrap(hashBytes);
-                        if (sha256Hash) {
-                            addr.setBlockhash(sha256Hash);
-                        }
-                    }
-                    
-                    reconstructedAddresses.push(addr);
-                }
-                parsed.setMultiSignAddresses(reconstructedAddresses);
-            }
-            
-            return parsed;
+       
+        try { 
+            return this.parse(buf);
         } catch (e: any) {
             throw new Error(e);
         }

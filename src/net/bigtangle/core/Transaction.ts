@@ -347,16 +347,11 @@ export class Transaction extends ChildMessage {
    */
   public getHash(): Sha256Hash {
     if (this.hash === null) {
-      const buf = Buffer.from(this.unsafeBitcoinSerialize());
-
+      // Serialize the transaction excluding memo and dataSignature fields using positive count
+      const buf = Buffer.from(this.bitcoinSerializeWithoutMemoAndDataSignature());
+      // console.debug("bitcoinSerializeWithoutMemoAndDataSignature transaction= " + Utils.HEX.encode(buf));
       this.hash = Sha256Hash.wrapReversed(
-        Sha256Hash.hashTwiceRange(
-          buf,
-          0,
-          buf.length -
-            this.calculateMemoLen() -
-            this.calculateDataSignatureLen()
-        )
+        Sha256Hash.hashTwice(buf)
       );
       this.hash.toString();
     }
@@ -624,6 +619,7 @@ export class Transaction extends ChildMessage {
     }
 
     this.length = this.cursor - this.offset;
+    this.hash=null;
   }
 
   public getOptimalEncodingMessageSize(): number {
@@ -1353,5 +1349,58 @@ export class Transaction extends ChildMessage {
       );
     }
     this.lockTime = lockTime;
+  }
+
+  /**
+   * Serialize the transaction excluding memo and dataSignature fields
+   * This is used for calculating the transaction hash using positive counting approach.
+   */
+  private bitcoinSerializeWithoutMemoAndDataSignature(): Uint8Array {
+    const stream = new UnsafeByteArrayOutputStream(this.length < 32 ? 32 : this.length);
+    
+    // Serialize all fields except memo and dataSignature (positive counting approach)
+    Utils.uint32ToByteStreamLE(this.version, stream);
+    stream.write(new VarInt(this.inputs.length).encode());
+    for (const input of this.inputs) {
+      input.bitcoinSerialize(stream);
+    }
+    stream.write(new VarInt(this.outputs.length).encode());
+    for (const output of this.outputs) {
+      output.bitcoinSerialize(stream);
+    }
+    Utils.uint32ToByteStreamLE(this.lockTime, stream);
+    
+    // write dataClassName
+    if (this.dataClassName == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.dataClassName.length, stream);
+      stream.write(new TextEncoder().encode(this.dataClassName));
+    }
+
+    // write data
+    if (this.data == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.data.length, stream);
+      if (this.data.length > 0) {
+        stream.write(this.data);
+      }
+    }
+
+    // write toAddressInSubtangle
+    if (this.toAddressInSubtangle == null) {
+      Utils.uint32ToByteStreamLE(0, stream);
+    } else {
+      Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
+      if (this.toAddressInSubtangle.length > 0) {
+        stream.write(this.toAddressInSubtangle);
+      }
+    }
+
+    // Note: memo and dataSignature are intentionally excluded entirely (not even lengths written)
+    // This matches the Java implementation's positive counting approach
+
+    return stream.toByteArray();
   }
 }
