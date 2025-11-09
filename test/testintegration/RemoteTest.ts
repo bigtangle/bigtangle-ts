@@ -17,6 +17,7 @@ import { TokenIndexResponse } from "../../src/net/bigtangle/response/TokenIndexR
 import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
+import { Json } from "../../src/net/bigtangle/utils/Json";
 export abstract class RemoteTest {
   public objectMapper = new ObjectMapper();
   public contextRoot = "http://localhost:8088/";
@@ -151,20 +152,7 @@ export abstract class RemoteTest {
       keyStrHex000.push(Utils.HEX.encode(ecKey.getPubKeyHash()));
     }
 
-    const response = await this.post(
-      ReqCmd.getBalances,
-      keyStrHex000,
-      GetBalancesResponse
-    );
-    const getBalancesResponse = response as GetBalancesResponse;
-    const utxos = getBalancesResponse.getOutputs() || [];
-    
-    // Shuffle the UTXOs array using Fisher-Yates algorithm
-    for (let i = utxos.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [utxos[i], utxos[j]] = [utxos[j], utxos[i]];
-    }
-
+const utxos= await this.getBalanceByKeys(false, walletKeys);
     for (const utxo of utxos) {
       if (utxo.getValue() && 
           utxo.getTokenId() !== NetworkParameters.BIGTANGLE_TOKENID_STRING &&
@@ -305,32 +293,59 @@ export abstract class RemoteTest {
     withZero: boolean,
     keys: ECKey[]
   ): Promise<UTXO[]> {
-    const listUTXO = new Array<UTXO>();
+ 
     const keyStrHex000 = new Array<string>();
 
     for (const ecKey of keys) {
       keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
     }
-    const getBalancesResponse: GetBalancesResponse = (await this.post(
-      ReqCmd.getBalances,
-      keyStrHex000,
-      GetBalancesResponse
-    )) as GetBalancesResponse;
-
-    if (getBalancesResponse.getOutputs() != null) {
-      for (const utxo of getBalancesResponse.getOutputs()!) {
-        if (utxo.getValue() === null) continue;
-
-        if (withZero) {
-          listUTXO.push(utxo);
-        } else if (utxo.getValue()!.getValue() > 0) {
-          listUTXO.push(utxo);
-        }
-      }
-    }
-    return listUTXO;
+    const jsonString = Json.jsonmapper().stringify(keyStrHex000);
+       
+      // Create Buffer from the JSON string directly
+      const buffer = Buffer.from(jsonString, 'utf8');
+       
+      const resp = await OkHttp3Util.post(
+        this.contextRoot +       ReqCmd.getBalances,
+        buffer
+      );
+  
+    return this.getUTXOs (resp)
   }
 
+  protected   getUTXOs( resp: string):  UTXO[]  { 
+      // Parse response and convert plain objects to UTXO instances
+      const responseObj: any = Json.jsonmapper().parse(resp);
+      let utxos: UTXO[] = [];
+      
+      if (responseObj.outputs) {
+        utxos = responseObj.outputs.map((outputData: any) => {
+          return UTXO.fromJSONObject(outputData);
+        });
+      }
+      if (!utxos) {
+        return [];
+      }
+      
+      // Filter out spent and pending outputs
+      utxos = utxos.filter(utxo =>  
+        utxo &&  
+        !utxo.isSpent()  && 
+        !this.checkSpendpending(utxo)
+      );
+      this.logUTXOs(utxos);
+      return utxos;
+    }
+
+  protected logUTXOs(utxos: any[]): void {
+    if (utxos && utxos.length > 0) {
+      console.log(`Logging ${utxos.length} UTXOs:`);
+      for (const utxo of utxos) {
+        console.log(utxo.toString());
+      }
+    } else {
+      console.log("No UTXOs to log.");
+    }
+  }
   protected async getBalanceByToken(
     tokenid: string,
     withZero: boolean,
@@ -367,23 +382,9 @@ export abstract class RemoteTest {
   protected async getBalanceAccount(
     withZero: boolean,
     keys: ECKey[]
-  ): Promise<Coin[]> {
-    const keyStrHex000 = new Array<string>();
-
-    for (const ecKey of keys) {
-      keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
-    }
-    const getBalancesResponse = (await this.post(
-      ReqCmd.getAccountBalances,
-      keyStrHex000,
-      GetBalancesResponse
-    )) as GetBalancesResponse;
-
-    // Access the balance property directly
-    let re = getBalancesResponse.getBalance();
-    re ??= new Array<Coin>();
-    this.logCoins(re);
-    return re;
+  ): Promise<UTXO[]> {
+     
+    return this.getBalanceByKeys(withZero, keys) ;
   }
 
   public logCoins(list: Coin[]) {
@@ -396,11 +397,7 @@ export abstract class RemoteTest {
     }
   }
 
-  public logUTXOs(list: FreeStandingTransactionOutput[]) {
-    for (const coin of list) {
-      console.debug(`  ${coin.toString()}`);
-    }
-  }
+ 
   
   // Proxy method to access wallet's checkSpendpending
   checkSpendpending(utxo: UTXO): boolean {

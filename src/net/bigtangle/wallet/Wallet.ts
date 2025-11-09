@@ -360,7 +360,7 @@ export class Wallet extends WalletBase {
     return block;
   }
 
-  async calculateAllSpendCandidatesUTXO(
+ public async calculateAllSpendCandidatesUTXO(
     aesKey: any,
     multisigns: boolean
   ): Promise<UTXO[]> {

@@ -79,6 +79,7 @@ class RemoteFromAddressTests extends RemoteTest {
       } else {
         console.debug(`Skipping buyTicket for key ${key.getPublicKeyAsHex()} due to no UTXOs`);
       }
+      this.sell([] ); // This method is currently commented out in Java
     }
   }
 
@@ -89,10 +90,11 @@ class RemoteFromAddressTests extends RemoteTest {
     const w = await Wallet.fromKeysURL(this.networkParameters, [key], this.contextRoot);
     console.debug("====ready buyTicket====");
     // Use native token (bc) instead of yuan token since the wallet from random keys wouldn't have yuan tokens
+    // Send a smaller amount to account for transaction fees (UTXO was 100, so send much less)
     const bs = await w.pay(
       null,
       accountKey.toAddress(this.networkParameters).toString(),
-      Coin.valueOf(BigInt(100), Buffer.from([0xbc])), // Use native token instead of yuan token
+      Coin.valueOf(BigInt(50), Buffer.from([0xbc])), // Use native token instead of yuan token, reduced to allow for fees
       new MemoInfo(" buy ticket")
     );
 
