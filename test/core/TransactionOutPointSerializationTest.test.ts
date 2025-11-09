@@ -4,8 +4,6 @@ import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOut
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';

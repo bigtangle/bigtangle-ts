@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 
 import { MonetaryFormat } from "../utils/MonetaryFormat";
-import { JsonCreator, JsonProperty } from "jackson-js";
+import { JsonProperty } from "jackson-js";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { Utils } from "./Utils";
 

@@ -8,8 +8,7 @@ import { Sha256Hash } from "../core/Sha256Hash";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { TransactionOutput } from "../core/TransactionOutput";
 import { TransactionOutPoint } from "../core/TransactionOutPoint";
-import { Buffer } from "buffer";
-import { Coin } from "../core/Coin"; // Add missing import
+// Add missing import
 
 export class FreeStandingTransactionOutput extends TransactionOutput {
   private output: UTXO;

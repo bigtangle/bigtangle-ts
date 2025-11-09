@@ -4,8 +4,7 @@ import { Utils } from '../utils/Utils.js';
 import { DataInputStream } from '../utils/DataInputStream.js';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream.js';
  
-import { JsonProperty, JsonClassType, JsonDeserialize, JsonSerialize } from "jackson-js";
-import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer.js";
+import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class RewardInfo extends DataClass {
     @JsonProperty()

@@ -1,8 +1,6 @@
 import { Buffer } from 'buffer';
 import { Utils } from '../../src/net/bigtangle/core/Utils';
 import { Gzip } from '../../src/net/bigtangle/utils/Gzip';
-import { UtilGeneseBlock } from '../../src/net/bigtangle/core/UtilGeneseBlock';
-import { TestParams } from '../../src/net/bigtangle/params/TestParams';
 import { describe, test, expect } from 'vitest';
 
 describe('UtilsTest', () => {

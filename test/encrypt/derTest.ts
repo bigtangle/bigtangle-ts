@@ -1,7 +1,5 @@
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { ECDSASignature } from '../../src/net/bigtangle/core/ECDSASignature';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
-import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { describe, it } from 'vitest';
 

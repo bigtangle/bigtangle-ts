@@ -12,7 +12,6 @@ import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
 import { Block } from '../../src/net/bigtangle/core/Block';
 // Removed UtilsTest import
-import { MainNetParams as MainNetParamsClass } from '../../src/net/bigtangle/params/MainNetParams';
 
 
 export class FakeTxBuilder {

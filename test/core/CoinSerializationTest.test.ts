@@ -2,8 +2,6 @@ import { describe, it } from 'vitest';
 import { expect } from 'chai';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
-import { ECKey } from '../../src/net/bigtangle/core/ECKey';
-import { Address } from '../../src/net/bigtangle/core/Address';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';

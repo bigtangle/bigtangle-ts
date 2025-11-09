@@ -1,18 +1,10 @@
 import { Buffer } from "buffer";
-import { MainNetParams } from "../../src/net/bigtangle/params/MainNetParams";
 import { UtilGeneseBlock } from "../../src/net/bigtangle/core/UtilGeneseBlock";
-import { Transaction } from "../../src/net/bigtangle/core/Transaction";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams"; // Fixed import path
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
 import { describe, test, expect } from "vitest";
-import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
-import { Address } from "../../src/net/bigtangle/core/Address";
-import { BlockType } from "../../src/net/bigtangle/core/BlockType";
-import { Block } from "../../src/net/bigtangle/core/Block";
-import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
-import { Coin } from "../../src/net/bigtangle/core/Coin";
-import { ScriptBuilder } from "../../src/net/bigtangle/script/ScriptBuilder"; // Added ScriptBuilder import
-import { ECKey } from "../../src/net/bigtangle/core/ECKey"; // Added ECKey import
+// Added ScriptBuilder import
+// Added ECKey import
 
 describe("BlockTest", () => {
   const PARAMS = TestParams.get();

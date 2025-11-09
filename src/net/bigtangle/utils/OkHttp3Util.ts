@@ -10,7 +10,6 @@ import { promisify } from "util";
 import * as https from "https";
 import { Buffer } from "buffer";
 import { ObjectMapper } from "jackson-js";
-import { Utils } from "./Utils";
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 

@@ -1,11 +1,9 @@
-import { ECKey } from '../core/ECKey';
 import { ECPoint } from '../core/ECPoint';
 import { Digest } from './ConcatKDFBytesGenerator';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import aes from '@noble/ciphers/aes';
 
-import { Utils } from '../utils/Utils';
 
 // --- Interfaces --- //
 

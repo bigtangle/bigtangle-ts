@@ -24,21 +24,16 @@ import { TransactionOutPoint } from './TransactionOutPoint';
 import { Script } from '../script/Script';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Address } from './Address';
-import { ProtocolException } from '../exception/ProtocolException';
 import { ScriptException } from '../exception/ScriptException';
 import { VerificationException } from '../exception/VerificationException';
 import { KeyBag } from '../wallet/KeyBag';
 import { RedeemData } from '../wallet/RedeemData';
-import { ECKey } from './ECKey';
 import { Coin } from './Coin';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from './Utils';
 import { VarInt } from './VarInt';
-import { TransactionSignature } from '../crypto/TransactionSignature';
-import { ScriptBuilder } from '../script/ScriptBuilder';
 import { Transaction } from './Transaction';
 import { TransactionOutput } from './TransactionOutput';
-import { Buffer } from 'buffer';
 import { JsonProperty } from "jackson-js";
 
 /**

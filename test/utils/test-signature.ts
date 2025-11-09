@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
-import { SigHash } from '../../src/net/bigtangle/core/SigHash';
 import { Utils } from '../../src/net/bigtangle/utils/Utils';
 
 describe('Signature Test', () => {

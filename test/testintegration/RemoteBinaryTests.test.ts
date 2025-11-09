@@ -1,26 +1,8 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { Address } from "../../src/net/bigtangle/core/Address";
-import { Block } from "../../src/net/bigtangle/core/Block";
- 
-import { Coin } from "../../src/net/bigtangle/core/Coin";
-import { ECKey } from "../../src/net/bigtangle/core/ECKey";
-import { MemoInfo } from "../../src/net/bigtangle/core/MemoInfo";
- import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
-import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 
-import { TokenType } from "../../src/net/bigtangle/core/TokenType";
+
 import { RemoteTest } from "./RemoteTest";
-import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
-import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { Utils } from "../../src/net/bigtangle/core/Utils";
-import { sign } from "crypto";
-import { TransactionSignature } from "../../src/net/bigtangle/crypto/TransactionSignature";
-import { SigHash } from "../../src/net/bigtangle/core/SigHash";
-import { Transaction } from "../../src/net/bigtangle/core/Transaction";
-import { TransactionOutput } from "../../src/net/bigtangle/core/TransactionOutput";
-import { TransactionInput } from "../../src/net/bigtangle/core/TransactionInput";
-import { NetworkParameters } from "../../src/net/bigtangle/params/NetworkParameters";
-import { ScriptBuilder } from "../../src/net/bigtangle/script/ScriptBuilder";
 
 
 class RemoteBinaryTests extends RemoteTest {}

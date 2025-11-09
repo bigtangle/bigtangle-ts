@@ -1,6 +1,5 @@
 import { DataClass } from './DataClass';
 import { Uploadfile } from './Uploadfile';
-import { Json } from '../utils/Json';
 import { JsonProperty, JsonClassType } from "jackson-js";
 
 export class UploadfileInfo extends DataClass {

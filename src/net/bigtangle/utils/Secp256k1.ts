@@ -1,4 +1,3 @@
-import * as secp256k1 from 'secp256k1';
 
 // Curve parameters for secp256k1
 // The curve order n is a well-known constant

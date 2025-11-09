@@ -4,7 +4,6 @@
 
 
 import { InvalidTransactionDataException } from '../exception/Exceptions';
-import { Buffer } from 'buffer';
 
 // You may need to install a library for ECIES, e.g., 'eciesjs' or implement the logic using 'elliptic' and 'crypto'.
 // Here, we use 'eciesjs' for simplicity. If you want a pure implementation, let me know.

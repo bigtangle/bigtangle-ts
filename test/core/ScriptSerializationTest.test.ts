@@ -10,14 +10,11 @@ import * as ScriptOpCodes from '../../src/net/bigtangle/script/ScriptOpCodes';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
-import { Sha256Hash } from '../../src/net/bigtangle/core/Sha256Hash';
 import { TransactionSignature } from '../../src/net/bigtangle/crypto/TransactionSignature';
-import { ScriptChunk } from '../../src/net/bigtangle/script/ScriptChunk';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { UtilBase } from './UtilBase';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 
-import { SigHash } from '../../src/net/bigtangle/core/SigHash';
 
 describe('ScriptSerialization', () => {
     const PARAMS = MainNetParams.get();

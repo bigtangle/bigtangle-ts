@@ -23,14 +23,11 @@ import { ChildMessage } from './ChildMessage';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from './Utils';
 import { NetworkParameters } from '../params/NetworkParameters';
-import { ProtocolException } from '../exception/ProtocolException';
-import { Script } from '../script/Script';
 import { ECKey } from './ECKey';
 import { KeyBag } from '../wallet/KeyBag';
 import { Transaction } from './Transaction';
 import { TransactionOutput } from './TransactionOutput';
 import { RedeemData } from '../wallet/RedeemData';
-import { Buffer } from 'buffer';
 import { FreeStandingTransactionOutput } from '../wallet/FreeStandingTransactionOutput';
 
 /**

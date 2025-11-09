@@ -2,9 +2,7 @@ import { Buffer } from "buffer";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 import { UtilGeneseBlock } from "../../src/net/bigtangle/core/UtilGeneseBlock";
 import { Utils } from "../../src/net/bigtangle/utils/Utils";
-import { Sha256Hash } from "../../src/net/bigtangle/core/Sha256Hash";
-import { Block } from "../../src/net/bigtangle/core/Block";
-import { describe, test, expect } from "vitest";
+import { describe, test } from "vitest";
 
 describe("Debug Genesis Block", () => {
   const PARAMS = TestParams.get();

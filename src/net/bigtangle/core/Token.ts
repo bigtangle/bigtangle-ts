@@ -5,11 +5,9 @@ import { TokenKeyValues } from "./TokenKeyValues";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { KeyValue } from "./KeyValue";
 import { UtilGeneseBlock } from "./UtilGeneseBlock";
-import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
-import {
-  Sha256HashDeserializer,
-  Sha256HashSerializer,
-} from "./Sha256HashSerializer";
+import { JsonProperty } from "jackson-js";
+
+
 export class Token extends SpentBlock {
   public static readonly TOKEN_MAX_NAME_LENGTH = 100;
   public static readonly TOKEN_MAX_DESC_LENGTH = 5000;

@@ -1,5 +1,4 @@
 import { KeyValue } from './KeyValue';
-import { Json } from '../utils/Json';
 import { JsonProperty } from 'jackson-js';
 
 export class TokenKeyValues {

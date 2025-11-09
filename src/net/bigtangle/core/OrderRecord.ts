@@ -3,14 +3,10 @@ import { SpentBlock } from "./SpentBlock";
 import { Side } from "./Side";
 import {
   JsonProperty,
-  JsonDeserialize,
-  JsonSerialize,
   JsonClassType,
 } from "jackson-js";
-import {
-  Sha256HashDeserializer,
-  Sha256HashSerializer,
-} from "./Sha256HashSerializer";
+
+
 export class OrderRecord extends SpentBlock {
   @JsonProperty()
   private issuingMatcherBlockHash: Sha256Hash | null = null;

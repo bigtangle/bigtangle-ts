@@ -1,7 +1,6 @@
 import { Sha256Hash } from './Sha256Hash';
 import { SpentBlock } from './SpentBlock';
-import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
-import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
+import { JsonProperty } from "jackson-js";
 
 export class ContractEventRecord extends SpentBlock {
     @JsonProperty()

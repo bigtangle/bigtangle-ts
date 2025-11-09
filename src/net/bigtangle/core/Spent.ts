@@ -2,8 +2,7 @@ import { DataClass } from './DataClass';
 import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
-import { JsonProperty, JsonDeserialize, JsonSerialize } from "jackson-js";
-import { Sha256HashDeserializer, Sha256HashSerializer } from "./Sha256HashSerializer";
+import { JsonProperty } from "jackson-js";
 
 export class Spent extends DataClass {
     @JsonProperty()

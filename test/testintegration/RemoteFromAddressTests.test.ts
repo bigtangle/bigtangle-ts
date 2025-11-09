@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, test } from "vitest";
 import { Address } from "../../src/net/bigtangle/core/Address";
 import { Block } from "../../src/net/bigtangle/core/Block";
 import { Coin } from "../../src/net/bigtangle/core/Coin";

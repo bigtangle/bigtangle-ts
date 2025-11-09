@@ -7,7 +7,6 @@ import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutpu
 import { MainNetParams } from '../../src/net/bigtangle/params/MainNetParams';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
-import { Utils } from '../../src/net/bigtangle/utils/Utils';
 import { UtilBase } from './UtilBase';
 
 describe('TransactionOutputSerialization', () => {

@@ -3,10 +3,8 @@ import { DataClass } from './DataClass';
 import { Token } from './Token';
 import { MultiSignAddress } from './MultiSignAddress';
 import { Sha256Hash } from './Sha256Hash';
-import { Utils } from '../utils/Utils';
- 
+
 import { ObjectMapper, JsonProperty } from 'jackson-js';
-import { j } from 'vite/dist/node/types.d-aGj9QkWt';
 /**
  * TokenInfo class represents information about a token and its associated multi-signature addresses.
  * It provides methods to serialize the object to a byte array, parse from a byte array,

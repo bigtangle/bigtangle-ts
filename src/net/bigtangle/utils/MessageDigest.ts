@@ -2,7 +2,6 @@
 // Translation of java.security.MessageDigest
 
 import { MessageDigestSpi } from "./MessageDigestSpi";
-import { SHA256DigestSpi } from "./SHA256DigestSpi";
 
 // Simple provider stub
 interface Provider {

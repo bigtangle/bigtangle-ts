@@ -23,8 +23,6 @@ import { ChildMessage } from "./ChildMessage";
 import { Script } from "../script/Script";
 import { ScriptBuilder } from "../script/ScriptBuilder";
 import { NetworkParameters } from "../params/NetworkParameters";
-import { ProtocolException } from "../exception/ProtocolException";
-import { ScriptException } from "../exception/ScriptException";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
 import { Coin } from "./Coin";

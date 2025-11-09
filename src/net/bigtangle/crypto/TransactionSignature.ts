@@ -1,5 +1,4 @@
 import { ECDSASignature } from '../core/ECDSASignature';
-import { Transaction } from '../core/Transaction';
 import { SigHash } from '../core/SigHash';
 import { VerificationException } from '../exception/VerificationException';
 

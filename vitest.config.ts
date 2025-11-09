@@ -7,6 +7,12 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*Test.ts', '**/*test*.ts', '**/*.spec.ts'],
+    exclude: [
+      '**/testintegration/RemoteTest.ts', 
+      '**/Abstract*.ts',
+      'vitest.config.ts',
+      'node_modules/**'
+    ],
   },
   
 });
