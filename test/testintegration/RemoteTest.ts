@@ -143,6 +143,52 @@ export abstract class RemoteTest {
   }
 
 
+  protected async sell(blocksAddedAll: Block[]): Promise<void> {
+    const keyStrHex000: string[] = [];
+
+    const walletKeys = await this.wallet.walletKeys(null);
+    for (const ecKey of walletKeys) {
+      keyStrHex000.push(Utils.HEX.encode(ecKey.getPubKeyHash()));
+    }
+
+    const response = await this.post(
+      ReqCmd.getBalances,
+      keyStrHex000,
+      GetBalancesResponse
+    );
+    const getBalancesResponse = response as GetBalancesResponse;
+    const utxos = getBalancesResponse.getOutputs() || [];
+    
+    // Shuffle the UTXOs array using Fisher-Yates algorithm
+    for (let i = utxos.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [utxos[i], utxos[j]] = [utxos[j], utxos[i]];
+    }
+
+    for (const utxo of utxos) {
+      if (utxo.getValue() && 
+          utxo.getTokenId() !== NetworkParameters.BIGTANGLE_TOKENID_STRING &&
+          utxo.getValue()!.isGreaterThan(Coin.ZERO)) {
+        this.wallet.setServerURL(this.contextRoot);
+        try {
+          const sellOrder = await this.wallet.sellOrder(
+            null, // aesKey
+            utxo.getTokenId(), 
+            BigInt(100), 
+            BigInt(1000), 
+            null, // validToTime
+            null, // validFromTime
+            NetworkParameters.BIGTANGLE_TOKENID_STRING, 
+            true // allowRemainder
+          );
+          blocksAddedAll.push(sellOrder);
+        } catch (e) {
+          // ignore InsufficientMoneyException and other exceptions
+          // console.error(e);
+        }
+      }
+    }
+  }
 
 
 
