@@ -495,31 +495,11 @@ export class Wallet extends WalletBase {
       Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
     );
 
-    // Parse the response as a plain object first, then convert to proper class instances
-    const responseData: any = Json.jsonmapper().parse(resp);
-    
-    // Create MultiSignResponse manually from the parsed data
-    const multiSignResponse = new MultiSignResponse();
-    if (responseData.multiSigns && Array.isArray(responseData.multiSigns)) {
-      // Convert plain objects to MultiSign instances
-      const multiSignList: MultiSign[] = responseData.multiSigns.map((msData: any) => {
-        const multiSign = new MultiSign();
-        if (msData.id !== undefined) multiSign.setId(msData.id);
-        if (msData.tokenid !== undefined) multiSign.setTokenid(msData.tokenid);
-        if (msData.tokenindex !== undefined) multiSign.setTokenindex(msData.tokenindex);
-        if (msData.blockhashHex !== undefined) multiSign.setBlockhashHex(msData.blockhashHex);
-        if (msData.address !== undefined) multiSign.setAddress(msData.address);
-        if (msData.sign !== undefined) multiSign.setSign(msData.sign);
-        return multiSign;
-      });
-      multiSignResponse.setMultiSigns(multiSignList);
-    } else {
-      multiSignResponse.setMultiSigns([]);
-    }
-    
-    if (responseData.signCount !== undefined) {
-      multiSignResponse.setSignCount(responseData.signCount);
-    }
+    // Properly deserialize the response using Jackson
+    const multiSignResponse: MultiSignResponse = Json.jsonmapper().parse(resp, {
+      mainCreator: () => [MultiSignResponse, MultiSign],
+    });
+    console.debug(" multiSign responseData: " +  multiSignResponse );
     
    
     const multiSignList = multiSignResponse.getMultiSigns();
@@ -531,7 +511,15 @@ export class Wallet extends WalletBase {
       return null;
     }
 
-    const blockHashHex = multiSign.getBlockhashHex();
+    // Check if the deserialized object has the expected methods, otherwise convert manually
+    let blockHashHex: string;
+    if (typeof multiSign.getBlockhashHex === 'function') {
+      // It's properly deserialized as a MultiSign instance
+      blockHashHex = multiSign.getBlockhashHex();
+    } else {
+      // It's a plain object, extract the property directly
+      blockHashHex = (multiSign as any).blockhashHex || (multiSign as any).getblockhashhex || "";
+    }
      
     const payloadBytes = Utils.HEX.decode(blockHashHex);
     const payloadBuffer = Buffer.from(payloadBytes);
@@ -562,26 +550,10 @@ export class Wallet extends WalletBase {
           dataStr = Buffer.from(multiSignByRequestData as any).toString('utf8');
         }
         
-        // Parse the response as a plain object first, then convert to proper class instances
-        const responseData: any = Json.jsonmapper().parse(dataStr);
-        
-        // Create MultiSignByRequest manually from the parsed data
-        const multiSignByRequest = new MultiSignByRequest();
-        if (responseData.multiSignBies && Array.isArray(responseData.multiSignBies)) {
-          // Convert plain objects to MultiSignBy instances
-          const multiSignByList: MultiSignBy[] = responseData.multiSignBies.map((msbData: any) => {
-            const multiSignBy = new MultiSignBy();
-            if (msbData.tokenid !== undefined) multiSignBy.setTokenid(msbData.tokenid);
-            if (msbData.tokenindex !== undefined) multiSignBy.setTokenindex(msbData.tokenindex);
-            if (msbData.address !== undefined) multiSignBy.setAddress(msbData.address);
-            if (msbData.publickey !== undefined) multiSignBy.setPublickey(msbData.publickey);
-            if (msbData.signature !== undefined) multiSignBy.setSignature(msbData.signature);
-            return multiSignBy;
-          });
-          multiSignByRequest.setMultiSignBies(multiSignByList);
-        } else {
-          multiSignByRequest.setMultiSignBies([]);
-        }
+        // Properly deserialize the multiSignByRequest using Jackson
+        const multiSignByRequest: MultiSignByRequest = Json.jsonmapper().parse(dataStr, {
+          mainCreator: () => [MultiSignByRequest, MultiSignBy],
+        });
         multiSignBies = multiSignByRequest.getMultiSignBies();
       } else {
         multiSignBies = [];
@@ -602,14 +574,26 @@ export class Wallet extends WalletBase {
     if (!multiSign) {
       throw new Error("MultiSign object is null");
     }
-    
+
     const multiSignBy0 = new MultiSignBy();
-    const multiSignTokenId = multiSign.getTokenid();
-    const tokenindex = multiSign.getTokenindex();
+    let multiSignTokenId: string | null;
+    let tokenindex: number;
+
+    // Check if multiSign is properly deserialized or a plain object
+    if (typeof multiSign.getTokenid === 'function') {
+      // It's properly deserialized as a MultiSign instance
+      multiSignTokenId = multiSign.getTokenid();
+      tokenindex = multiSign.getTokenindex();
+    } else {
+      // It's a plain object, extract the properties directly
+      multiSignTokenId = (multiSign as any).tokenid || (multiSign as any).gettokenid || null;
+      tokenindex = (multiSign as any).tokenindex !== undefined ? (multiSign as any).tokenindex : 0;
+    }
+
     if (!multiSignTokenId || tokenindex === undefined) {
       throw new Error("MultiSign tokenid or tokenindex is null/undefined");
     }
-    
+
     multiSignBy0.setTokenid(multiSignTokenId);
     multiSignBy0.setTokenindex(tokenindex);
     multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());

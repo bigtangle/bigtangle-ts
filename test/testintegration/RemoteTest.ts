@@ -338,9 +338,9 @@ const utxos= await this.getBalanceByKeys(false, walletKeys);
 
   protected logUTXOs(utxos: any[]): void {
     if (utxos && utxos.length > 0) {
-      console.log(`Logging ${utxos.length} UTXOs:`);
-      for (const utxo of utxos) {
-        console.log(utxo.toString());
+      console.log(`Logging ${Math.min(utxos.length, 2)} UTXOs:`);
+      for (let i = 0; i < Math.min(utxos.length, 2); i++) {
+        console.log(utxos[i].toString());
       }
     } else {
       console.log("No UTXOs to log.");

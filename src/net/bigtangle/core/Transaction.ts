@@ -344,15 +344,17 @@ export class Transaction extends ChildMessage {
    * Returns the transaction hash as you see them in the block explorer.
    */
   public getHash(): Sha256Hash {
-    if (this.hash === null) {
+     
+     if (this.hash === null) {
       // Serialize the transaction excluding memo and dataSignature fields using positive count
       const buf = Buffer.from(this.bitcoinSerializeWithoutMemoAndDataSignature());
       // console.debug("bitcoinSerializeWithoutMemoAndDataSignature transaction= " + Utils.HEX.encode(buf));
       this.hash = Sha256Hash.wrapReversed(
         Sha256Hash.hashTwice(buf)
       );
-      this.hash.toString();
-    }
+     console.debug("getHash was null "  );
+     }
+      console.debug("getHash " +this.hash.toString());
     return this.hash;
   }
 
@@ -1286,7 +1288,7 @@ export class Transaction extends ChildMessage {
     if (this.toAddressInSubtangle == null) {
       Utils.uint32ToByteStreamLE(0, stream);
     } else {
-      stream.write(new VarInt(this.toAddressInSubtangle.length).encode());
+      Utils.uint32ToByteStreamLE(this.toAddressInSubtangle.length, stream);
       if (this.toAddressInSubtangle.length > 0) {
         stream.write(this.toAddressInSubtangle);
       }
