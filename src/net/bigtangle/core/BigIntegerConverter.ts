@@ -64,27 +64,33 @@ class BigIntegerConverter {
   
   public toByteArray(): Uint8Array {
     //console.log(`\n=== Converting ${this.value} ===`);
-    
+
     if (this.value === 0n) {
       return new Uint8Array([0]);
     }
-    
+
     // Handle negative numbers correctly
     const isNegative = this.value < 0n;
     const absValue = isNegative ? -this.value : this.value;
-    
+
     // Convert to byte array (big-endian)
     let temp = absValue;
     const bytes: number[] = [];
-    
+
     while (temp > 0n) {
       bytes.push(Number(temp & 0xFFn));
       temp >>= 8n;
     }
-    
+
     // Reverse to get big-endian
     bytes.reverse();
-    
+
+    // For positive numbers, if the most significant bit is 1, Java adds a leading 0x00 byte
+    // to indicate the number is positive (since high bit 1 would indicate negative in two's complement)
+    if (!isNegative && bytes.length > 0 && (bytes[0] & 0x80) !== 0) {
+        bytes.unshift(0);
+    }
+
     // For negative numbers, we need to ensure two's complement representation
     if (isNegative) {
       // If the most significant bit is set, we need to add a leading zero byte
@@ -92,7 +98,7 @@ class BigIntegerConverter {
       if ((bytes[0] & 0x80) !== 0) {
         bytes.unshift(0);
       }
-      
+
       // Convert to two's complement
       let carry = 1;
       for (let i = bytes.length - 1; i >= 0; i--) {
@@ -101,7 +107,7 @@ class BigIntegerConverter {
         carry = inverted >> 8;
       }
     }
-    
+
     //console.log(`Final result: [${bytes.map(b => b > 127 ? b - 256 : b).join(', ')}]`);
     return new Uint8Array(bytes);
   }

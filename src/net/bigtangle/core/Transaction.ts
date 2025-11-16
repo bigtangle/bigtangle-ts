@@ -619,7 +619,7 @@ export class Transaction extends ChildMessage {
     }
 
     this.length = this.cursor - this.offset;
-    this.hash=null;
+     this.calcHash;
   }
 
   public getOptimalEncodingMessageSize(): number {
@@ -662,7 +662,7 @@ export class Transaction extends ChildMessage {
    */
   public toString(): string {
     let s: string[] = [];
-    s.push("  " + (this.hash ? this.hash.toString() : "") + "\n");
+    s.push("  " + (this.hash ? this.hash.toString() : this.calcHash().toString()) + "\n");
     // if (this.updatedAt != null)
     //     s.push(" updated: " + Utils.dateTimeFormat(this.updatedAt) + '\n');
     if (this.version !== 1) s.push("  version " + this.version + "\n");

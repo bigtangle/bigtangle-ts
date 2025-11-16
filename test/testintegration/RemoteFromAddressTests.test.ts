@@ -108,7 +108,7 @@ class RemoteFromAddressTests extends RemoteTest {
     const bs = await w.pay(
       null,
       this.accountKey.toAddress(this.networkParameters).toString(),
-      Coin.valueOf(BigInt(50),  this.tokenid), // Buy 50 yuan tokens
+      Coin.valueOf(BigInt(50),  Buffer.from(this.tokenid)), // Buy 50 yuan tokens
       new MemoInfo(" buy yuan token")
     );
 
@@ -210,9 +210,9 @@ class RemoteFromAddressTests extends RemoteTest {
       this.tokenid
     );
 
-    	const signkey = ECKey.fromPrivateString(RemoteFromAddressTests.testPriv  );
+    	const signkey = ECKey.fromPrivateString(RemoteFromAddressTests.testPriv);
 
-			this.wallet.multiSign(this.tokenid, signkey, null);
+			await this.wallet.multiSign(this.tokenid, signkey, null);
 
   }
 
