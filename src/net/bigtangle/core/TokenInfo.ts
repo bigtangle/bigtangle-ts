@@ -41,7 +41,7 @@ export class TokenInfo extends DataClass {
                 return value;
             };
             const jsonStr = JSON.stringify(this, replacer);
-            console.log( " TokenInfo=" +   jsonStr   );
+         //   console.log( " TokenInfo=" +   jsonStr   );
             return new TextEncoder().encode(jsonStr);
         } catch (e: any) {
             throw new Error(e);

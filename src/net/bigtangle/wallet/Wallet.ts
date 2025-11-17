@@ -310,10 +310,8 @@ export class Wallet extends WalletBase {
     transaction.setDataSignature(Buffer.from(jsonData, "utf8"));
 
     this.checkMultiSignBy(multiSignBies, transaction);
-    console.log(
-      " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize())
-    );
-    console.log(" block:" + block.toString());
+ //   console.log(     " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize()));
+ //   console.log(" block:" + block.toString());
     return await this.adjustSolveAndSign(block);
   }
 
@@ -808,14 +806,15 @@ export class Wallet extends WalletBase {
 
     let amount = summe.negate();
     // Add fee if needed
-    if (this.getFee() && amount.isBIG()) {
+    if (this.getFee()   &&  amount.isBIG()) {
       const fee = Coin.valueOf(
         Coin.FEE_DEFAULT.getValue(),
         amount.getTokenid()
       );
       amount = amount.add(fee.negate());
-    }
-
+    } 
+   
+  
     let beneficiary: ECKey | null = null;
     // Filter only for tokenid
     const coinListTokenid = this.filterTokenid(tokenid, coinList);
@@ -848,7 +847,12 @@ export class Wallet extends WalletBase {
     await this.signTransaction(multispent, aesKey, "THROW");
     const block = await this.getTip();
     block.addTransaction(multispent);
-
+ if (this.getFee()   && ! amount.isBIG()) {
+  
+      const feeTx = await this.feeTransaction1(aesKey, coinList);
+      block.addTransaction(feeTx);
+   
+     }
     return await this.solveAndPost(block);
   }
 

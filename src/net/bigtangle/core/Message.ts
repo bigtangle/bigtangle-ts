@@ -255,7 +255,7 @@ export abstract class Message {
          const buf = stream.toByteArray();
         this.length = buf.length;
 
-          console.log(`UnsafeByteArrayOutputStream.toByteArray: cursor=${this.cursor }, offset =${ this.offset}, buf.length=${ buf.length}`);
+        //  console.log(`UnsafeByteArrayOutputStream.toByteArray: cursor=${this.cursor }, offset =${ this.offset}, buf.length=${ buf.length}`);
         return buf;
     }
 

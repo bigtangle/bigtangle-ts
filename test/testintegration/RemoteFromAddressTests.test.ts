@@ -107,13 +107,11 @@ class RemoteFromAddressTests extends RemoteTest {
       this.contextRoot
     );
 
-   
-
     // Now purchase yuan tokens for the accountKey
     const bs = await w.pay(
       null,
       this.accountKey.toAddress(this.networkParameters).toString(),
-      Coin.valueOf(BigInt(50),  Buffer.from(Utils.HEX.decode(this.tokenid))), // Buy 50 yuan tokens
+      Coin.valueOf(BigInt(50), Buffer.from(Utils.HEX.decode(this.tokenid))), // Buy 50 yuan tokens
       new MemoInfo(" buy yuan token")
     );
 
@@ -125,7 +123,6 @@ class RemoteFromAddressTests extends RemoteTest {
     for (const utxo of utxos) {
       console.debug("user utxo==" + utxo.toString());
     }
- 
 
     await this.getBalanceAccount(false, await this.wallet!.walletKeys(null));
   }
@@ -142,8 +139,11 @@ class RemoteFromAddressTests extends RemoteTest {
       giveMoneyResult.set(addr, BigInt(100));
       giveMoneyResultBig.set(addr, BigInt(1000000000));
     }
-      await this.getBalanceAccount(false, await this.wallet!.walletKeys(null));
-    await this.getBalanceAccount(false, await this.yuanWallet!.walletKeys(null));
+    await this.getBalanceAccount(false, await this.wallet!.walletKeys(null));
+    await this.getBalanceAccount(
+      false,
+      await this.yuanWallet!.walletKeys(null)
+    );
     const b = await this.yuanWallet!.payToList(
       null,
       giveMoneyResult,
@@ -151,22 +151,18 @@ class RemoteFromAddressTests extends RemoteTest {
     );
     console.debug("block " + (b == null ? "block is null" : b.toString()));
 
-    const tokenIdBytes = Buffer.from(Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING));
-    await this.wallet!.payToList(
-      null,
-      giveMoneyResultBig,
-      tokenIdBytes
+    const tokenIdBytes = Buffer.from(
+      Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING)
     );
- 
+    await this.wallet!.payToList(null, giveMoneyResultBig, tokenIdBytes);
+
     return this.userkeys;
   }
-
 
   // This method appears to be Java code that was incorrectly added
   // It should either be removed or properly implemented in TypeScript
   // For now, removing this method as it contains Java syntax
 
-    
   public async testTokens() {
     // Send native tokens to yuanToken key for fees first
     await this.payBigTo(
@@ -207,7 +203,7 @@ class RemoteFromAddressTests extends RemoteTest {
 
       // Try to access the tokens array from the response
       let tokens = [];
-      if (data && typeof data === 'object') {
+      if (data && typeof data === "object") {
         // Look for tokens in different possible response formats
         if (Array.isArray(data)) {
           tokens = data;
@@ -224,13 +220,14 @@ class RemoteFromAddressTests extends RemoteTest {
       }
 
       // Check that the expected tokenid is in the search results
+      const found = false;
       if (tokens && tokens.length > 0) {
         for (const token of tokens) {
           // Extract tokenid from the token response
           let tokenid = null;
-          if (typeof token === 'string') {
+          if (typeof token === "string") {
             tokenid = token; // Token is a string tokenid
-          } else if (typeof token === 'object' && token) {
+          } else if (typeof token === "object" && token) {
             // Could be a complex object with tokenid field
             tokenid = token.tokenid || token.tokenId || token.id || token._id;
             if (!tokenid && token.token && token.token.tokenid) {
@@ -239,17 +236,17 @@ class RemoteFromAddressTests extends RemoteTest {
           }
 
           if (tokenid) {
-            console.log(`Found token in search: ${tokenid}`);
+           // console.log(`Found token in search: ${tokenid}`);
             // You can add additional checks here to verify specific token IDs if needed
             if (tokenid === this.tokenid) {
-              console.log(`Found expected tokenid: ${this.tokenid}`);
+                found = true;
             }
           }
         }
-      } else {
-        console.log("No tokens found in search results");
-      }
-
+      }  
+      if (!found) { 
+        throw new Error(`Token ID ${this.tokenid} not found in search results`); 
+      } 
       // Return an empty map as fallback since we can't be sure of the response format
       return new Map<string, bigint>();
     } catch (error) {
@@ -275,7 +272,7 @@ class RemoteFromAddressTests extends RemoteTest {
     amount: bigint
   ): Promise<void> {
     // Calculate the token ID as a hash of the public key (this is the standard way tokens are identified)
-  
+
     this.tokenid = key.getPublicKeyAsHex();
 
     await this.createToken(
@@ -291,9 +288,8 @@ class RemoteFromAddressTests extends RemoteTest {
       this.tokenid
     );
 
-    	const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
-    	await this.wallet.multiSign(this.tokenid, signkey, null);
-
+    const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
+    await this.wallet.multiSign(this.tokenid, signkey, null);
   }
 
   // Create a token with multi-signature support
@@ -363,7 +359,6 @@ class RemoteFromAddressTests extends RemoteTest {
       new MemoInfo("coinbase")
     );
   }
- 
 }
 
 describe("RemoteFromAddressTests", () => {
