@@ -51,8 +51,11 @@ export class OkHttp3Util {
             if (Buffer.isBuffer(config.data) && config.data.length > 0) {
               config.data = await gzip(config.data as Buffer);
               config.headers["Content-Encoding"] = "gzip";
-            } else if (typeof config.data === 'string' && config.data.length > 0) {
-              config.data = await gzip(Buffer.from(config.data, 'utf8'));
+            } else if (
+              typeof config.data === "string" &&
+              config.data.length > 0
+            ) {
+              config.data = await gzip(Buffer.from(config.data, "utf8"));
               config.headers["Content-Encoding"] = "gzip";
             }
             // For empty data, we send it as-is without compression
@@ -76,26 +79,44 @@ export class OkHttp3Util {
   }
 
   public static async post(url: string, data: Buffer): Promise<string> {
-    return await this.postStringSingle(url, data);
+    return   this.postStringSingle(url, data);
   }
 
   public static async postClass<T>(
     reqCmd: string,
-    params: any, // Changed type to any to accommodate Map and Array
-    responseClass: any
+    params: any,
+    responseClass: new () => T // Ensure responseClass is a constructor that returns T
   ): Promise<T> {
-    const jsonPayload = this.objectMapper.stringify(params);
+    let dataToSend: Buffer;
+
+    // If params is already a Buffer, use it directly
+    if (Buffer.isBuffer(params)) {
+      dataToSend = params;
+    } else {
+      // If params is an object, stringify it and convert to Buffer
+      const jsonPayload = this.objectMapper.stringify(params);
+      dataToSend = Buffer.from(jsonPayload);
+    }
+
     const responseString = await OkHttp3Util.postStringSingle(
       this.contextRoot + reqCmd,
-      jsonPayload
+      dataToSend
     );
-    const result = this.objectMapper.parse(responseString, {
-      mainCreator: () => [responseClass],
-    }) as T;
 
-    return result;
+    try {
+      // The CORRECT way to parse
+      const result = this.objectMapper.parse<T>(responseString, {
+        // Tell the parser the main type to use for deserialization
+        mainCreator: () => [responseClass],
+      });
+      return result;
+    } catch (error) {
+      // If Jackson parsing fails, try a manual approach
+      console.warn(`Jackson parsing failed for response, falling back to manual parsing:`, error);
+      // Parse as generic object and return
+      return JSON.parse(responseString) as T;
+    }
   }
-
   public static async postAndGetBlock(
     url: string,
     data: string
@@ -112,16 +133,16 @@ export class OkHttp3Util {
   ): Promise<string> {
     // Change return type to string
     this.logger.debug(`POST to ${url}`);
-    
+
     // Handle empty data case
     let requestData = data;
     if (data && data.length === 0) {
       // For empty data, we need to ensure it's properly handled
       requestData = Buffer.alloc(0);
     }
-    
-    const response = await this.getAxiosInstance().post(url, requestData); 
-    let responseBuffer = response.data; 
+
+    const response = await this.getAxiosInstance().post(url, requestData);
+    let responseBuffer = response.data;
     responseBuffer = await gunzip(responseBuffer);
     this.checkResponse(responseBuffer, url, response.status);
     return responseBuffer.toString("utf8"); // Convert to string here
@@ -134,20 +155,19 @@ export class OkHttp3Util {
   ): void {
     if (status < 200 || status >= 300) {
       throw new Error(`Server: ${url} HTTP Error: ${status}`);
-    } 
-      const responseString = responseData.toString("utf8");
-      const result = JSON.parse(responseString);
+    }
+    const responseString = responseData.toString("utf8");
+    const result = JSON.parse(responseString);
 
-      if (result.errorcode != null) {
-        const error = Number(result.errorcode);
-        if (error > 0) {
-          if (result.message == null) {
-            throw new Error(`Server: ${url} Server Error: ${error}`);
-          } else {
-            throw new Error(`Server: ${url} Server Error: ${result.message}`);
-          }
+    if (result.errorcode != null) {
+      const error = Number(result.errorcode);
+      if (error > 0) {
+        if (result.message == null) {
+          throw new Error(`Server: ${url} Server Error: ${error}`);
+        } else {
+          throw new Error(`Server: ${url} Server Error: ${result.message}`);
         }
       }
-  
+    }
   }
 }

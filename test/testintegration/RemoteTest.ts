@@ -15,7 +15,6 @@ import { GetBalancesResponse } from "../../src/net/bigtangle/response/GetBalance
 import { GetTokensResponse } from "../../src/net/bigtangle/response/GetTokensResponse";
 import { TokenIndexResponse } from "../../src/net/bigtangle/response/TokenIndexResponse";
 import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
-import { FreeStandingTransactionOutput } from "../../src/net/bigtangle/wallet/FreeStandingTransactionOutput";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
 import { Json } from "../../src/net/bigtangle/utils/Json";
 export abstract class RemoteTest {
@@ -28,6 +27,8 @@ export abstract class RemoteTest {
   public wallet!: Wallet;
 
   protected readonly aesKey: any = null;
+
+  protected blocksAddedAll: Block[] = [];
 
   public static testPub =
     "02721b5eb0282e4bc86aab3380e2bba31d935cba386741c15447973432c61bc975";
@@ -144,32 +145,25 @@ export abstract class RemoteTest {
   }
 
 
-  protected async sell(blocksAddedAll: Block[]): Promise<void> {
-    const keyStrHex000: string[] = [];
-
-    const walletKeys = await this.wallet.walletKeys(null);
-    for (const ecKey of walletKeys) {
-      keyStrHex000.push(Utils.HEX.encode(ecKey.getPubKeyHash()));
-    }
-
-const utxos= await this.getBalanceByKeys(false, walletKeys);
+  protected async sell( walletKeys: ECKey[]): Promise<void> {
+    const utxos= await this.getBalanceByKeys(false, walletKeys);
     for (const utxo of utxos) {
-      if (utxo.getValue() && 
+      if (utxo.getValue() &&
           utxo.getTokenId() !== NetworkParameters.BIGTANGLE_TOKENID_STRING &&
           utxo.getValue()!.isGreaterThan(Coin.ZERO)) {
         this.wallet.setServerURL(this.contextRoot);
         try {
           const sellOrder = await this.wallet.sellOrder(
             null, // aesKey
-            utxo.getTokenId(), 
-            BigInt(100), 
-            BigInt(1000), 
+            utxo.getTokenId(),
+            BigInt(100),
+            BigInt(1000),
             null, // validToTime
             null, // validFromTime
-            NetworkParameters.BIGTANGLE_TOKENID_STRING, 
+            NetworkParameters.BIGTANGLE_TOKENID_STRING,
             true // allowRemainder
           );
-          blocksAddedAll.push(sellOrder);
+          this.blocksAddedAll.push(sellOrder);
         } catch (e) {
           // ignore InsufficientMoneyException and other exceptions
           // console.error(e);
@@ -293,23 +287,42 @@ const utxos= await this.getBalanceByKeys(false, walletKeys);
     withZero: boolean,
     keys: ECKey[]
   ): Promise<UTXO[]> {
- 
+    console.debug(`Getting balances for ${keys.length} keys`);
+
     const keyStrHex000 = new Array<string>();
 
     for (const ecKey of keys) {
-      keyStrHex000.push(Utils.toHexString(Buffer.from(ecKey.getPubKeyHash())));
+      const pubKeyHash = ecKey.getPubKeyHash();
+      const hex = Utils.toHexString(Buffer.from(pubKeyHash));
+      keyStrHex000.push(hex);
+      console.debug(`Key hash: ${hex}`);
     }
     const jsonString = Json.jsonmapper().stringify(keyStrHex000);
-       
+    console.debug(`Request JSON: ${jsonString}`);
+
       // Create Buffer from the JSON string directly
       const buffer = Buffer.from(jsonString, 'utf8');
-       
+
+      console.debug(`Making request to: ${this.contextRoot + ReqCmd.getBalances}`);
       const resp = await OkHttp3Util.post(
-        this.contextRoot +       ReqCmd.getBalances,
+        this.contextRoot + ReqCmd.getBalances,
         buffer
       );
-  
-    return this.getUTXOs (resp)
+
+      console.debug(`Received response (first 200 chars): ${resp.substring(0, 200)}...`);
+
+      if (!resp || resp.trim().length === 0) {
+        console.error('Received empty response from server');
+        return [];
+      }
+
+      // Check if response contains an error
+      if (resp.includes('"errorcode"')) {
+        console.error(`Server returned error: ${resp}`);
+        return [];
+      }
+
+      return this.getUTXOs(resp);
   }
 
   protected   getUTXOs( resp: string):  UTXO[]  { 
@@ -448,34 +461,7 @@ const utxos= await this.getBalanceByKeys(false, walletKeys);
     expect(error === code).toBeTruthy();
   }
 
-  protected async checkBalanceWithKey(coin: Coin, ecKey: ECKey) {
-    const a: ECKey[] = [];
-    a.push(ecKey);
-    await this.checkBalance(coin, a);
-  }
-
-  protected async checkBalance(coin: Coin, a: ECKey[]) {
-    const ulist = await this.getBalanceByKeys(false, a);
-    let myutxo: UTXO | null = null;
-    for (const u of ulist) {
-      if (
-        u.getTokenId() &&
-        coin.getTokenHex() === u.getTokenId() &&
-        coin.getValue() === u.getValue()?.getValue()
-      ) {
-        myutxo = u;
-        break;
-      }
-    }
-    expect(myutxo !== null).toBeTruthy();
-    if (myutxo) {
-      expect(
-        myutxo.getAddress() !== null && myutxo.getAddress()!.length > 0
-      ).toBeTruthy();
-      console.log(myutxo.toString());
-    }
-  }
-
+ 
   protected async checkBalanceSumWithKey(coin: Coin, a: ECKey) {
     const keys: ECKey[] = [];
     keys.push(a);

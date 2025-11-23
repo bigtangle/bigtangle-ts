@@ -8,10 +8,10 @@ export class GetTokensResponse extends AbstractResponse {
       @JsonClassType({ type: () => [Array, [Token]] }) // OrderRecord[]
     private tokens: Token[] | null = null;
       @JsonProperty()
-  @JsonClassType({ type: () => [Map, [String, Token]] }) // Map<string, Token>
-    private amountMap: Map<string, BigInteger> | null = null;
+  @JsonClassType({ type: () => [Map, [String, [String]]] }) // Map<string, string> to handle BigInteger as string
+    private amountMap: Map<string, string> | null = null;
 
-    public static create(tokens: Token[], amountMap?: Map<string, BigInteger>): GetTokensResponse {
+    public static create(tokens: Token[], amountMap?: Map<string, string>): GetTokensResponse {
         const res = new GetTokensResponse();
         res.tokens = tokens;
         if (amountMap) {
@@ -24,7 +24,7 @@ export class GetTokensResponse extends AbstractResponse {
         return this.tokens;
     }
 
-    public getAmountMap(): Map<string, BigInteger> | null {
+    public getAmountMap(): Map<string, string> | null {
         return this.amountMap;
     }
 }

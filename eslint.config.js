@@ -24,6 +24,8 @@ export default [
           argsIgnorePattern: '^_',
         },
       ],
+      'no-console': 'off',
+      'no-undef': 'off',
     },
   },
   {

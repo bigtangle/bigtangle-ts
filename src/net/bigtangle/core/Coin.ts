@@ -91,7 +91,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public getTokenHex(): string {
-    return this.tokenid.toString("hex");
+    return   Utils.HEX.encode(this.tokenid );
   }
 
   public add(value: Coin): Coin {
