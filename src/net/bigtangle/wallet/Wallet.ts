@@ -924,10 +924,21 @@ export class Wallet extends WalletBase {
     baseToken: string,
     allowRemainder: boolean
   ): Promise<Block> {
-    // Create a transaction for the buy order
-    const tx = new Transaction(this.params);
+    // Calculate total amount needed for the buy order (price * amount)
+    const totalAmount = buyPrice * buyAmount;
 
-    // Create order info
+    // Get spendable outputs to fund the order
+    const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+
+    // Create order transaction with proper inputs and outputs
+    const tx = new Transaction(this.params);
+    tx.setMemo("buy order");
+
+    // Add outputs for the order (these would go to an escrow/smart contract mechanism)
+    const baseTokenBytes = Buffer.from(Utils.HEX.decode(baseToken));
+    const totalCoin = new Coin(totalAmount, baseTokenBytes);
+
+    // Add order information as transaction data
     const orderInfo = new OrderOpenInfo();
     orderInfo.setTargetTokenid(tokenId);
     orderInfo.setPrice(Number(buyPrice));
@@ -943,11 +954,50 @@ export class Wallet extends WalletBase {
       orderInfo.setValidFromTime(validFromTime.getTime());
     }
 
-    // Set the order info as transaction data
     tx.setData(orderInfo.toByteArray());
 
-    // Add a simple memo
-    tx.setMemo("buy order");
+    // Add inputs and outputs similar to payMoneyToECKeyList method
+    let amountNeeded = totalCoin.negate();
+
+    // Add fee if needed
+    if (this.getFee() && amountNeeded.isBIG()) {
+      const fee = Coin.valueOf(
+        Coin.FEE_DEFAULT.getValue(),
+        amountNeeded.getTokenid()
+      );
+      amountNeeded = amountNeeded.add(fee.negate());
+    }
+
+    let beneficiary: ECKey | null = null;
+
+    // Filter only for base token (the token being used to pay)
+    const coinListBaseToken = this.filterTokenid(baseTokenBytes, coinList);
+
+    for (const spendableOutput of coinListBaseToken) {
+      const utxo = spendableOutput.getUTXO();
+      if (utxo) {
+        beneficiary = await this.getECKey(aesKey, utxo.getAddress());
+        amountNeeded = amountNeeded.add(utxo.getValue());
+
+        tx.addInput2(
+          spendableOutput.getUTXO().getBlockHash(),
+          spendableOutput
+        );
+
+        if (!amountNeeded.isNegative()) {
+          if (beneficiary) {
+            tx.addOutputEckey(amountNeeded, beneficiary);
+          }
+          break;
+        }
+      }
+    }
+
+    if (beneficiary == null || amountNeeded.isNegative()) {
+      throw new InsufficientMoneyException(
+        totalCoin.toString() + " outputs size= " + coinListBaseToken.length
+      );
+    }
 
     // Sign the transaction
     await this.signTransaction(tx, aesKey, "THROW");
@@ -970,10 +1020,17 @@ export class Wallet extends WalletBase {
     baseToken: string,
     allowRemainder: boolean
   ): Promise<Block> {
-    // Create a transaction for the sell order
-    const tx = new Transaction(this.params);
+    // Calculate total amount for the sell order (price * amount)
+    const totalAmount = sellPrice * offerValue;
 
-    // Create order info
+    // Get spendable outputs to fund the order (the tokens being sold)
+    const coinList = await this.calculateAllSpendCandidates(aesKey, false);
+
+    // Create order transaction with proper inputs and outputs
+    const tx = new Transaction(this.params);
+    tx.setMemo("sell order");
+
+    // Add order information as transaction data
     const orderInfo = new OrderOpenInfo();
     orderInfo.setTargetTokenid(baseToken); // For sell orders, target token is the base token
     orderInfo.setPrice(Number(sellPrice));
@@ -989,11 +1046,55 @@ export class Wallet extends WalletBase {
       orderInfo.setValidFromTime(validFromTime.getTime());
     }
 
-    // Set the order info as transaction data
     tx.setData(orderInfo.toByteArray());
 
-    // Add a simple memo
-    tx.setMemo("sell order");
+    // Add inputs and outputs similar to payMoneyToECKeyList method
+    // For sell orders, we need to lock the tokens being sold
+    const tokenidBytes = Buffer.from(Utils.HEX.decode(tokenId));
+    const totalCoin = new Coin(offerValue, tokenidBytes);
+
+    // Add inputs and outputs for the tokens being sold
+    let amountNeeded = totalCoin.negate();
+
+    // Add fee if needed
+    if (this.getFee() && amountNeeded.isBIG()) {
+      const fee = Coin.valueOf(
+        Coin.FEE_DEFAULT.getValue(),
+        amountNeeded.getTokenid()
+      );
+      amountNeeded = amountNeeded.add(fee.negate());
+    }
+
+    let beneficiary: ECKey | null = null;
+
+    // Filter only for the token being sold
+    const coinListToken = this.filterTokenid(tokenidBytes, coinList);
+
+    for (const spendableOutput of coinListToken) {
+      const utxo = spendableOutput.getUTXO();
+      if (utxo) {
+        beneficiary = await this.getECKey(aesKey, utxo.getAddress());
+        amountNeeded = amountNeeded.add(utxo.getValue());
+
+        tx.addInput2(
+          spendableOutput.getUTXO().getBlockHash(),
+          spendableOutput
+        );
+
+        if (!amountNeeded.isNegative()) {
+          if (beneficiary) {
+            tx.addOutputEckey(amountNeeded, beneficiary);
+          }
+          break;
+        }
+      }
+    }
+
+    if (beneficiary == null || amountNeeded.isNegative()) {
+      throw new InsufficientMoneyException(
+        totalCoin.toString() + " outputs size= " + coinListToken.length
+      );
+    }
 
     // Sign the transaction
     await this.signTransaction(tx, aesKey, "THROW");

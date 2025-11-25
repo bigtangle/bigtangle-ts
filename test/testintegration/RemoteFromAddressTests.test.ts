@@ -28,14 +28,15 @@ class RemoteFromAddressTests extends RemoteTest {
   userkeys: ECKey[] = [];
 
   public async testUserpay() {
-
-        this.tokenid = ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv).getPublicKeyAsHex();
+    this.tokenid = ECKey.fromPrivateString(
+      RemoteFromAddressTests.yuanTokenPriv
+    ).getPublicKeyAsHex();
 
     // Create the token first
-  //  await this.testTokens();
+    //  await this.testTokens();
 
     // Call tokensumInitial after testTokens
-    await this.tokenOwner( );
+    // await this.tokenOwner( );
 
     // Now create yuanWallet after token creation so it can access the created tokens
     this.yuanWallet = await Wallet.fromKeysURL(
@@ -46,7 +47,7 @@ class RemoteFromAddressTests extends RemoteTest {
 
     this.userkeys.push(ECKey.createNewKey());
     this.userkeys.push(ECKey.createNewKey());
- 
+
     await this.doUserPay();
   }
 
@@ -54,11 +55,14 @@ class RemoteFromAddressTests extends RemoteTest {
     await this.payKeys();
     // Add a delay to ensure the payments to the new keys are confirmed before trying to spend from them
     await new Promise((resolve) => setTimeout(resolve, 2000));
- 
+
     this.checkBalance(this.tokenid, this.userkeys);
-    
-    this.checkBalance(NetworkParameters.BIGTANGLE_TOKENID_STRING, this.userkeys);
-    
+
+    this.checkBalance(
+      NetworkParameters.BIGTANGLE_TOKENID_STRING,
+      this.userkeys
+    );
+
     this.sell(this.userkeys);
 
     // Only attempt to buy tickets if there are adequate funds
@@ -75,26 +79,18 @@ class RemoteFromAddressTests extends RemoteTest {
       this.contextRoot
     );
 
-    // Attempt to buy yuan tokens using native token as payment - let the wallet handle UTXO selection
-    for (const accountKey of keys) {
-      try {
-        // Now purchase yuan tokens using native token as payment
-        const bs = await w.buyOrder(
-          null,
-          this.tokenid,           // tokenid to buy (yuan token)
-          BigInt(100),            // amount of yuan tokens to buy
-          BigInt(2),              // price per yuan token
-          null,                   // from address
-          null,                   // to address
-          NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
-          true                    // is buy order
-        );
-        console.log(`Buy order result: ${bs ? bs.toString() : 'null'}`);
-      } catch (error) {
-        console.error(`Failed to buy tickets for key: ${(error as Error).message}`);
-        // Don't fail the test if buying tickets fails for this key, just continue with the next
-      }
-    }
+    // Now purchase yuan tokens using native token as payment
+    const bs = await w.buyOrder(
+      null,
+      this.tokenid, // tokenid to buy (yuan token)
+      BigInt(100), // amount of yuan tokens to buy
+      BigInt(2), // price per yuan token
+      null, // from address
+      null, // to address
+      NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
+      true // is buy order
+    );
+    console.log(`Buy order result: ${bs ? bs.toString() : "null"}`);
   }
 
   /*
@@ -136,10 +132,7 @@ class RemoteFromAddressTests extends RemoteTest {
     }
   }
 
-  // This method appears to be Java code that was incorrectly added
-  // It should either be removed or properly implemented in TypeScript
-  // For now, removing this method as it contains Java syntax
-
+ 
   public async testTokens() {
     // Send native tokens to yuanToken key for fees first
     await this.payBigTo(
@@ -161,7 +154,6 @@ class RemoteFromAddressTests extends RemoteTest {
       BigInt(10000000)
     );
   }
-
 
   public async tokenOwner() {
     try {
@@ -216,8 +208,6 @@ class RemoteFromAddressTests extends RemoteTest {
     amount: bigint
   ): Promise<void> {
     // Calculate the token ID as a hash of the public key (this is the standard way tokens are identified)
-
-
 
     await this.createToken(
       key,
@@ -318,31 +308,36 @@ class RemoteFromAddressTests extends RemoteTest {
     let targetUtxo: UTXO | null = null;
 
     for (const utxo of utxos) {
-      if (
-       tokenid === utxo.getTokenId()
-      ) {
+      if (tokenid === utxo.getTokenId()) {
         targetUtxo = utxo;
         break;
       }
     }
 
     // Only perform assertions if we found the target UTXO
-    if (targetUtxo) {
-      console.debug(targetUtxo.toString());
-      expect(targetUtxo.getAddress()).not.toBeNull();
-      expect(targetUtxo.getAddress()).not.toBe("");
-    } else {
-      // If we don't find the expected UTXO, we don't fail the test as the environment
-      // might not have the expected balances during integration testing
-      console.debug(`No UTXO found for token ${tokenid} and keys`);
-    }
+
+    expect(targetUtxo).not.toBeNull();
   }
 
   protected async sell(keys: ECKey[]): Promise<void> {
-    // Placeholder implementation for sell method
-    // This method should implement token selling functionality
-    console.log(`Selling tokens for ${keys.length} keys`);
-    // Add actual sell implementation here when available
+ const w = await Wallet.fromKeysURL(
+      this.networkParameters,
+      keys,
+      this.contextRoot
+    );
+
+    // Now purchase yuan tokens using native token as payment
+    const bs = await w.sellOrder(
+      null,
+      this.tokenid, // tokenid to buy (yuan token)
+      BigInt(100), // amount of yuan tokens to buy
+      BigInt(2), // price per yuan token
+      null, // from address
+      null, // to address
+      NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
+      true // is buy order
+    );
+    console.log(`sell order result: ${bs ? bs.toString() : "null"}`);
   }
 }
 
