@@ -1,4 +1,4 @@
-import { TestParams } from "net/bigtangle/params/TestParams";
+import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 import { Transaction } from "../../src/net/bigtangle/core/Transaction";
 import { VarInt } from "../../src/net/bigtangle/core/VarInt";
 import { describe, test } from "vitest";

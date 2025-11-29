@@ -8,7 +8,7 @@ import { Address } from "../../src/net/bigtangle/core/Address";
 import { KeyCrypterScrypt } from "../../src/net/bigtangle/crypto/KeyCrypterScrypt";
 import { KeyCrypter } from "../../src/net/bigtangle/crypto/KeyCrypter";
 
-import { TestParams } from "net/bigtangle/params/TestParams";
+import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 import { describe, beforeEach, test, expect } from "vitest";
 
 describe("ECKeyTest", () => {

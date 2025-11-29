@@ -13,7 +13,7 @@ import { TransactionOutPoint } from '../../src/net/bigtangle/core/TransactionOut
 import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
-import { UtilParam } from 'net/bigtangle/params/UtilParam';
+import { UtilParam } from '../../src/net/bigtangle/params/UtilParam';
 
 describe('TransactionSerializationTest', () => {
     let params: NetworkParameters;
