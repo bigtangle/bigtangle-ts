@@ -1,50 +1,29 @@
-# bigtangle-ts
+# BigTangle-ts Library
 
-A TypeScript library for blockchain operations based on Bigtangle.
+A TypeScript library for blockchain operations.
+
+## Features
+- Blockchain transaction handling
+- Cryptographic operations
+- Wallet functionality
+- Smart contract interactions
 
 ## Installation
 
 ```bash
-npm install bigtangle-ts
-```
-
-Or with yarn:
-
-```bash
-yarn add bigtangle-ts
+npm install @bigtangle/bigtangle-ts
 ```
 
 ## Usage
 
 ```typescript
-import { Transaction, Address, ECKey } from 'bigtangle-ts';
+import { Address, Transaction, ECKey } from '@bigtangle/bigtangle-ts';
 
 // Example usage
 const key = new ECKey();
 const address = new Address(key);
-// ... more code
+
+// Create and sign transactions
+const tx = new Transaction();
+// ...
 ```
-
-## Development
-
-To build the library:
-
-```bash
-npm run build
-```
-
-To run tests:
-
-```bash
-npm test
-```
-
-To lint the code:
-
-```bash
-npm run lint
-```
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file.
