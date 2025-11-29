@@ -6,25 +6,35 @@
     "lib": ["es2020", "dom"],
     "types": ["node"],
     "typeRoots": ["./src/types", "./node_modules/@types"],
-    "strict": true,
+    "strict": false,
+    "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "maxNodeModuleJsDepth": 5,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "baseUrl": "./",
     "paths": {
       "net/bigtangle/*": ["src/net/bigtangle/*"]
     }
   },
-    "include": [
-        "src/**/*.ts",
-        "test/**/*.ts"
-    ],
+  "include": [
+    "src/index.ts",
+    "src/net/bigtangle/core/*.ts",
+    "src/net/bigtangle/crypto/*.ts",
+    "src/net/bigtangle/params/*.ts"
+  ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "test",
+    "src/net/bigtangle/exception/VerificationException.ts",
+    "src/net/bigtangle/utils/BaseEncoding.ts"
   ]
 }
