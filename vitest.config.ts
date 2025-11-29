@@ -8,11 +8,11 @@ export default defineConfig({
     globals: true,
     include: ['**/*Test.ts', '**/*test*.ts', '**/*.spec.ts'],
     exclude: [
-      '**/testintegration/RemoteTest.ts', 
+      '**/testintegration/RemoteTest.ts',
       '**/Abstract*.ts',
       'vitest.config.ts',
       'node_modules/**'
     ],
   },
-  
+
 });

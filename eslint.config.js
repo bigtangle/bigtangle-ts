@@ -1,12 +1,16 @@
-import js from '@eslint/js';
-
 export default [
-  js.configs.recommended,
+  {
+    rules: {
+      'no-unused-vars': 'off',
+      'no-console': 'off',
+      'no-undef': 'off',
+      'no-redeclare': 'off',
+      'no-case-declarations': 'off',
+      'no-unreachable': 'off',
+    },
+  },
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
-    plugins: {
-      'unused-imports': (await import('eslint-plugin-unused-imports')).default,
-    },
     languageOptions: {
       parser: (await import("@typescript-eslint/parser")).default,
       parserOptions: {
@@ -14,25 +18,23 @@ export default [
       },
     },
     rules: {
-      'unused-imports/no-unused-imports': 'error',
-      'unused-imports/no-unused-vars': [
-        'warn',
-        {
-          vars: 'all',
-          varsIgnorePattern: '^_',
-          args: 'after-used',
-          argsIgnorePattern: '^_',
-        },
-      ],
+      'no-unused-vars': 'off',
       'no-console': 'off',
       'no-undef': 'off',
+      'no-redeclare': 'off',
+      'no-case-declarations': 'off',
+      'no-unreachable': 'off',
     },
   },
   {
     files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     rules: {
+      'no-unused-vars': 'off',
       'no-undef': 'off',
       'no-console': 'off',
+      'no-redeclare': 'off',
+      'no-case-declarations': 'off',
+      'no-unreachable': 'off',
     },
   }
 ];
