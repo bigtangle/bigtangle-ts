@@ -54,7 +54,7 @@ class RemoteFromAddressTests extends RemoteTest {
   private async doUserPay() {
     await this.payKeys();
     // Add a delay to ensure the payments to the new keys are confirmed before trying to spend from them
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 20000));
 
     this.checkBalance(this.tokenid, this.userkeys);
 

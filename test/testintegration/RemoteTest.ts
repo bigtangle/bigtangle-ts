@@ -309,7 +309,7 @@ export abstract class RemoteTest {
         buffer
       );
 
-      console.debug(`Received response (first 200 chars): ${resp.substring(0, 200)}...`);
+   //   console.debug(`Received response (first 200 chars): ${resp.substring(0, 200)}...`);
 
       if (!resp || resp.trim().length === 0) {
         console.error('Received empty response from server');
