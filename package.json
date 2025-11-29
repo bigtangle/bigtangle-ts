@@ -1,14 +1,14 @@
 {
-  "name": "bigtangle-ts",
+  "name": "@bigtangle/bigtangle-ts",
   "version": "1.0.0",
   "description": "A TypeScript library for blockchain operations",
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/src/index.js",
-      "types": "./dist/src/index.d.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "keywords": [
@@ -18,16 +18,16 @@
     "typescript",
     "bigtangle"
   ],
-  "author": "Your Name",
+  "author": "BigTangle Contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/bigtangle-ts.git"
+    "url": "https://github.com/bigtangle/bigtangle-ts.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/bigtangle-ts/issues"
+    "url": "https://github.com/bigtangle/bigtangle-ts/issues"
   },
-  "homepage": "https://github.com/your-username/bigtangle-ts#readme",
+  "homepage": "https://github.com/bigtangle/bigtangle-ts#readme",
   "devDependencies": {
     "@types/asn1js": "^3.0.6",
     "@types/elliptic": "^6.4.18",
@@ -49,7 +49,7 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "build": "tsc --skipLibCheck --noEmit",
+    "build": "tsc --skipLibCheck",
     "test": "vitest run --reporter=verbose",
     "lint": "eslint . --ext .ts,.js --fix --ignore-pattern 'debug*.ts' --ignore-pattern 'test/**' --ignore-pattern 'dist/**' --ignore-pattern '*.mjs' --ignore-pattern 'temp_method.ts'"
   },
