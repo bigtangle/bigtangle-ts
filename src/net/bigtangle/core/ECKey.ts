@@ -29,10 +29,17 @@ export class ECKey {
   // Not using CURVE from secp256k1 library directly
 
   public static createNewKey(compressed: boolean = true): ECKey {
-   
+
     // Using crypto to generate random bytes instead
     const randomBytes = new Uint8Array(32);
-    crypto.getRandomValues(randomBytes);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(randomBytes);
+    } else {
+      // Fallback for environments without crypto
+      for (let i = 0; i < 32; i++) {
+        randomBytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
     const hex = Utils.HEX.encode(randomBytes);
     const privateKey = BigInt('0x' + hex);
     return ECKey.fromPrivate(privateKey, compressed);

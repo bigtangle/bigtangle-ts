@@ -1,5 +1,5 @@
 import { MessageDigestSpi } from './MessageDigestSpi';
-import { createHash } from 'crypto';
+import { sha256 } from '@noble/hashes/sha256';
 
 export class SHA256DigestSpi extends MessageDigestSpi {
     private hashBuffer: Uint8Array[] = [];
@@ -13,11 +13,15 @@ export class SHA256DigestSpi extends MessageDigestSpi {
     }
     
     protected engineDigest(): Uint8Array {
-        const hash = createHash('sha256');
+        // Flatten all buffers into a single Uint8Array
+        const totalLength = this.hashBuffer.reduce((sum, buf) => sum + buf.length, 0);
+        const combinedBuffer = new Uint8Array(totalLength);
+        let offset = 0;
         for (const buffer of this.hashBuffer) {
-            hash.update(buffer);
+            combinedBuffer.set(buffer, offset);
+            offset += buffer.length;
         }
-        return hash.digest();
+        return sha256(combinedBuffer);
     }
     
     protected engineReset(): void {

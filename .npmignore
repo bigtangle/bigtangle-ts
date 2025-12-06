@@ -1,0 +1,3 @@
+# Don't ignore the dist folder, as it contains compiled code
+# Other files to ignore can be added here, but we want to include dist/
+!dist/

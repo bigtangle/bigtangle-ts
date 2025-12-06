@@ -25,7 +25,7 @@ import { ECPoint } from '../core/ECPoint';
 import { HDDerivationException } from './HDDerivationException';
 import { HDUtils } from './HDUtils';
 
-import { randomBytes } from 'crypto';
+import { Buffer } from 'buffer';
 
 /**
  * Implementation of the <a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki">BIP 32</a>
@@ -48,8 +48,24 @@ export class HDKeyDerivation {
         return new Uint8Array(bytes);
     }
 
+    // Helper function to generate random bytes using Web Crypto API or fallback
+    private static randomBytes(size: number): Uint8Array {
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const array = new Uint8Array(size);
+            crypto.getRandomValues(array);
+            return array;
+        } else {
+            // Fallback for environments without crypto
+            const array = new Array(size);
+            for (let i = 0; i < size; i++) {
+                array[i] = Math.floor(Math.random() * 256);
+            }
+            return new Uint8Array(array);
+        }
+    }
+
     // Some arbitrary random number. Doesn't matter what it is.
-    private static readonly RAND_INT: bigint = BigInt('0x' + HDKeyDerivation.bufferToHex(randomBytes(32)));
+    private static readonly RAND_INT: bigint = BigInt('0x' + HDKeyDerivation.bufferToHex(HDKeyDerivation.randomBytes(32)));
 
     private constructor() { }
 

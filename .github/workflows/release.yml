@@ -41,6 +41,13 @@ jobs:
     - name: Check package version
       run: echo "Package version is $(node -p "require('./package.json').version")"
 
+    - name: Publish to npm
+      run: |
+        npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
+        npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
     - name: Configure npm for GitHub Packages
       run: |
         npm config set "@bigtangle:registry" "https://npm.pkg.github.com"

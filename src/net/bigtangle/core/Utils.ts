@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
-import crypto from "crypto";
 import base58 from "bs58";
+import { sha256 } from "@noble/hashes/sha256";
+import { ripemd160 } from "@noble/hashes/ripemd160";
 import { BaseEncoding } from "../utils/BaseEncoding";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils as UtilsHelper } from "../utils/Utils";
@@ -25,8 +26,10 @@ export class Utils {
 
   public static doubleDigest(buffer: Buffer | Uint8Array): Buffer {
     const inputBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-    const first = crypto.createHash("sha256").update(inputBuffer).digest();
-    return crypto.createHash("sha256").update(first).digest();
+    const inputBytes = new Uint8Array(inputBuffer);
+    const first = sha256(inputBytes);
+    const second = sha256(first);
+    return Buffer.from(second);
   }
 
   public static arraysEqual(a: Buffer, b: Buffer): boolean {
@@ -219,15 +222,13 @@ export class Utils {
    */
   public static sha256hash160(input: Buffer | Uint8Array): Buffer {
     // First apply SHA256
-    const sha256Hash = crypto.createHash("sha256").update(input).digest();
+    const inputBytes = Buffer.isBuffer(input) ? new Uint8Array(input) : input;
+    const sha256Hash = sha256(inputBytes);
 
     // Then apply RIPEMD160 to the SHA256 result
-    const ripemd160Hash = crypto
-      .createHash("ripemd160")
-      .update(sha256Hash)
-      .digest();
+    const ripemd160Hash = ripemd160(sha256Hash);
 
-    return ripemd160Hash;
+    return Buffer.from(ripemd160Hash);
   }
 
   /**

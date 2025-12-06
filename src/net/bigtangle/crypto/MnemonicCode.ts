@@ -1,5 +1,5 @@
-import * as crypto from 'crypto';
 import { pbkdf2 } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { MnemonicException } from './MnemonicException';
 import bip39Wordlist from './bip39-wordlist';
@@ -79,7 +79,7 @@ export class MnemonicCode {
         }
 
         // Take the digest of the entropy.
-        const hash = crypto.createHash('sha256').update(entropy).digest();
+        const hash = sha256(entropy);
         const hashBits = MnemonicCode.bytesToBits(hash);
 
         // Check all the checksum bits.
@@ -105,7 +105,7 @@ export class MnemonicCode {
 
         const entropyBits = MnemonicCode.bytesToBits(entropy);
         const checksumLengthBits = entropyBits.length / 32;
-        const hash = crypto.createHash('sha256').update(entropy).digest();
+        const hash = sha256(entropy);
         const hashBits = MnemonicCode.bytesToBits(hash);
         const checksumBits = hashBits.substring(0, checksumLengthBits);
 
