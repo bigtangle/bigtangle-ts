@@ -21,7 +21,9 @@ export class SHA256DigestSpi extends MessageDigestSpi {
             combinedBuffer.set(buffer, offset);
             offset += buffer.length;
         }
-        return sha256(combinedBuffer);
+        const hashResult = sha256(combinedBuffer);
+        // Return as Buffer to maintain compatibility with existing tests
+        return Buffer.from(hashResult);
     }
     
     protected engineReset(): void {
