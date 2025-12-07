@@ -19,7 +19,6 @@ jobs:
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
-          scope: '@bigtangle'
       - run: npm install
       - run: npm run build
       - run: npm test

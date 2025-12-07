@@ -1,5 +1,5 @@
 {
-  "name": "@bigtangle/bigtangle-ts",
+  "name": "bigtangle-ts",
   "version": "1.0.0",
   "description": "A TypeScript library for blockchain operations",
   "main": "./dist/index.js",
