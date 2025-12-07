@@ -4,6 +4,17 @@ import { EncryptionType } from './EncryptableItem';
 import { KeyParameter, KeyCrypter } from './KeyCrypter';
 import { EncryptedData } from './EncryptedData';
 
+// Import Node.js crypto module for random number generation
+import * as nodeCrypto from 'crypto';
+
+// Add crypto polyfill for Node.js environments
+declare global {
+  var crypto: {
+    getRandomValues<T extends Uint8Array>(array: T): T;
+    [key: string]: any;
+  };
+}
+
 export interface ScryptParameters {
   N: number;
   r: number;
@@ -34,7 +45,14 @@ export class KeyCrypterScrypt implements KeyCrypter {
 
   static randomSalt(): Uint8Array {
     const array = new Uint8Array(KeyCrypterScrypt.SALT_LENGTH);
-    crypto.getRandomValues(array);
+
+    // Check if we're in a browser environment with crypto available
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(array);
+    } else {
+      // Use Node.js crypto module (imported at the top)
+      nodeCrypto.randomFillSync(array);
+    }
     return array;
   }
 
@@ -49,9 +67,16 @@ export class KeyCrypterScrypt implements KeyCrypter {
   async encrypt(plainBytes: Uint8Array, aesKey: KeyParameter): Promise<EncryptedData> {
     const keyBytes = aesKey.key;
     const iv = new Uint8Array(KeyCrypterScrypt.BLOCK_LENGTH);
-    crypto.getRandomValues(iv);
 
-    // Use Web Crypto API for AES-CBC encryption
+    // Generate random IV using the same approach as randomSalt
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(iv);
+    } else {
+      // Use Node.js crypto module (imported at the top)
+      nodeCrypto.randomFillSync(iv);
+    }
+
+    // Use Web Crypto API for AES-CBC encryption when available
     if (typeof crypto !== 'undefined' && crypto.subtle) {
       try {
         // Import the key for Web Crypto API
@@ -72,13 +97,21 @@ export class KeyCrypterScrypt implements KeyCrypter {
 
         return new EncryptedData(iv, new Uint8Array(encryptedBuffer));
       } catch (e) {
-        // Throw the expected error message for compatibility
+        // Fallback implementation - this is a simpler approach that may not be as secure
+        // but maintains compatibility for environments without Web Crypto API
         throw new Error('bad decrypt');
       }
     } else {
-      // Fallback implementation - this is a simpler approach that may not be as secure
-      // but maintains compatibility for environments without Web Crypto API
-      throw new Error('bad decrypt');
+      // Fallback to Node.js crypto for AES-CBC encryption
+      try {
+        const cipher = nodeCrypto.createCipheriv('aes-256-cbc', keyBytes, iv);
+        let encrypted = cipher.update(Buffer.from(plainBytes));
+        const final = cipher.final();
+        const encryptedBuffer = Buffer.concat([encrypted, final]);
+        return new EncryptedData(iv, new Uint8Array(encryptedBuffer));
+      } catch (e) {
+        throw new Error('bad decrypt');
+      }
     }
   }
 
@@ -111,9 +144,16 @@ export class KeyCrypterScrypt implements KeyCrypter {
         throw new Error('bad decrypt');
       }
     } else {
-      // Fallback implementation - this is a simpler approach that may not be as secure
-      // but maintains compatibility for environments without Web Crypto API
-      throw new Error('bad decrypt');
+      // Fallback to Node.js crypto for AES-CBC decryption
+      try {
+        const decipher = nodeCrypto.createDecipheriv('aes-256-cbc', keyBytes, iv);
+        let decrypted = decipher.update(Buffer.from(encryptedBytes));
+        const final = decipher.final();
+        const decryptedBuffer = Buffer.concat([decrypted, final]);
+        return new Uint8Array(decryptedBuffer);
+      } catch (e) {
+        throw new Error('bad decrypt');
+      }
     }
   }
 
