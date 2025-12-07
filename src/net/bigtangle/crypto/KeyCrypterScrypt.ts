@@ -7,13 +7,6 @@ import { EncryptedData } from './EncryptedData';
 // Import Node.js crypto module for random number generation
 import * as nodeCrypto from 'crypto';
 
-// Add crypto polyfill for Node.js environments
-declare global {
-  var crypto: {
-    getRandomValues<T extends Uint8Array>(array: T): T;
-    [key: string]: any;
-  };
-}
 
 export interface ScryptParameters {
   N: number;
