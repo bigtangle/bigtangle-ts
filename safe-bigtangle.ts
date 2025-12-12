@@ -2,7 +2,7 @@
  * Safe Bigtangle Access Module
  * 
  * This module provides safe access patterns to work with bigtangle-ts classes
- * while avoiding potential issues. 
+ * while avoiding potential issues.
  * 
  * NOTE: The library's circular dependency issues have been significantly reduced
  * by moving static constants to the CoinConstants class with lazy initialization.
@@ -86,7 +86,7 @@ export const getSafeNetworkParameters = async () => {
  * @param satoshis The amount in satoshis
  * @param tokenid Optional token ID buffer or string
  */
-export const createSafeCoin = async (satoshis: bigint, tokenid?: Buffer | string) => {
+export const createSafeCoin = async (satoshis, tokenid) => {
   const Coin = await getSafeCoin();
   return new Coin(satoshis, tokenid);
 };
@@ -98,7 +98,7 @@ export const createSafeCoin = async (satoshis: bigint, tokenid?: Buffer | string
  * @param value Coin value
  * @param scriptBytes Script bytes
  */
-export const createSafeTransactionOutput = async (params: any, parent: any, value: any, scriptBytes: Uint8Array) => {
+export const createSafeTransactionOutput = async (params, parent, value, scriptBytes) => {
   const TransactionOutput = await getSafeTransactionOutput();
   return new TransactionOutput(params, parent, value, scriptBytes);
 };
@@ -108,7 +108,7 @@ export const createSafeTransactionOutput = async (params: any, parent: any, valu
  * @param tokenid Token ID string
  * @param tokenname Token name string
  */
-export const createSafeToken = async (tokenid?: string, tokenname?: string) => {
+export const createSafeToken = async (tokenid, tokenname) => {
   const Token = await getSafeToken();
   return new Token(tokenid, tokenname);
 };

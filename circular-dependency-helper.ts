@@ -22,66 +22,25 @@
 import { BigtangleLazyLoader } from './bigtangle-wrapper';
 
 /**
- * Configuration options for the circular dependency helper
- */
-interface CircularDependencyHelperConfig {
-  /** Whether to cache loaded classes to avoid repeated dynamic imports */
-  cacheClasses?: boolean;
-  /** Timeout for dynamic import operations in milliseconds */
-  importTimeoutMs?: number;
-}
-
-/**
- * Result of a safe coin creation operation
- */
-interface SafeCoinResult {
-  success: boolean;
-  coin?: any;
-  error?: Error;
-}
-
-/**
- * Result of a safe transaction output creation operation
- */
-interface SafeTransactionOutputResult {
-  success: boolean;
-  transactionOutput?: any;
-  error?: Error;
-}
-
-/**
  * Helper class to safely work with bigtangle-ts classes
  */
 export class CircularDependencyHelper {
-  private static instance: CircularDependencyHelper;
-  private config: CircularDependencyHelperConfig;
-  private classCache: Map<string, any> = new Map();
-
-  /**
-   * Get singleton instance of the helper
-   */
-  public static getInstance(config?: CircularDependencyHelperConfig): CircularDependencyHelper {
-    if (!CircularDependencyHelper.instance) {
-      CircularDependencyHelper.instance = new CircularDependencyHelper(config);
-    }
-    return CircularDependencyHelper.instance;
-  }
-
   /**
    * Create a new instance of the helper
    */
-  constructor(config?: CircularDependencyHelperConfig) {
+  constructor(config) {
     this.config = {
       cacheClasses: true,
       importTimeoutMs: 10000,
-      ...config,
+      ...(config || {}),
     };
+    this.classCache = new Map();
   }
 
   /**
    * Safely get the Coin class
    */
-  public async getSafeCoin(): Promise<any> {
+  async getSafeCoin() {
     const cacheKey = 'Coin';
     if (this.config.cacheClasses && this.classCache.has(cacheKey)) {
       return this.classCache.get(cacheKey);
@@ -97,7 +56,7 @@ export class CircularDependencyHelper {
   /**
    * Safely get the CoinConstants class
    */
-  public async getSafeCoinConstants(): Promise<any> {
+  async getSafeCoinConstants() {
     const cacheKey = 'CoinConstants';
     if (this.config.cacheClasses && this.classCache.has(cacheKey)) {
       return this.classCache.get(cacheKey);
@@ -113,7 +72,7 @@ export class CircularDependencyHelper {
   /**
    * Safely get the TransactionOutput class 
    */
-  public async getSafeTransactionOutput(): Promise<any> {
+  async getSafeTransactionOutput() {
     const cacheKey = 'TransactionOutput';
     if (this.config.cacheClasses && this.classCache.has(cacheKey)) {
       return this.classCache.get(cacheKey);
@@ -129,7 +88,7 @@ export class CircularDependencyHelper {
   /**
    * Safely get the UtilGeneseBlock class
    */
-  public async getSafeUtilGeneseBlock(): Promise<any> {
+  async getSafeUtilGeneseBlock() {
     const cacheKey = 'UtilGeneseBlock';
     if (this.config.cacheClasses && this.classCache.has(cacheKey)) {
       return this.classCache.get(cacheKey);
@@ -145,7 +104,7 @@ export class CircularDependencyHelper {
   /**
    * Safely get the Token class
    */
-  public async getSafeToken(): Promise<any> {
+  async getSafeToken() {
     const cacheKey = 'Token';
     if (this.config.cacheClasses && this.classCache.has(cacheKey)) {
       return this.classCache.get(cacheKey);
@@ -163,13 +122,13 @@ export class CircularDependencyHelper {
    * @param satoshis The amount in satoshis
    * @param tokenid Optional token ID buffer or string
    */
-  public async createSafeCoin(satoshis: bigint, tokenid?: Buffer | string): Promise<SafeCoinResult> {
+  async createSafeCoin(satoshis, tokenid) {
     try {
       const Coin = await this.getSafeCoin();
       const coin = new Coin(satoshis, tokenid);
-      return { success: true, coin };
+      return { success: true, coin: coin };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: error };
     }
   }
 
@@ -180,18 +139,13 @@ export class CircularDependencyHelper {
    * @param value Coin value
    * @param scriptBytes Script bytes
    */
-  public async createSafeTransactionOutput(
-    params: any, 
-    parent: any, 
-    value: any, 
-    scriptBytes: Uint8Array
-  ): Promise<SafeTransactionOutputResult> {
+  async createSafeTransactionOutput(params, parent, value, scriptBytes) {
     try {
       const TransactionOutput = await this.getSafeTransactionOutput();
       const transactionOutput = new TransactionOutput(params, parent, value, scriptBytes);
-      return { success: true, transactionOutput };
+      return { success: true, transactionOutput: transactionOutput };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: error };
     }
   }
 
@@ -200,13 +154,13 @@ export class CircularDependencyHelper {
    * @param tokenid Token ID string
    * @param tokenname Token name string
    */
-  public async createSafeToken(tokenid?: string, tokenname?: string): Promise<any> {
+  async createSafeToken(tokenid, tokenname) {
     try {
       const Token = await this.getSafeToken();
       const token = new Token(tokenid, tokenname);
-      return { success: true, token };
+      return { success: true, token: token };
     } catch (error) {
-      return { success: false, error: error as Error };
+      return { success: false, error: error };
     }
   }
 
@@ -214,7 +168,7 @@ export class CircularDependencyHelper {
    * Create a genesis block safely using the UtilGeneseBlock class
    * @param params Network parameters
    */
-  public async createSafeGenesisBlock(params: any): Promise<any> {
+  async createSafeGenesisBlock(params) {
     try {
       const UtilGeneseBlock = await this.getSafeUtilGeneseBlock();
       return UtilGeneseBlock.createGenesis(params);
@@ -226,14 +180,14 @@ export class CircularDependencyHelper {
   /**
    * Clear the class cache to free up memory
    */
-  public clearCache(): void {
+  clearCache() {
     this.classCache.clear();
   }
 
   /**
    * Get the number of cached classes
    */
-  public getCacheSize(): number {
+  getCacheSize() {
     return this.classCache.size;
   }
 
@@ -241,7 +195,7 @@ export class CircularDependencyHelper {
    * Initialize common classes used together to avoid multiple imports
    * This is useful when you know you'll be using multiple classes together
    */
-  public async initializeCommonClasses(): Promise<{ Coin: any, CoinConstants: any, TransactionOutput: any, Token: any }> {
+  async initializeCommonClasses() {
     const [Coin, CoinConstants, TransactionOutput, Token] = await Promise.all([
       this.getSafeCoin(),
       this.getSafeCoinConstants(),
@@ -256,9 +210,7 @@ export class CircularDependencyHelper {
    * Perform a safe operation that involves multiple bigtangle classes
    * This ensures all classes are loaded properly before execution
    */
-  public async performSafeOperation<T>(
-    operation: (classes: { Coin: any; CoinConstants: any; TransactionOutput: any; UtilGeneseBlock: any; Token: any }) => Promise<T>
-  ): Promise<T> {
+  async performSafeOperation(operation) {
     const classes = await this.initializeCommonClasses();
     const UtilGeneseBlock = await this.getSafeUtilGeneseBlock();
     
@@ -272,7 +224,7 @@ export class CircularDependencyHelper {
    * Factory method to get a Coin constant safely
    * @param constantName Name of the constant ('ZERO', 'COIN', 'SATOSHI', etc.)
    */
-  public async getCoinConstant(constantName: 'ZERO' | 'COIN' | 'SATOSHI' | 'NEGATIVE_SATOSHI' | 'FEE_DEFAULT'): Promise<any> {
+  async getCoinConstant(constantName) {
     try {
       const CoinConstants = await this.getSafeCoinConstants();
       return CoinConstants[constantName];
@@ -284,12 +236,7 @@ export class CircularDependencyHelper {
   /**
    * Helper to create a transaction output from an address safely
    */
-  public async createSafeTransactionOutputFromAddress(
-    params: any,
-    parent: any,
-    value: any,
-    to: any
-  ): Promise<any> {
+  async createSafeTransactionOutputFromAddress(params, parent, value, to) {
     try {
       const TransactionOutput = await this.getSafeTransactionOutput();
       return TransactionOutput.fromAddress(params, parent, value, to);
@@ -301,12 +248,7 @@ export class CircularDependencyHelper {
   /**
    * Helper to create a transaction output from a coin key safely
    */
-  public async createSafeTransactionOutputFromCoinKey(
-    params: any,
-    parent: any,
-    value: any,
-    to: any
-  ): Promise<any> {
+  async createSafeTransactionOutputFromCoinKey(params, parent, value, to) {
     try {
       const TransactionOutput = await this.getSafeTransactionOutput();
       return TransactionOutput.fromCoinKey(params, parent, value, to);
@@ -318,7 +260,7 @@ export class CircularDependencyHelper {
   /**
    * Creates a safe Coin value using valueOf method
    */
-  public async createSafeCoinValueOf(satoshis: bigint, tokenid?: Buffer): Promise<any> {
+  async createSafeCoinValueOf(satoshis, tokenid) {
     try {
       const Coin = await this.getSafeCoin();
       return Coin.valueOf(satoshis, tokenid);
@@ -330,7 +272,7 @@ export class CircularDependencyHelper {
   /**
    * Creates a safe Coin value using valueOfString method
    */
-  public async createSafeCoinValueOfString(satoshis: bigint, tokenid?: string): Promise<any> {
+  async createSafeCoinValueOfString(satoshis, tokenid) {
     try {
       const Coin = await this.getSafeCoin();
       return Coin.valueOfString(satoshis, tokenid);
@@ -347,7 +289,7 @@ export default CircularDependencyHelper;
  * 
  * import { CircularDependencyHelper } from './circular-dependency-helper';
  * 
- * const helper = CircularDependencyHelper.getInstance();
+ * const helper = new CircularDependencyHelper();
  * 
  * // Create a coin safely
  * const coinResult = await helper.createSafeCoin(100000n);
