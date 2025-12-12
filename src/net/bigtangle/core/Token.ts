@@ -2,9 +2,9 @@ import { SpentBlock } from "./SpentBlock";
 import { Sha256Hash } from "./Sha256Hash";
 import { TokenType } from "./TokenType";
 import { TokenKeyValues } from "./TokenKeyValues";
-import { NetworkParameters } from "../params/NetworkParameters";
+ 
 import { KeyValue } from "./KeyValue";
-import { UtilGeneseBlock } from "./UtilGeneseBlock";
+ 
 import { JsonProperty } from "jackson-js";
 
 
@@ -262,35 +262,7 @@ export class Token extends SpentBlock {
     tokens.domainNameBlockHash = domainNameBlockHash;
     return tokens;
   }
-
-  public static genesisToken(params: NetworkParameters): Token {
-    const genesisToken = Token.buildSimpleTokenInfo(
-      true,
-      null,
-      NetworkParameters.BIGTANGLE_TOKENID_STRING,
-      NetworkParameters.BIGTANGLE_TOKENNAME,
-      "BigTangle Currency",
-      1,
-      0,
-      BigInt(NetworkParameters.BigtangleCoinTotal),
-      true,
-      null,
-      false,
-      null,
-      null,
-      TokenType.currency,
-      NetworkParameters.BIGTANGLE_DECIMAL,
-      null,
-      null
-    );
-    const genesisBlock = UtilGeneseBlock.createGenesis(params);
-    if (genesisBlock !== null && genesisBlock !== undefined) {
-      genesisToken.setBlockHash(genesisBlock.getHash());
-    }
-    genesisToken.setTokentype(TokenType.currency);
-    return genesisToken;
-  }
-
+ 
   public static buildSimpleTokenInfo2(
     confirmed: boolean,
     prevblockhash: Sha256Hash | null,

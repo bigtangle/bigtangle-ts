@@ -26,6 +26,7 @@ import { NetworkParameters } from "../params/NetworkParameters";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
 import { Coin } from "./Coin";
+import { CoinConstants } from "./CoinConstants";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils } from "./Utils";
 import { VarInt } from "./VarInt";
@@ -95,7 +96,7 @@ export class TransactionOutput extends ChildMessage {
     // SIGHASH_SINGLE signatures, so unfortunately we have to allow that
     // here.
     checkArgument(
-      value.signum() >= 0 || value.equals(Coin.NEGATIVE_SATOSHI),
+      value.signum() >= 0 || value.equals(CoinConstants.NEGATIVE_SATOSHI),
       "Negative values not allowed"
     );
     // checkArgument(!params.hasMaxMoney() ||

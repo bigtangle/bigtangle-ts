@@ -5,7 +5,8 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Sha256Hash } from './Sha256Hash';
 import { BlockType } from './BlockType';
 import { Coin } from './Coin';
- 
+import { CoinConstants } from './CoinConstants';
+
 import { ECKey } from './ECKey';
 import { Utils } from './Utils';
 import { Script } from '../script/Script';

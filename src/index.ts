@@ -1,5 +1,19 @@
-// Main entry point for the bigtangle-ts library
-// Export core classes and types that users would typically need
+/**
+ * Main entry point for the bigtangle-ts library
+ *
+ * This library previously had circular dependency issues that manifested at
+ * runtime as "Cannot access 'Coin' before initialization" ReferenceErrors.
+ * These issues have been resolved by moving static constants to the
+ * CoinConstants class to avoid static initialization order problems.
+ *
+ * For safe usage of Coin constants, use CoinConstants instead of Coin static properties:
+ * - Use CoinConstants.ZERO instead of Coin.ZERO (if it still exists)
+ * - Use CoinConstants.COIN instead of Coin.COIN (if it still exists)
+ * - etc.
+ *
+ * This approach uses lazy initialization to avoid circular dependencies
+ * that occur during static module loading.
+ */
 
 // Core blockchain types
 export { Address } from './net/bigtangle/core/Address';
@@ -23,8 +37,9 @@ export { VarInt } from './net/bigtangle/core/VarInt';
 // Network parameters
 export { NetworkParameters } from './net/bigtangle/params/NetworkParameters';
 
-// Coin and monetary types
+// Coin and monetary types - constants are now in separate module
 export { Coin } from './net/bigtangle/core/Coin';
+export { CoinConstants } from './net/bigtangle/core/CoinConstants';
 export { Monetary } from './net/bigtangle/core/Monetary';
 
 // Other common types

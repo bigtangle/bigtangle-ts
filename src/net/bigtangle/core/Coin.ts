@@ -11,13 +11,6 @@ export class Coin implements IMonetary, IComparable<Coin> {
     .withShift(0)
     .withMinDecimals(0);
 
-  // Static constants
-  public static readonly ZERO: Coin = Coin.valueOfString(0n, "bc");
-  public static readonly COIN: Coin = Coin.valueOfString(1000000n, "bc");
-  public static readonly SATOSHI: Coin = Coin.valueOfString(1n, "bc");
-  public static readonly NEGATIVE_SATOSHI: Coin = Coin.valueOfString(-1n, "bc");
-  public static readonly FEE_DEFAULT: Coin = Coin.valueOfString(1000n, "bc");
-
   @JsonProperty() public value: bigint;
   @JsonProperty() public tokenid: Buffer;
 
@@ -112,7 +105,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
       throw new Error("Addition underflow");
     }
 
-  
+
     return new Coin(result, this.tokenid);
   }
 
@@ -125,7 +118,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
       throw new Error("Token IDs must match for subtraction");
     }
     const result = this.value - value.value;
-    
+
     // Check for overflow - if minuend is positive, subtrahend is negative, and result is negative, we overflowed
     if (this.value > 0n && value.value < 0n && result < 0n) {
       throw new Error("Subtraction overflow");
@@ -134,7 +127,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     if (this.value < 0n && value.value > 0n && result > 0n) {
       throw new Error("Subtraction underflow");
     }
-    
+
     if (
       result > BigInt(Number.MAX_SAFE_INTEGER) ||
       result < BigInt(Number.MIN_SAFE_INTEGER)
@@ -150,19 +143,19 @@ export class Coin implements IMonetary, IComparable<Coin> {
 
   public multiply(factor: bigint | number): Coin {
     if (typeof factor === "number") factor = BigInt(factor);
-    
+
     // Check for overflow before multiplication
     if (this.value !== 0n && factor !== 0n) {
       const result = this.value * factor;
-      
+
       // Check if we overflowed by seeing if division gives us back the original values
       if (result / factor !== this.value) {
         throw new Error("Multiplication overflow");
       }
-      
+
       return new Coin(result, this.tokenid);
     }
-    
+
     return new Coin(0n, this.tokenid);
   }
 
@@ -182,16 +175,16 @@ export class Coin implements IMonetary, IComparable<Coin> {
     if (divisor === 0n) {
       throw new Error("Division by zero");
     }
-    
+
     // Check for overflow before division
     const result = this.value / divisor;
-    
+
     // Check if we overflowed by seeing if multiplication gives us back the original value
     // This isn't perfect but catches most cases
     if (result * divisor !== this.value && this.value !== 0n) {
       throw new Error("Division result out of range");
     }
-    
+
     return new Coin(result, this.tokenid);
   }
 
