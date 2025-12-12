@@ -150,7 +150,7 @@ export abstract class RemoteTest {
     for (const utxo of utxos) {
       if (utxo.getValue() &&
           utxo.getTokenId() !== NetworkParameters.BIGTANGLE_TOKENID_STRING &&
-          utxo.getValue()!.isGreaterThan(Coin.ZERO)) {
+          utxo.getValue()!.isGreaterThan( CoinConstants.ZERO)) {
         this.wallet.setServerURL(this.contextRoot);
         try {
           const sellOrder = await this.wallet.sellOrder(

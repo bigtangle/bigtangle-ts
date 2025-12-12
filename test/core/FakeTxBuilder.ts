@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Address } from '../../src/net/bigtangle/core/Address';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
@@ -19,7 +20,7 @@ export class FakeTxBuilder {
     public static createFakeTxSimple(params: NetworkParameters): Transaction {
         return FakeTxBuilder.createFakeTxWithoutChangeAddress(
             params,
-            Coin.COIN,
+             CoinConstants.COIN,
             ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
     }
@@ -31,7 +32,7 @@ export class FakeTxBuilder {
     ): Transaction {
         const prevTx = FakeTxBuilder.createFakeTx(
             params,
-            Coin.COIN,
+             CoinConstants.COIN,
             ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
         const tx = new Transaction(params);
@@ -59,7 +60,7 @@ export class FakeTxBuilder {
         const outputToMe = TransactionOutput.fromAddress(
             params,
             tx,
-            Coin.valueOf(Coin.COIN.getValue() * 50n, NetworkParameters.getBIGTANGLE_TOKENID()),
+            Coin.valueOf( CoinConstants.COIN.getValue() * 50n, NetworkParameters.getBIGTANGLE_TOKENID()),
             ECKey.fromPrivate(BigInt('1')).toAddress(params),
         );
         tx.addOutput(outputToMe);
@@ -88,7 +89,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                BigInt(Coin.COIN.getValue() * 1n + 111n),
+                BigInt( CoinConstants.COIN.getValue() * 1n + 111n),
                 NetworkParameters.getBIGTANGLE_TOKENID(),
             ),
             changeOutput,
@@ -215,7 +216,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                Coin.COIN.getValue() * 1n + 11n,
+                 CoinConstants.COIN.getValue() * 1n + 11n,
                 NetworkParameters.getBIGTANGLE_TOKENID()
             ),
             ECKey.fromPrivate(BigInt('2')).toAddress(params),
@@ -255,7 +256,7 @@ export class FakeTxBuilder {
             params,
             t,
             Coin.valueOf(
-                Coin.COIN.getValue() * 1n + 11n,
+                 CoinConstants.COIN.getValue() * 1n + 11n,
                 NetworkParameters.getBIGTANGLE_TOKENID()
             ),
             ECKey.fromPrivate(BigInt('2')).toAddress(params),
@@ -310,7 +311,7 @@ export class FakeTxBuilder {
         to: Address,
     ): DoubleSpends {
         const doubleSpends = new DoubleSpends();
-        const value = Coin.COIN;
+        const value =  CoinConstants.COIN;
         const someBadGuy = ECKey.fromPrivate(BigInt('3')).toAddress(params);
 
         doubleSpends.prevTx = new Transaction(params);

@@ -3,6 +3,7 @@ import { ECKey } from '../../src/net/bigtangle/core/ECKey';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { FakeTxBuilder } from './FakeTxBuilder';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { Message } from '../../src/net/bigtangle/core/Message';
 
 import { TransactionInput } from '../../src/net/bigtangle/core/TransactionInput';
@@ -24,7 +25,7 @@ describe('TransactionTest', () => {
     let tx: Transaction;
 
     beforeEach(() => {
-        tx = FakeTxBuilder.createFakeTx(PARAMS, Coin.COIN, ADDRESS);
+        tx = FakeTxBuilder.createFakeTx(PARAMS, CoinConstants.COIN, ADDRESS);
     });
 
     test('duplicateOutPoint', () => {
@@ -137,7 +138,7 @@ describe('TransactionTest', () => {
     // test('testAddSignedInputThrowsExceptionWhenScriptIsNotToRawPubKeyAndIsNotToAddress', async () => {
     //     const key = ECKey.fromPrivate(bigInt('1'));
     //     const addr = key.toAddress(PARAMS);
-    //     const fakeTx = FakeTxBuilder.createFakeTx(PARAMS, Coin.COIN, addr);
+    //     const fakeTx = FakeTxBuilder.createFakeTx(PARAMS, CoinConstants.COIN, addr);
 
     //     const tx = new Transaction(PARAMS);
     //     tx.addOutput(fakeTx.getOutput(0));
@@ -150,7 +151,7 @@ describe('TransactionTest', () => {
 
     test('optInFullRBF', () => {
         // a standard transaction as wallets would create
-        const tx = FakeTxBuilder.createFakeTx(PARAMS, Coin.COIN, ADDRESS);
+        const tx = FakeTxBuilder.createFakeTx(PARAMS, CoinConstants.COIN, ADDRESS);
         expect(isOptInFullRBF(tx)).toBe(false);
 
         tx.getInputs()[0].setSequenceNumber(TransactionInput.NO_SEQUENCE - 2);

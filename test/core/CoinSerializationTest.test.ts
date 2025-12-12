@@ -1,6 +1,7 @@
 import { describe, it } from 'vitest';
 import { expect } from 'chai';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
@@ -9,7 +10,7 @@ import { UtilBase } from './UtilBase';
 
 describe('CoinSerialization', () => {
     it('testCoinSerializationWithStandardValues', () => {
-        const values = [0n, 1n, 1000n, 1000000n, Coin.COIN.value, BigInt(Number.MAX_SAFE_INTEGER)];
+        const values = [0n, 1n, 1000n, 1000000n, CoinConstants.COIN.value, BigInt(Number.MAX_SAFE_INTEGER)];
         
         for (const value of values) {
             const coin = Coin.valueOf(value, NetworkParameters.getBIGTANGLE_TOKENID());
@@ -181,8 +182,8 @@ describe('CoinSerialization', () => {
 
     it('testCoinSerializationWithSpecialValues', () => {
         const specialCoins = [
-            Coin.ZERO,
-            Coin.COIN,
+             CoinConstants.ZERO,
+             CoinConstants.COIN,
             Coin.SATOSHI,
           //  Coin.NEGATIVE_SATOSHI,
             Coin.FEE_DEFAULT

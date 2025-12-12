@@ -1,4 +1,5 @@
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
 import { OrderRecord } from '../../src/net/bigtangle/core/OrderRecord';
@@ -28,9 +29,9 @@ describe('CoinTest', () => {
     });
 
     test('testOperators', () => {
-        expect(Coin.ZERO.isPositive()).toBe(false);
-        expect(Coin.ZERO.isNegative()).toBe(false);
-        expect(Coin.ZERO.isZero()).toBe(true);
+        expect(CoinConstants.ZERO.isPositive()).toBe(false);
+        expect(CoinConstants.ZERO.isNegative()).toBe(false);
+        expect(CoinConstants.ZERO.isZero()).toBe(true);
 
         expect(
             Coin.valueOf(2n,  NetworkParameters.getBIGTANGLE_TOKENID() )
@@ -78,7 +79,7 @@ describe('CoinTest', () => {
     test('testSubstractionUnderflow', () => {
         expect(() => {
             Coin.valueOf(BigInt(Number.MIN_SAFE_INTEGER),  NetworkParameters.getBIGTANGLE_TOKENID() )
-                .subtract(Coin.COIN);
+                .subtract(CoinConstants.COIN);
         }).toThrow();
     });
 

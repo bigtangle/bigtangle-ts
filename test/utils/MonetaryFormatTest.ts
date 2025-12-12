@@ -1,4 +1,5 @@
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { MonetaryFormat } from '../../src/net/bigtangle/utils/MonetaryFormat';
 import { NetworkParameters } from '../../src/net/bigtangle/params/NetworkParameters';
 import { describe, test, expect } from 'vitest';
@@ -8,29 +9,29 @@ describe('MonetaryFormatTest', () => {
 
     test('testSigns', () => {
         // Pass Coin objects directly to format()
-        expect(NO_CODE.format(Coin.COIN.negate())).toBe('-1.00');
+        expect(NO_CODE.format(CoinConstants.COIN.negate())).toBe('-1.00');
         expect(
             NO_CODE.withNegativeSign('@')
-                .format(Coin.COIN.negate())
+                .format(CoinConstants.COIN.negate())
         ).toBe('@1.00');
-        expect(NO_CODE.format(Coin.COIN)).toBe('1.00');
-        expect(NO_CODE.withPositiveSign('+').format(Coin.COIN)).toBe('+1.00');
+        expect(NO_CODE.format(CoinConstants.COIN)).toBe('1.00');
+        expect(NO_CODE.withPositiveSign('+').format(CoinConstants.COIN)).toBe('+1.00');
     });
 
     test('testDecimalMark', () => {
         expect(
-            NO_CODE.withDecimalMark(',').format(Coin.COIN.divide(100))
+            NO_CODE.withDecimalMark(',').format(CoinConstants.COIN.divide(100))
         ).toBe('0,01');
     });
 
     test('testGrouping', () => {
         // Use withShift, withMinDecimals, and withOptionalDecimals
-        expect(format(Coin.COIN.divide(10), 0, 1, 2, 3)).toBe('0.1');
-        expect(format(Coin.COIN.divide(100), 0, 1, 2, 3)).toBe('0.01');
-        expect(format(Coin.COIN.divide(1000), 0, 1, 2, 3)).toBe('0.001');
-        expect(format(Coin.COIN.divide(10000), 0, 1, 2, 3)).toBe('0.0001');
-        expect(format(Coin.COIN.divide(100000), 0, 1, 2, 3)).toBe('0.00001');
-        expect(format(Coin.COIN.divide(1000000), 0, 1, 2, 3)).toBe('0.000001');
+        expect(format(CoinConstants.COIN.divide(10), 0, 1, 2, 3)).toBe('0.1');
+        expect(format(CoinConstants.COIN.divide(100), 0, 1, 2, 3)).toBe('0.01');
+        expect(format(CoinConstants.COIN.divide(1000), 0, 1, 2, 3)).toBe('0.001');
+        expect(format(CoinConstants.COIN.divide(10000), 0, 1, 2, 3)).toBe('0.0001');
+        expect(format(CoinConstants.COIN.divide(100000), 0, 1, 2, 3)).toBe('0.00001');
+        expect(format(CoinConstants.COIN.divide(1000000), 0, 1, 2, 3)).toBe('0.000001');
     });
 
     test('testTooSmall', () => {
@@ -43,21 +44,21 @@ describe('MonetaryFormatTest', () => {
     });
 
     test('btcRounding', () => {
-        expect(format(Coin.ZERO, 0, 0)).toBe('0');
+        expect(format(CoinConstants.ZERO, 0, 0)).toBe('0');
         // With 0 decimals, 1 coin = 1 unit
-        expect(format(Coin.COIN, 0, 0)).toBe('1');
+        expect(format(CoinConstants.COIN, 0, 0)).toBe('1');
     });
 
     test('repeatOptionalDecimals', () => {
         // Use withMinDecimals and withOptionalDecimals
-        expect(formatRepeat(Coin.COIN.divide(100), 2, 4)).toBe('0.01');
-        expect(formatRepeat(Coin.COIN.divide(10), 2, 4)).toBe('0.1');
-        
-        expect(formatRepeat(Coin.COIN.divide(100), 2, 2)).toBe('0.01');
-        expect(formatRepeat(Coin.COIN.divide(10), 2, 2)).toBe('0.1');
-        
-        expect(formatRepeat(Coin.COIN.divide(100), 2, 0)).toBe('0');
-        expect(formatRepeat(Coin.COIN.divide(10), 2, 0)).toBe('0');
+        expect(formatRepeat(CoinConstants.COIN.divide(100), 2, 4)).toBe('0.01');
+        expect(formatRepeat(CoinConstants.COIN.divide(10), 2, 4)).toBe('0.1');
+
+        expect(formatRepeat(CoinConstants.COIN.divide(100), 2, 2)).toBe('0.01');
+        expect(formatRepeat(CoinConstants.COIN.divide(10), 2, 2)).toBe('0.1');
+
+        expect(formatRepeat(CoinConstants.COIN.divide(100), 2, 0)).toBe('0');
+        expect(formatRepeat(CoinConstants.COIN.divide(10), 2, 0)).toBe('0');
     });
 
     test('parse', () => {

@@ -9,7 +9,7 @@
  * with the library.
  * 
  * Previously, the circular dependencies involved:
- * - Coin.ts (static initialization of constants like Coin.ZERO, Coin.COIN)
+ * - Coin.ts (static initialization of constants like  CoinConstants.ZERO,  CoinConstants.COIN)
  * - TransactionOutput.ts (uses Coin in constructors and static methods)
  * - UtilGeneseBlock.ts (imports both TransactionOutput and Coin)
  * 

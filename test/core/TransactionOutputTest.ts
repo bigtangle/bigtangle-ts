@@ -5,6 +5,7 @@ import { ScriptBuilder } from '../../src/net/bigtangle/script/ScriptBuilder';
 import { Transaction } from '../../src/net/bigtangle/core/Transaction';
 import { TransactionOutput } from '../../src/net/bigtangle/core/TransactionOutput';
 import { Coin } from '../../src/net/bigtangle/core/Coin';
+import { CoinConstants } from '../../src/net/bigtangle/core/CoinConstants';
 import { describe, test, expect } from 'vitest';
 
 describe('TransactionOutputTest', () => {
@@ -19,7 +20,7 @@ describe('TransactionOutputTest', () => {
         const output = new TransactionOutput(
             MainNetParams.get(), 
             tx, 
-            Coin.COIN, 
+             CoinConstants.COIN, 
             Buffer.from(script.getProgram())
         );
         tx.addOutput(output);

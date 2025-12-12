@@ -7,8 +7,8 @@
  * CoinConstants class to avoid static initialization order problems.
  *
  * For safe usage of Coin constants, use CoinConstants instead of Coin static properties:
- * - Use CoinConstants.ZERO instead of Coin.ZERO (if it still exists)
- * - Use CoinConstants.COIN instead of Coin.COIN (if it still exists)
+ * - Use CoinConstants.ZERO instead of  CoinConstants.ZERO (if it still exists)
+ * - Use CoinConstants.COIN instead of  CoinConstants.COIN (if it still exists)
  * - etc.
  *
  * This approach uses lazy initialization to avoid circular dependencies

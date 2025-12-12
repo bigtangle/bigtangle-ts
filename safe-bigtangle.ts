@@ -137,7 +137,7 @@ export const SafeBigtangleAccess = {
  * by moving static constants from Coin class to CoinConstants class with lazy initialization.
  * 
  * Previously, the circular dependency occurred because:
- * - Coin.ts had static initialization of constants like Coin.ZERO = Coin.valueOfString(...)
+ * - Coin.ts had static initialization of constants like  CoinConstants.ZERO = Coin.valueOfString(...)
  * - TransactionOutput.ts used Coin in its static methods
  * - UtilGeneseBlock.ts imported both TransactionOutput and Coin
  * 
