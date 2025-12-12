@@ -116,7 +116,7 @@ export abstract class RemoteTest {
     addedBlocks: Block[]
   ) {
     // Use fee as bigint - no conversion needed
-    await this.payBigTo(testKey, Coin.FEE_DEFAULT.getValue(), addedBlocks);
+    await this.payBigTo(testKey, CoinConstants.FEE_DEFAULT.getValue(), addedBlocks);
 
     const giveMoneyTestToken = new Map<string, bigint>();
 
@@ -189,7 +189,7 @@ export abstract class RemoteTest {
     );
     w.setServerURL(this.contextRoot);
     // Use fee as bigint
-    await this.payBigTo(beneficiary, Coin.FEE_DEFAULT.getValue(), addedBlocks);
+    await this.payBigTo(beneficiary, CoinConstants.FEE_DEFAULT.getValue(), addedBlocks);
     const block = await w.buyOrder(
       null, // aesKey
       tokenId,

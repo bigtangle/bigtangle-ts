@@ -184,9 +184,9 @@ describe('CoinSerialization', () => {
         const specialCoins = [
              CoinConstants.ZERO,
              CoinConstants.COIN,
-            Coin.SATOSHI,
+            CoinConstants.SATOSHI,
           //  Coin.NEGATIVE_SATOSHI,
-            Coin.FEE_DEFAULT
+            CoinConstants.FEE_DEFAULT
         ];
         
         for (const coin of specialCoins) {

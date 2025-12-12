@@ -137,7 +137,7 @@ class RemoteFromAddressTests extends RemoteTest {
     // Send native tokens to yuanToken key for fees first
     await this.payBigTo(
       ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
-      Coin.FEE_DEFAULT.getValue() * BigInt(1000) * BigInt(10000),
+      CoinConstants.FEE_DEFAULT.getValue() * BigInt(1000) * BigInt(10000),
       []
     );
     const domain = "";
