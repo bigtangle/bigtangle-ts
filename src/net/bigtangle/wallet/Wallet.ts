@@ -3,6 +3,7 @@
 import { Address } from "../core/Address";
 import { Block } from "../core/Block";
 import { Coin } from "../core/Coin";
+import { CoinConstants } from "../core/CoinConstants";
 import { ECKey } from "../core/ECKey";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { Token } from "../core/Token";
@@ -457,7 +458,7 @@ export class Wallet extends WalletBase {
     spent.setMemo("fee");
 
     // Fixed fee in BIG
-    let amount = Coin.FEE_DEFAULT.negate();
+    let amount = CoinConstants.FEE_DEFAULT.negate();
     let beneficiary: ECKey | null = null;
 
     // filter only for NetworkParameters.BIGTANGLE_TOKENID
@@ -484,7 +485,7 @@ export class Wallet extends WalletBase {
 
     if (beneficiary == null || amount.isNegative()) {
       throw new InsufficientMoneyException(
-        Coin.FEE_DEFAULT.getValue() + " outputs size= " + coinListTokenid.length
+        CoinConstants.FEE_DEFAULT.getValue() + " outputs size= " + coinListTokenid.length
       );
     }
 
@@ -808,7 +809,7 @@ export class Wallet extends WalletBase {
     // Add fee if needed
     if (this.getFee()   &&  amount.isBIG()) {
       const fee = Coin.valueOf(
-        Coin.FEE_DEFAULT.getValue(),
+        CoinConstants.FEE_DEFAULT.getValue(),
         amount.getTokenid()
       );
       amount = amount.add(fee.negate());
@@ -962,7 +963,7 @@ export class Wallet extends WalletBase {
     // Add fee if needed
     if (this.getFee() && amountNeeded.isBIG()) {
       const fee = Coin.valueOf(
-        Coin.FEE_DEFAULT.getValue(),
+        CoinConstants.FEE_DEFAULT.getValue(),
         amountNeeded.getTokenid()
       );
       amountNeeded = amountNeeded.add(fee.negate());
@@ -1059,7 +1060,7 @@ export class Wallet extends WalletBase {
     // Add fee if needed
     if (this.getFee() && amountNeeded.isBIG()) {
       const fee = Coin.valueOf(
-        Coin.FEE_DEFAULT.getValue(),
+        CoinConstants.FEE_DEFAULT.getValue(),
         amountNeeded.getTokenid()
       );
       amountNeeded = amountNeeded.add(fee.negate());

@@ -28,6 +28,7 @@ import { TransactionOutput } from "./TransactionOutput";
 import { TransactionOutPoint } from "./TransactionOutPoint";
 import { Block } from "./Block";
 import { Coin } from "./Coin";
+import { CoinConstants } from "./CoinConstants";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
 import { ECDSASignature } from "./ECDSASignature";
@@ -400,7 +401,7 @@ export class Transaction extends ChildMessage {
    */
   public getValueSentToMe(transactionBag: TransactionBag): Coin {
     // This is tested in WalletTest.
-    let v = Coin.ZERO;
+    let v = CoinConstants.ZERO;
     for (const o of this.outputs) {
       if (!o.isMineOrWatched(transactionBag)) continue;
       v = v.add(o.getValue());
@@ -1146,7 +1147,7 @@ export class Transaction extends ChildMessage {
       // "null" transaction is set to -1.
       tx.outputs = tx.outputs.slice(0, inputIndex + 1);
       for (let i = 0; i < inputIndex; i++)
-        tx.outputs[i] = new TransactionOutput(tx.params!, tx, Coin.NEGATIVE_SATOSHI, new Uint8Array());
+        tx.outputs[i] = new TransactionOutput(tx.params!, tx, CoinConstants.NEGATIVE_SATOSHI, new Uint8Array());
       // The signature isn't broken by new versions of the transaction
       // issued by other parties.
       for (let i = 0; i < tx.inputs.length; i++)

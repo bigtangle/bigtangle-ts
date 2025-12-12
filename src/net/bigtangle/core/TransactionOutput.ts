@@ -140,7 +140,7 @@ export class TransactionOutput extends ChildMessage {
     const a = new TransactionOutput(
       params,
       parent,
-      Coin.ZERO,
+      CoinConstants.ZERO,
       new Uint8Array(0)
     );
     a.setValues5(
