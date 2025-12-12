@@ -1,4 +1,5 @@
 import { Coin } from "./Coin";
+import { MonetaryFormat } from "../utils/MonetaryFormat";
 import { NetworkParameters } from "../params/NetworkParameters";
 
 // Internal cache for constants to avoid repeated object creation
@@ -7,6 +8,7 @@ let _COIN: Coin | null = null;
 let _SATOSHI: Coin | null = null;
 let _NEGATIVE_SATOSHI: Coin | null = null;
 let _FEE_DEFAULT: Coin | null = null;
+let _FIAT: MonetaryFormat | null = null;
 
 /**
  * Factory class for Coin constants to avoid circular dependency issues
@@ -36,6 +38,13 @@ export class CoinConstants {
   public static get FEE_DEFAULT(): Coin {
     _FEE_DEFAULT ??= Coin.valueOfString(1000n, "bc");
     return _FEE_DEFAULT;
+  }
+
+  public static get FIAT(): MonetaryFormat {
+    _FIAT ??= new MonetaryFormat()
+      .withShift(0)
+      .withMinDecimals(0);
+    return _FIAT;
   }
 
   /**

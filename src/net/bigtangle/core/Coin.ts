@@ -7,9 +7,6 @@ import { Utils } from "./Utils";
 
 export class Coin implements IMonetary, IComparable<Coin> {
   private static readonly serialVersionUID: bigint = 551802452657362699n;
-  static readonly FIAT: MonetaryFormat = new MonetaryFormat()
-    .withShift(0)
-    .withMinDecimals(0);
 
   @JsonProperty() public value: bigint;
   @JsonProperty() public tokenid: Buffer;
