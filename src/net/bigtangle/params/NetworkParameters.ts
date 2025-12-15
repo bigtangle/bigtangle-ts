@@ -2,7 +2,7 @@
  * Abstract class representing network parameters for different blockchain networks.
  */
 import { BitcoinSerializer } from "../core/BitcoinSerializer";
-import { Utils } from "../utils/Utils";
+
 export abstract class NetworkParameters {
   // Static constants
   static readonly HEADER_SIZE = 168;
@@ -23,7 +23,13 @@ export abstract class NetworkParameters {
   static readonly ORDER_TIMEOUT_MAX = 30 * 24 * 60 * 60; // 30 days in seconds
   static readonly BIGTANGLE_TOKENID_STRING = "bc";
   public static getBIGTANGLE_TOKENID() {
-    return new Uint8Array(Utils.HEX.decode(this.BIGTANGLE_TOKENID_STRING)); // Use the same as Constants.BIGTANGLE_TOKENID
+    // Simple hex decoder to avoid circular dependencies
+    const tokenString = this.BIGTANGLE_TOKENID_STRING;
+    const bytes = [];
+    for (let i = 0; i < tokenString.length; i += 2) {
+      bytes.push(parseInt(tokenString.substr(i, 2), 16));
+    }
+    return new Uint8Array(bytes);
   }
   static readonly BIGTANGLE_TOKENNAME = "BigTangle";
   static readonly BIGTANGLE_DECIMAL = 6;

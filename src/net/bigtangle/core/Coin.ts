@@ -2,7 +2,15 @@
 import { MonetaryFormat } from "../utils/MonetaryFormat";
 import { JsonProperty } from "jackson-js";
 import { NetworkParameters } from "../params/NetworkParameters";
-import { Utils } from "./Utils";
+
+// Define a helper function to check array equality to avoid circular dependencies
+function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 export class Coin implements IMonetary, IComparable<Coin> {
   private static readonly serialVersionUID: bigint = 551802452657362699n;
@@ -32,12 +40,18 @@ export class Coin implements IMonetary, IComparable<Coin> {
         this.tokenid = new TextEncoder().encode(tokenid);
       }
     } else {
-      this.tokenid =
-        tokenid ||
-        new Uint8Array(
-          Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING)
-        );
+      // Use the string constant directly instead of calling a method that might cause circular deps
+      this.tokenid = tokenid || this.stringToByteArray(NetworkParameters.BIGTANGLE_TOKENID_STRING);
     }
+  }
+
+  private stringToByteArray(str: string): Uint8Array {
+    // Simple hex decoder to replace Utils.HEX.decode
+    const bytes = [];
+    for (let i = 0; i < str.length; i += 2) {
+      bytes.push(parseInt(str.substr(i, 2), 16));
+    }
+    return new Uint8Array(bytes);
   }
 
 
@@ -51,7 +65,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
       coin.value = BigInt(json.value.toString());
     }
     if (json.tokenHex) {
-      coin.tokenid = new Uint8Array(Utils.HEX.decode(json.tokenHex));
+      coin.tokenid = new Uint8Array(coin.stringToByteArray(json.tokenHex));
     }
     return coin;
   }
@@ -59,8 +73,19 @@ export class Coin implements IMonetary, IComparable<Coin> {
   public static valueOf(satoshis: bigint, tokenid?: Uint8Array): Coin {
     return new Coin(
       satoshis,
-      tokenid || NetworkParameters.getBIGTANGLE_TOKENID()
+      tokenid || Coin.getBigtangleTokenId()
     );
+  }
+
+  // Static method to get the default BigTangle token ID without circular dependency
+  private static getBigtangleTokenId(): Uint8Array {
+    // Simple hex decoder to replace Utils.HEX.decode
+    const tokenString = "bc"; // Using the constant inline
+    const bytes = [];
+    for (let i = 0; i < tokenString.length; i += 2) {
+      bytes.push(parseInt(tokenString.substr(i, 2), 16));
+    }
+    return new Uint8Array(bytes);
   }
 
   public static valueOfString(satoshis: bigint, tokenid?: string): Coin {
@@ -74,7 +99,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     }
     return new Coin(
       satoshis,
-      tokenIdBuffer || NetworkParameters.getBIGTANGLE_TOKENID()
+      tokenIdBuffer || Coin.getBigtangleTokenId()
     );
   }
 
@@ -91,11 +116,17 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public getTokenHex(): string {
-    return   Utils.HEX.encode(this.tokenid );
+    return this.byteArrayToHex(this.tokenid);
+  }
+
+  private byteArrayToHex(bytes: Uint8Array): string {
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
 
   public add(value: Coin): Coin {
-    if (!Utils.arraysEqual(this.tokenid, value.tokenid)) {
+    if (!arraysEqual(this.tokenid, value.tokenid)) {
       throw new Error("Token IDs must match for addition");
     }
     // Ensure both values are BigInt before addition
@@ -121,7 +152,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public subtract(value: Coin): Coin {
-    if (!Utils.arraysEqual(this.tokenid, value.tokenid)) {
+    if (!arraysEqual(this.tokenid, value.tokenid)) {
       throw new Error("Token IDs must match for subtraction");
     }
     const result = this.value - value.value;
@@ -171,7 +202,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public divideBy(divisor: Coin): bigint {
-    if (!Utils.arraysEqual(this.tokenid, divisor.tokenid)) {
+    if (!arraysEqual(this.tokenid, divisor.tokenid)) {
       throw new Error("Token IDs must match for division");
     }
     return this.value / divisor.value;
@@ -208,7 +239,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public isBIG(): boolean {
-    return Utils.arraysEqual(this.tokenid, NetworkParameters.getBIGTANGLE_TOKENID());
+    return arraysEqual(this.tokenid, Coin.getBigtangleTokenId());
   }
 
   public isGreaterThan(other: Coin): boolean {
@@ -259,7 +290,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     if (this.constructor !== obj.constructor) return false;
 
     const other = obj as Coin;
-    return Utils.arraysEqual(this.tokenid, other.tokenid) && this.value === other.value;
+    return arraysEqual(this.tokenid, other.tokenid) && this.value === other.value;
   }
 
   public compareTo(other: Coin): number {

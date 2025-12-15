@@ -3,7 +3,6 @@
     "target": "es2020",
     "module": "esnext",
     "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
     "lib": ["es2020", "dom"],
     "types": ["node"],
     "typeRoots": ["./src/types", "./node_modules/@types"],
