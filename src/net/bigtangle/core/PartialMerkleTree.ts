@@ -4,7 +4,6 @@ import { Message } from './Message';
 import { VerificationException } from '../exception/VerificationException';
 import { VarInt } from './VarInt';
 import { Utils } from '../utils/Utils';
-import { Buffer } from 'buffer';
 
 /**
  * <p>A data structure that contains proofs of block inclusion for one or more transactions, in an efficient manner.</p>
@@ -39,12 +38,12 @@ export class PartialMerkleTree extends Message {
     private transactionCount: number = 0;
 
     // node-is-parent-of-matched-txid bits
-    private matchedChildBits: Buffer = Buffer.alloc(0);
+    private matchedChildBits: Uint8Array = new Uint8Array(0);
 
     // txids and internal hashes
     private hashes: Sha256Hash[] = [];
-    
-    constructor(params: NetworkParameters, payloadBytes?: Buffer, offset?: number) {
+
+    constructor(params: NetworkParameters, payloadBytes?: Uint8Array, offset?: number) {
         super(params);
         if (payloadBytes !== undefined && offset !== undefined) {
             this.payload = payloadBytes;
@@ -58,7 +57,7 @@ export class PartialMerkleTree extends Message {
      * Constructs a new PMT with the given bit set (little endian) and the raw list of hashes including internal hashes,
      * taking ownership of the list.
      */
-    public static buildFromLeaves(params: NetworkParameters, includeBits: Buffer, allLeafHashes: Sha256Hash[]): PartialMerkleTree {
+    public static buildFromLeaves(params: NetworkParameters, includeBits: Uint8Array, allLeafHashes: Sha256Hash[]): PartialMerkleTree {
         // Calculate height of the tree.
         let height = 0;
         while (PartialMerkleTree.getTreeWidth(allLeafHashes.length, height) > 1) {
@@ -67,7 +66,7 @@ export class PartialMerkleTree extends Message {
         const bitList: boolean[] = [];
         const hashes: Sha256Hash[] = [];
         PartialMerkleTree.traverseAndBuild(height, 0, allLeafHashes, includeBits, bitList, hashes);
-        const bits = Buffer.alloc(Math.ceil(bitList.length / 8.0));
+        const bits = new Uint8Array(Math.ceil(bitList.length / 8.0));
         for (let i = 0; i < bitList.length; i++) {
             if (bitList[i]) {
                 Utils.setBitLE(bits, i);
@@ -83,7 +82,7 @@ export class PartialMerkleTree extends Message {
     public bitcoinSerializeToStream(stream: any): void {
         const txCountBytes = new Uint8Array(4);
         Utils.uint32ToByteArrayLE(this.transactionCount, txCountBytes, 0);
-        stream.write(Buffer.from(txCountBytes));
+        stream.write(txCountBytes);
 
         const hashesVarInt = new VarInt(this.hashes.length);
         const hashesVarIntBuffer = hashesVarInt.encode();
@@ -108,13 +107,13 @@ export class PartialMerkleTree extends Message {
         }
 
         const nFlagBytes = this.readVarInt();
-        this.matchedChildBits = Buffer.from(this.readBytes(Number(nFlagBytes)));
+        this.matchedChildBits = new Uint8Array(this.readBytes(Number(nFlagBytes)));
 
         this.length = this.cursor - this.offset;
     }
 
     // Based on CPartialMerkleTree::TraverseAndBuild in Bitcoin Core.
-    private static traverseAndBuild(height: number, pos: number, allLeafHashes: Sha256Hash[], includeBits: Buffer,
+    private static traverseAndBuild(height: number, pos: number, allLeafHashes: Sha256Hash[], includeBits: Uint8Array,
                                          matchedChildBits: boolean[], resultHashes: Sha256Hash[]) {
         let parentOfMatch = false;
         // Is this node a parent of at least one matched hash?
@@ -187,7 +186,7 @@ export class PartialMerkleTree extends Message {
         } else {
             // otherwise, descend into the subtrees to extract matched txids and hashes
             const left = this.recursiveExtractHashes(height - 1, pos * 2, used, matchedHashes).getBytes();
-            let right: Buffer;
+            let right: Uint8Array;
             if (pos * 2 + 1 < PartialMerkleTree.getTreeWidth(this.transactionCount, height - 1)) {
                 right = this.recursiveExtractHashes(height - 1, pos * 2 + 1, used, matchedHashes).getBytes();
                 if (Utils.bytesEqual(right, left)) {
@@ -201,10 +200,13 @@ export class PartialMerkleTree extends Message {
         }
     }
 
-    private static combineLeftRight(left: Buffer, right: Buffer): Sha256Hash {
-        const leftReversed = Buffer.from(Utils.reverseBytes(left));
-        const rightReversed = Buffer.from(Utils.reverseBytes(right));
-        const concat = Buffer.concat([leftReversed, rightReversed]);
+    private static combineLeftRight(left: Uint8Array, right: Uint8Array): Sha256Hash {
+        const leftReversed = new Uint8Array(Utils.reverseBytes(left));
+        const rightReversed = new Uint8Array(Utils.reverseBytes(right));
+        const concatLength = leftReversed.length + rightReversed.length;
+        const concat = new Uint8Array(concatLength);
+        concat.set(leftReversed, 0);
+        concat.set(rightReversed, leftReversed.length);
         const hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(concat));
         if (hash === null) {
             // This should be impossible given the nature of SHA256.
@@ -268,7 +270,7 @@ export class PartialMerkleTree extends Message {
         const other = o as PartialMerkleTree;
         return this.transactionCount === other.transactionCount &&
                this.hashes.every((hash, i) => hash.equals(other.hashes[i])) &&
-               this.matchedChildBits.equals(other.matchedChildBits);
+               Utils.arraysEqual(this.matchedChildBits, other.matchedChildBits);
     }
 
     public hashCode(): number {

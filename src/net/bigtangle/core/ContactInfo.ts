@@ -12,10 +12,10 @@ export class ContactInfo extends DataClass {
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            baos.write(Buffer.from(super.toByteArray()));
+            baos.write(new Uint8Array(super.toByteArray()));
             baos.writeInt(this.contactList.length);
             for (const c of this.contactList) {
-                baos.write(Buffer.from(c.toByteArray()));
+                baos.write(new Uint8Array(c.toByteArray()));
             }
             baos.close();
         } catch (e: any) {
@@ -35,7 +35,7 @@ export class ContactInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): ContactInfo {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

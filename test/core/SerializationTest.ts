@@ -127,7 +127,7 @@ describe('SerializationTest', () => {
         const info2 = new OrderCancelInfo().parse(info1.toByteArray());
 
         expect(Buffer.compare(info1.toByteArray(), info2.toByteArray())).toBe(0);
-        expect(info1.getBlockHash()).toEqual(info2.getBlockHash());
+        expect(info1.getBlockHash().equals(info2.getBlockHash())).toBe(true);
     });
 
     test('testMyHomeAddressSerialization', () => {
@@ -159,11 +159,9 @@ describe('SerializationTest', () => {
         const bytes2 = info2.toByteArray();
 
         expect(Buffer.compare(bytes1, bytes2)).toBe(0);
-        expect(info1.getPrevRewardHash()).toEqual(info2.getPrevRewardHash());
+        expect(info1.getPrevRewardHash().equals(info2.getPrevRewardHash())).toBe(true);
         expect(info1.getChainlength()).toBe(info2.getChainlength());
-        expect(Array.from(info1.getBlocks())[0]).toEqual(
-            Array.from(info2.getBlocks())[0],
-        );
+        expect(Array.from(info1.getBlocks())[0].equals(Array.from(info2.getBlocks())[0])).toBe(true);
     });
 
     test('testTokenInfoSerialization', () => {

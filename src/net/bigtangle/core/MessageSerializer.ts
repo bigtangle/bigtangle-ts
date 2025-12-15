@@ -3,7 +3,7 @@ import { Block } from './Block';
 import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
 import { Gzip } from '../utils/Gzip';
-import { Buffer } from 'buffer';
+;
 
 /**
  * Generic interface for classes which serialize/deserialize messages.
@@ -21,7 +21,7 @@ export abstract class MessageSerializer<T> {
     /**
      * Reads a message from the given ByteBuffer and returns it.
      */
-    public abstract deserialize(inBuffer: Buffer): Message;
+    public abstract deserialize(inBuffer: Uint8Array): Message;
 
     /**
      * Whether the serializer will produce cached mode Messages
@@ -34,24 +34,24 @@ export abstract class MessageSerializer<T> {
      * Make an alert message from the payload. Extension point for alternative
      * serialization format support.
      */
-    public abstract makeAlertMessage(payloadBytes: Buffer): AlertMessage;
+    public abstract makeAlertMessage(payloadBytes: Uint8Array): AlertMessage;
 
     /**
      * Make a block from the payload, using an offset of zero and the payload length
      * as block length.
      */
-    public makeBlock(payloadBytes: Buffer): Block;
+    public makeBlock(payloadBytes: Uint8Array): Block;
     /**
      * Make a block from the payload, using an offset of zero and the provided
      * length as block length.
      */
-    public makeBlock(payloadBytes: Buffer, length: number): Block;
+    public makeBlock(payloadBytes: Uint8Array, length: number): Block;
     /**
      * Make a block from the payload, using an offset of zero and the provided
      * length as block length. Extension point for alternative serialization format
      * support.
      */
-    public makeBlock(payloadBytes: Buffer, offset: number, length: number): Block;
+    public makeBlock(payloadBytes: Uint8Array, offset: number, length: number): Block;
     public makeBlock(...args: any[]): Block {
         if (args.length === 1) {
             return this.makeBlock(args[0], 0, args[0].length);
@@ -71,10 +71,10 @@ export abstract class MessageSerializer<T> {
      * 
      * @throws IOException
      */
-    public async makeZippedBlock(payloadBytes: Buffer): Promise<Block> {
+    public async makeZippedBlock(payloadBytes: Uint8Array): Promise<Block> {
         // Assuming decompress is not implemented, use a placeholder or implement decompress in Gzip
         const unzippedUint8Array = await Gzip.decompress(payloadBytes);
-        const unzipped = Buffer.from(unzippedUint8Array);
+        const unzipped = new Uint8Array(unzippedUint8Array);
         return this.makeBlock(unzipped, 0, unzipped.length);
     }
 
@@ -89,7 +89,7 @@ export abstract class MessageSerializer<T> {
             return null; // Return null if no value available.
         }
         const unzippedUint8Array = await Gzip.decompress(inputStream);
-        const unzipped = Buffer.from(unzippedUint8Array);
+        const unzipped = new Uint8Array(unzippedUint8Array);
         return this.makeBlock(unzipped, 0, unzipped.length);
        
     }
@@ -106,7 +106,7 @@ export abstract class MessageSerializer<T> {
      *                                       network parameters), or because it does
      *                                       not support deserializing transactions.
      */
-    public abstract makeTransaction(payloadBytes: Buffer): Transaction;
+    public abstract makeTransaction(payloadBytes: Uint8Array): Transaction;
 
     /**
      * Make a transaction from the payload. Extension point for alternative
@@ -119,10 +119,10 @@ export abstract class MessageSerializer<T> {
      *                                       network parameters), or because it does
      *                                       not support deserializing transactions.
      */
-    public makeTransactionFromBytes(payloadBytes: Buffer): Transaction;
-    public makeTransactionFromBytes(payloadBytes: Buffer, offset: number): Transaction;
-    public makeTransactionFromBytes(payloadBytes: Buffer): Transaction;
-    public makeTransactionFromBytes(payloadBytes: Buffer, offset: number): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Uint8Array): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Uint8Array, offset: number): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Uint8Array): Transaction;
+    public makeTransactionFromBytes(payloadBytes: Uint8Array, offset: number): Transaction;
     public makeTransactionFromBytes(...args: any[]): Transaction {
         if (args.length === 1) {
             return this.makeTransaction(args[0]);
@@ -133,7 +133,7 @@ export abstract class MessageSerializer<T> {
         }
     }
 
-    public abstract seekPastMagicBytes(inBuffer: Buffer): Buffer;
+    public abstract seekPastMagicBytes(inBuffer: Uint8Array): Uint8Array;
 
     /**
      * Writes message to to the output stream.
@@ -146,7 +146,7 @@ export abstract class MessageSerializer<T> {
      *                                       not support serializing the given
      *                                       message.
      */
-    public abstract serialize(name: string, message: any, out: any, offset?: number, length?: number, hash?: Buffer | null): void;
+    public abstract serialize(name: string, message: any, out: any, offset?: number, length?: number, hash?: Uint8Array | null): void;
 
     /**
      * Writes message to to the output stream.

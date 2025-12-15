@@ -1,21 +1,21 @@
-import { Buffer } from 'buffer';
+;
 
 export class ByteArrayInputStream {
-    private buffer: Buffer;
+    private buffer: Uint8Array;
     private position: number = 0;
 
-    constructor(buffer: Buffer | Uint8Array) {
-        this.buffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    constructor(buffer: Uint8Array) {
+        this.buffer = buffer;
     }
 
-    public read(length: number): Buffer {
+    public read(length: number): Uint8Array {
         const result = this.buffer.slice(this.position, this.position + length);
         this.position += length;
         return result;
     }
 
     public readByte(): number {
-        const result = this.buffer.readUInt8(this.position);
+        const result = this.buffer[this.position];
         this.position += 1;
         return result;
     }

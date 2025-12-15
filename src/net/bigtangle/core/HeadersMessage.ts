@@ -3,7 +3,7 @@ import { Block } from './Block';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
 import { VarInt } from './VarInt';
-import { Buffer } from 'buffer';
+;
 
 /**
  * <p>A protocol message that contains a repeated series of block headers, sent in response to the "getheaders" command.
@@ -17,9 +17,9 @@ export class HeadersMessage extends Message {
 
     private blockHeaders: Block[];
 
-    constructor(params: NetworkParameters, payload: Buffer);
+    constructor(params: NetworkParameters, payload: Uint8Array);
     constructor(params: NetworkParameters, headers: Block[]);
-    constructor(params: NetworkParameters, arg: Buffer | Block[]) {
+    constructor(params: NetworkParameters, arg: Uint8Array | Block[]) {
         super(params);
         if (Array.isArray(arg)) {
             this.blockHeaders = arg;
@@ -37,7 +37,7 @@ export class HeadersMessage extends Message {
         for (const header of this.blockHeaders) {
             const headerBuffer = header.unsafeBitcoinSerialize();
             stream.write(headerBuffer); // Serialize header and write to stream
-            stream.write(Buffer.from([0])); // Trailing null byte
+            stream.write(new Uint8Array([0])); // Trailing null byte
         }
     }
 
@@ -46,7 +46,7 @@ export class HeadersMessage extends Message {
             throw new ProtocolException("Payload is null");
         }
         let cursor = 0;
-        const varInt = VarInt.fromBuffer(Buffer.from(this.payload), cursor);
+        const varInt = VarInt.fromBuffer(new Uint8Array(this.payload), cursor);
         const numHeaders = Number(varInt.value);
         cursor += varInt.getOriginalSizeInBytes();
 
@@ -60,7 +60,7 @@ export class HeadersMessage extends Message {
         for (let i = 0; i < numHeaders; ++i) {
             // Extract the block header data from the payload starting at cursor position
             const blockHeaderData = this.payload.subarray(cursor);
-            const newBlockHeader = serializer.makeBlock(Buffer.from(blockHeaderData));
+            const newBlockHeader = serializer.makeBlock(new Uint8Array(blockHeaderData));
     
             cursor += newBlockHeader.getMessageSize(); // Assuming getMessageSize returns optimalEncodingMessageSize
             this.blockHeaders.push(newBlockHeader);

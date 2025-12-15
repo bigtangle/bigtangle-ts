@@ -69,7 +69,7 @@ export class DumpedPrivateKey extends VersionedChecksummedBytes {
             throw new Error(`Invalid private key format: length=${privKeyBytes.length}`);
         }
         
-        const hex = Buffer.from(keyBytes).toString('hex');
+        const hex = Array.from(new Uint8Array(keyBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
         const privKey = BigInt('0x' + hex);
         return ECKey.fromPrivate(privKey, compressed);
     }

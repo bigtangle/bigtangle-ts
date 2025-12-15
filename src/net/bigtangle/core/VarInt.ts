@@ -12,13 +12,15 @@ export class VarInt {
      *
      * @param value the unsigned long value (beware widening conversion of negatives!)
      */
-    constructor(value: bigint | number | Buffer | Uint8Array, offset?: number) {
-        // If a Uint8Array is passed, convert it to a Buffer for legacy APIs
-        let buf: Buffer | null = null;
-        if (value instanceof Uint8Array && !Buffer.isBuffer(value)) {
-            buf = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
-        } else if (Buffer.isBuffer(value)) {
-            buf = value as Buffer;
+    constructor(value: bigint | number | Uint8Array, offset?: number) {
+        // If a Uint8Array value is passed
+        let buf: Uint8Array | null = null;
+        if (value instanceof Uint8Array) {
+            buf = value;
+        }
+        // Handle if it's a Buffer object (check by constructor name)
+        else if (value && (value as any).constructor && (value as any).constructor.name === 'Buffer') {
+            buf = new Uint8Array(value as any);
         }
 
         if (buf) {
@@ -56,7 +58,7 @@ export class VarInt {
      * @param buf the buffer containing the value
      * @param offset the offset of the value
      */
-    public static fromBuffer(buf: Buffer, offset: number): VarInt {
+    public static fromBuffer(buf: Uint8Array, offset: number): VarInt {
         return new VarInt(buf, offset);
     }
 
@@ -95,22 +97,22 @@ export class VarInt {
      *
      * @return the minimal encoded bytes of the value
      */
-    public encode(): Buffer {
+    public encode(): Uint8Array {
         const size = VarInt.sizeOf(this.value);
-        let buf: Buffer;
+        let buf: Uint8Array;
 
         switch (size) {
             case 1:
-                return Buffer.from([Number(this.value)]);
+                return new Uint8Array([Number(this.value)]);
             case 3:
-                return Buffer.from([253, Number(this.value & 0xFFn), Number((this.value >> 8n) & 0xFFn)]);
+                return new Uint8Array([253, Number(this.value & 0xFFn), Number((this.value >> 8n) & 0xFFn)]);
             case 5:
-                buf = Buffer.alloc(5);
+                buf = new Uint8Array(5);
                 buf[0] = 254;
                 Utils.uint32ToByteArrayLE(Number(this.value), buf, 1);
                 return buf;
             default:
-                buf = Buffer.alloc(9);
+                buf = new Uint8Array(9);
                 buf[0] = 255;
                 Utils.uint64ToByteArrayLE(this.value, buf, 1);
                 return buf;

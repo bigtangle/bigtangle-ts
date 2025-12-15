@@ -63,7 +63,7 @@ export class ServerPool {
         try {
             const requestParam: { [key: string]: string } = {};
             const requestBody = Json.jsonmapper().stringify(requestParam);
-            OkHttp3Util.post(this.params.serverSeeds()[0] + ReqCmd.serverinfolist, Buffer.from(requestBody)).then(data => {
+            OkHttp3Util.post(this.params.serverSeeds()[0] + ReqCmd.serverinfolist, new TextEncoder().encode(requestBody)).then(data => {
                 const response = Json.jsonmapper().parse( data) as any;
                 if (response.getServerInfoList() !== null) {
                     for (const serverInfo of response.getServerInfoList()!) {
@@ -121,7 +121,7 @@ export class ServerPool {
         const requestParam: { [key: string]: string } = {};
         // Use Json.jsonmapper().stringify() instead of writeValueAsString()
         const requestBody = Json.jsonmapper().stringify(requestParam);
-        const response = await OkHttp3Util.postStringSingle(`${s.trim()}/${ReqCmd.getChainNumber}`, Buffer.from(requestBody));
+        const response = await OkHttp3Util.postStringSingle(`${s.trim()}/${ReqCmd.getChainNumber}`, new TextEncoder().encode(requestBody));
         const aTXRewardResponse = Json.jsonmapper().parse(response) as any;
         return aTXRewardResponse.getTxReward();
     }

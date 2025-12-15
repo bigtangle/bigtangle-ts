@@ -31,14 +31,14 @@ import { MessageSerializer } from './MessageSerializer';
 // Importing necessary types and functions
 import { Preconditions } from '../utils/Preconditions';
 
-import { Buffer } from 'buffer';
+;
 
 const { checkState } = Preconditions;
 
 // Define OutputStream interface to match UnsafeByteArrayOutputStream
 interface OutputStream {
     write(b: number | Buffer): void;
-    writeBytes(b: Buffer, off: number, len: number): void;
+    writeBytes(b: Uint8Array, off: number, len: number): void;
 }
 
 /**
@@ -183,7 +183,7 @@ export abstract class Message {
             // Serialize this message to the provided OutputStream using the bitcoin wire format.
             // 1st check for cached bytes.
             if (this.payload !== null && this.length !== Message.UNKNOWN_LENGTH) {
-                const buffer = Buffer.from(this.payload);
+                const buffer = new Uint8Array(this.payload);
                 stream.writeBytes(buffer, this.offset, this.length);
                 return;
             }
@@ -289,7 +289,7 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const u = Utils.readUint32(Buffer.from(this.payload), this.cursor);
+            const u = Utils.readUint32(new Uint8Array(this.payload), this.cursor);
             this.cursor += 4;
             return u;
         } catch (e) {
@@ -305,7 +305,7 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const u = Utils.readInt64(Buffer.from(this.payload), this.cursor);
+            const u = Utils.readInt64(new Uint8Array(this.payload), this.cursor);
             this.cursor += 8;
             // Utils.readInt64 returns a big-integer BigInteger object. Convert to native bigint.
             // Use string conversion to avoid precision issues and rely on big-integer to produce exact value.
@@ -324,7 +324,7 @@ export abstract class Message {
             throw new ProtocolException("Payload is null");
         }
         // Use readInt64 and convert to unsigned if needed
-    const value = Utils.readInt64(Buffer.from(this.payload), this.cursor);
+    const value = Utils.readInt64(new Uint8Array(this.payload), this.cursor);
     this.cursor += 8;
     // Convert big-integer to native bigint. For unsigned semantics the caller
     // should interpret the resulting bigint appropriately.
@@ -341,7 +341,7 @@ export abstract class Message {
             if (!this.payload) {
                 throw new ProtocolException("Payload is null");
             }
-            const varint = new VarInt(Buffer.from(this.payload), this.cursor + offset);
+            const varint = new VarInt(new Uint8Array(this.payload), this.cursor + offset);
             this.cursor += offset + varint.getOriginalSizeInBytes();
             // Convert BigInt to number
             return Number(varint.value);
@@ -403,7 +403,7 @@ export abstract class Message {
     protected readHash(): Sha256Hash {
         // We have to flip it around, as it's been read off the wire in little endian.
         // Not the most efficient way to do this but the clearest.
-        return Sha256Hash.wrapReversed(Buffer.from(this.readBytes(32)));
+        return Sha256Hash.wrapReversed(new Uint8Array(this.readBytes(32)));
     }
 
     protected hasMoreBytes(): boolean {

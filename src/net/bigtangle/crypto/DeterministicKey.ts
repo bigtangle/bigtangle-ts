@@ -209,7 +209,7 @@ export class DeterministicKey extends ECKey {
         const checksummed = new Uint8Array(input.length + 4);
         checksummed.set(input, 0);
         // Convert to Buffer for hashTwice
-        const checksum = Sha256Hash.hashTwice(Buffer.from(input));
+        const checksum = Sha256Hash.hashTwice(new Uint8Array(input));
         checksummed.set(checksum.slice(0, 4), input.length);
         return checksummed;
     }

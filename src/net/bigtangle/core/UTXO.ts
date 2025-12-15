@@ -98,7 +98,7 @@ export class UTXO extends SpentBlock {
     }
 
     public setHashHex(hashHex: string): void {
-        const hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(hashHex)));
+        const hash = Sha256Hash.wrap(new Uint8Array(Utils.HEX.decode(hashHex)));
         if (hash !== null) {
             this.hash = hash;
         }
@@ -263,11 +263,11 @@ export class UTXO extends SpentBlock {
         // Handle hashHex property
         if (data.hashHex) {
             utxo.setHashHex(data.hashHex);
-            utxo.hash = Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.hashHex)));
+            utxo.hash = Sha256Hash.wrap(new Uint8Array(Utils.HEX.decode(data.hashHex)));
         }
           // Handle hashHex property
         if (data.blockHashHex) { 
-            utxo.setBlockHash( Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(data.blockHashHex))));
+            utxo.setBlockHash( Sha256Hash.wrap(new Uint8Array(Utils.HEX.decode(data.blockHashHex))));
         }
  
         return utxo;

@@ -302,12 +302,13 @@ export class IESEngine {
     private static bigIntegerToBytes(bi: bigint, length: number): Uint8Array {
         let hex = bi.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
-        let bytes = Buffer.from(hex, 'hex');
+        const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
         if (bytes.length < length) {
-            const pad = Buffer.alloc(length - bytes.length, 0);
-            bytes = Buffer.concat([pad, bytes]);
+            const newBytes = new Uint8Array(length);
+            newBytes.set(bytes, length - bytes.length);
+            return newBytes;
         }
-        return new Uint8Array(bytes);
+        return bytes;
     }
     // Helper: compare two Uint8Array
     private static bytesEqual(a: Uint8Array, b: Uint8Array): boolean {

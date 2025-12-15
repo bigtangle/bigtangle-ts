@@ -39,9 +39,6 @@ import { MultiSignByRequest } from "../response/MultiSignByRequest";
 import { PermissionedAddressesResponse } from "../response/PermissionedAddressesResponse";
 import { KeyPurpose } from "../wallet/KeyChain";
 
-// Define Buffer for browser environments if needed
-declare const Buffer: any;
-
 export class Wallet extends WalletBase {
   private static readonly log = console; // Replace with a logger if needed
   keyChainGroup: KeyChainGroup;
@@ -113,7 +110,7 @@ export class Wallet extends WalletBase {
     );
 
     const hexBytes = Utils.HEX.decode(tip);
-    const buffer = Buffer.from(hexBytes);
+    const buffer = new Uint8Array(hexBytes);
     return this.params.getDefaultSerializer().makeBlock(buffer);
   }
 
@@ -244,7 +241,7 @@ export class Wallet extends WalletBase {
 
     // Use the proper addCoinbaseTransaction method like Java implementation
     block.addCoinbaseTransaction(
-      Buffer.from(pubKeyTo),
+      new Uint8Array(pubKeyTo),
       basecoin,
       tokenInfo,
       memoInfo
@@ -308,7 +305,7 @@ export class Wallet extends WalletBase {
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
     // In TypeScript, we convert to JSON string and then to bytes
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
-    transaction.setDataSignature(Buffer.from(jsonData, "utf8"));
+    transaction.setDataSignature(new TextEncoder().encode(jsonData));
 
     this.checkMultiSignBy(multiSignBies, transaction);
  //   console.log(     " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize()));
@@ -362,7 +359,7 @@ export class Wallet extends WalletBase {
   async payToList(
     aesKey: any,
     giveMoneyResult: Map<string, bigint>,
-    tokenid: Buffer,
+    tokenid: Uint8Array,
     memo?: string
   ): Promise<Block | null> {
     const coinList = await this.calculateAllSpendCandidates(aesKey, false);
@@ -416,8 +413,8 @@ export class Wallet extends WalletBase {
     // Send the addresses array directly as JSON
     const jsonString = Json.jsonmapper().stringify(pubKeyHashs);
 
-    // Create Buffer from the JSON string directly
-    const buffer = Buffer.from(jsonString, "utf8");
+    // Create Uint8Array from the JSON string directly
+    const buffer = new TextEncoder().encode(jsonString);
 
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getOutputs,
@@ -531,7 +528,7 @@ export class Wallet extends WalletBase {
 
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenSignByAddress,
-      Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
     );
 
     // Properly deserialize the response using Jackson
@@ -562,7 +559,7 @@ export class Wallet extends WalletBase {
         "";
     }
  
-    const block = this.params.getDefaultSerializer().makeBlock( Buffer.from(Utils.HEX.decode(blockHashHex)));
+    const block = this.params.getDefaultSerializer().makeBlock( new Uint8Array(Utils.HEX.decode(blockHashHex)));
     // replace block prototype if it is too too old
 
     const transactions = block.getTransactions ? block.getTransactions() : [];
@@ -590,8 +587,8 @@ export class Wallet extends WalletBase {
         } else if (multiSignByRequestData instanceof Uint8Array) {
           dataStr = new TextDecoder().decode(multiSignByRequestData);
         } else {
-          // For Buffer or other types, convert appropriately
-          dataStr = Buffer.from(multiSignByRequestData as any).toString("utf8");
+          // For other types, convert appropriately
+          dataStr = String(multiSignByRequestData);
         }
 
         // Properly deserialize the multiSignByRequest using Jackson
@@ -656,21 +653,19 @@ export class Wallet extends WalletBase {
     multiSignBy0.setAddress(outKey.toAddress(this.params).toBase58());
     // Convert public key to hex string
     const pubKey = outKey.getPubKey();
-    const pubKeyBuffer = Buffer.from(pubKey);
-    multiSignBy0.setPublickey(Utils.HEX.encode(pubKeyBuffer));
+    multiSignBy0.setPublickey(Utils.HEX.encode(pubKey));
 
     const signatureBytes =
       buf1 instanceof Uint8Array ? buf1 : new Uint8Array(buf1);
     // Ensure signatureBytes is a proper format for Utils.HEX.encode
-    const signatureBuffer = Buffer.from(signatureBytes);
-    const signatureHex = Utils.HEX.encode(signatureBuffer);
+    const signatureHex = Utils.HEX.encode(signatureBytes);
     multiSignBy0.setSignature(signatureHex);
 
     multiSignBies.push(multiSignBy0);
     const multiSignByRequest = MultiSignByRequest.create(multiSignBies);
     // Convert to JSON string and then to bytes
     const jsonData = Json.jsonmapper().stringify(multiSignByRequest);
-    transaction.setDataSignature(Buffer.from(jsonData, "utf8"));
+    transaction.setDataSignature(new TextEncoder().encode(jsonData));
 
     // Note: Removed local checkMultiSignBy call since it validates signatures that were created
     // with the original transaction data, but now the transaction data has been modified to include
@@ -728,7 +723,7 @@ export class Wallet extends WalletBase {
     // Using OkHttp3Util.post instead of postString
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenById,
-      Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
     );
 
     const token: GetTokensResponse = Json.jsonmapper().parse(resp, {
@@ -791,7 +786,7 @@ export class Wallet extends WalletBase {
       return null;
     }
 
-    let summe = Coin.valueOf(BigInt(0), Buffer.from(tokenid));
+    let summe = Coin.valueOf(BigInt(0), new Uint8Array(tokenid));
     const multispent = new Transaction(this.params);
     multispent.setMemo(memo);
 
@@ -799,7 +794,7 @@ export class Wallet extends WalletBase {
     const entries = Array.from(giveMoneyResult.entries());
     for (const element of entries) {
       const [addressStr, amount] = element;
-      const coin = new Coin(amount, Buffer.from(tokenid));
+      const coin = new Coin(amount, new Uint8Array(tokenid));
       const address = Address.fromBase58(this.params, addressStr);
       multispent.addOutputAddress(coin, address);
       summe = summe.add(coin);
@@ -898,7 +893,7 @@ export class Wallet extends WalletBase {
       // Post the block to the network
       await OkHttp3Util.post(
         this.getServerURL() + ReqCmd.saveBlock,
-        Buffer.from(block.bitcoinSerialize())
+        new Uint8Array(block.bitcoinSerialize())
       );
 
       return block;
@@ -936,7 +931,7 @@ export class Wallet extends WalletBase {
     tx.setMemo("buy order");
 
     // Add outputs for the order (these would go to an escrow/smart contract mechanism)
-    const baseTokenBytes = Buffer.from(Utils.HEX.decode(baseToken));
+    const baseTokenBytes = new Uint8Array(Utils.HEX.decode(baseToken));
     const totalCoin = new Coin(totalAmount, baseTokenBytes);
 
     // Add order information as transaction data
@@ -1051,7 +1046,7 @@ export class Wallet extends WalletBase {
 
     // Add inputs and outputs similar to payMoneyToECKeyList method
     // For sell orders, we need to lock the tokens being sold
-    const tokenidBytes = Buffer.from(Utils.HEX.decode(tokenId));
+    const tokenidBytes = new Uint8Array(Utils.HEX.decode(tokenId));
     const totalCoin = new Coin(offerValue, tokenidBytes);
 
     // Add inputs and outputs for the tokens being sold
@@ -1154,7 +1149,7 @@ export class Wallet extends WalletBase {
       }
     }
 
-    return Coin.valueOf(totalValue, Buffer.from(tokenIdToCheck));
+    return Coin.valueOf(totalValue, new Uint8Array(tokenIdToCheck));
   }
 
   /**
@@ -1286,7 +1281,7 @@ export class Wallet extends WalletBase {
     if (totalBid > bidAmount.getValue()) {
       const changeAmount = Coin.valueOf(
         totalBid - bidAmount.getValue(),
-        Buffer.from(tokenid)
+        new Uint8Array(tokenid)
       );
       const beneficiary = await this.getECKey(
         aesKey,
@@ -1355,7 +1350,7 @@ export class Wallet extends WalletBase {
     requestParam00.set("tokenid", tokenid);
     const resp2 = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenIndex,
-      Buffer.from(
+      new TextEncoder().encode(
         Json.jsonmapper().stringify(Object.fromEntries(requestParam00))
       )
     );
@@ -1384,7 +1379,7 @@ export class Wallet extends WalletBase {
       (token.getAmount ? token.getAmount() : BigInt(0)) ?? BigInt(0);
     const basecoin = new Coin(
       tokenAmount,
-      Buffer.from(Utils.HEX.decode(tokenid))
+      new Uint8Array(Utils.HEX.decode(tokenid))
     );
 
     return await this.saveToken(
@@ -1481,7 +1476,7 @@ export class Wallet extends WalletBase {
 
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getOutputsHistory,
-      Buffer.from(Json.jsonmapper().stringify(requestParam))
+      new TextEncoder().encode(Json.jsonmapper().stringify(requestParam))
     );
 
     // Parse the response and return an array of transactions
@@ -1514,7 +1509,7 @@ export class Wallet extends WalletBase {
     requestParam.set("token", token);
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getDomainNameBlockHash,
-      Buffer.from(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
     );
 
     // First parse to plain object
@@ -1597,7 +1592,7 @@ export class Wallet extends WalletBase {
             // 32 bytes = 64 hex characters
             // If it's a hex string, verify it's 32 bytes when decoded and create a Sha256Hash from it
             tokenObj.setBlockHash(
-              Sha256Hash.wrap(Buffer.from(Utils.HEX.decode(blockHashData)))
+              Sha256Hash.wrap(new Uint8Array(Utils.HEX.decode(blockHashData)))
             );
           } else if (
             blockHashData &&
@@ -1607,14 +1602,14 @@ export class Wallet extends WalletBase {
           ) {
             // If it's an object with bytes array of correct length
             tokenObj.setBlockHash(
-              Sha256Hash.wrap(Buffer.from(blockHashData.bytes))
+              Sha256Hash.wrap(new Uint8Array(blockHashData.bytes))
             );
           } else if (
             Array.isArray(blockHashData) &&
             blockHashData.length === 32
           ) {
             // If it's a raw byte array of correct length
-            tokenObj.setBlockHash(Sha256Hash.wrap(Buffer.from(blockHashData)));
+            tokenObj.setBlockHash(Sha256Hash.wrap(new Uint8Array(blockHashData)));
           }
           // If none of the above conditions are met, skip setting the blockHash to avoid the error
         }
@@ -1668,7 +1663,7 @@ export class Wallet extends WalletBase {
 
       const resp = await OkHttp3Util.post(
         this.getServerURL() + ReqCmd.getTokenPermissionedAddresses,
-        Buffer.from(
+        new TextEncoder().encode(
           Json.jsonmapper().stringify(Object.fromEntries(requestParam))
         )
       );
@@ -1727,7 +1722,7 @@ export class Wallet extends WalletBase {
     // Post the block to the network using signToken endpoint as in Java implementation
     await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.signToken,
-      Buffer.from(block.bitcoinSerialize())
+      new Uint8Array(block.bitcoinSerialize())
     );
 
     return block;

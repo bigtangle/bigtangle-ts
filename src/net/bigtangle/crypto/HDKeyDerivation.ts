@@ -25,7 +25,7 @@ import { ECPoint } from '../core/ECPoint';
 import { HDDerivationException } from './HDDerivationException';
 import { HDUtils } from './HDUtils';
 
-import { Buffer } from 'buffer';
+;
 
 /**
  * Implementation of the <a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki">BIP 32</a>
@@ -33,19 +33,24 @@ import { Buffer } from 'buffer';
  */
 export class HDKeyDerivation {
     // Helper: Uint8Array to hex string
-    private static bufferToHex(buf: Uint8Array): string {
-        return Buffer.from(buf).toString('hex');
+    private static bufferToHex(buf: Uint8Array | undefined): string {
+        if (!buf) return '';
+        return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
     }
     // Helper: BigInt to Uint8Array (32 bytes)
     private static bigIntToBytes(bi: bigint, length: number = 32): Uint8Array {
         let hex = bi.toString(16);
         if (hex.length % 2 !== 0) hex = '0' + hex;
-        let bytes = Buffer.from(hex, 'hex');
+        const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
         if (bytes.length < length) {
-            const pad = Buffer.alloc(length - bytes.length, 0);
-            bytes = Buffer.concat([pad, bytes]);
+            const newBytes = new Uint8Array(length);
+            newBytes.set(bytes, length - bytes.length);
+            return newBytes;
+        } else if (bytes.length > length) {
+            // Return the last `length` bytes (rightmost bytes) to maintain compatibility
+            return bytes.slice(bytes.length - length);
         }
-        return new Uint8Array(bytes);
+        return bytes;
     }
 
     // Helper function to generate random bytes using Web Crypto API or fallback
@@ -162,7 +167,15 @@ export class HDKeyDerivation {
             );
         } else {
             const rawKey = HDKeyDerivation.deriveChildKeyBytesFromPrivate(parent, childNumber);
-            const privKey = BigInt('0x' + HDKeyDerivation.bufferToHex(rawKey.keyBytes));
+            const hex = HDKeyDerivation.bufferToHex(rawKey.keyBytes);
+            const privKey = hex ? BigInt('0x' + hex) : 0n;
+
+            // Validate that the derived private key is in the valid range
+            if (privKey === 0n || privKey >= BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")) {
+                // Retry with next child number if privKey is 0 or >= N
+                return HDKeyDerivation.deriveChildKeyImpl(parent, new ChildNumber(childNumber.num() + 1, childNumber.isHardened()));
+            }
+
             return new DeterministicKey(
                 [...parent.getPath(), childNumber],
                 rawKey.chainCode,
@@ -188,8 +201,17 @@ export class HDKeyDerivation {
         }
         const data = new Uint8Array(37);
         if (childNumber.isHardened()) {
-            const privKeyBytes = parent.getPrivKeyBytes33();
-            data.set(privKeyBytes, 0);
+            // For hardened derivation, use 0x00 || 32-byte private key || 4-byte index
+            data[0] = 0x00;
+            const privKeyBytes = parent.getPrivKeyBytes(); // 32-byte private key
+            if (privKeyBytes.length !== 32) {
+                // Ensure we have exactly 32 bytes
+                const tmp = new Uint8Array(32);
+                tmp.set(privKeyBytes, 32 - privKeyBytes.length);
+                data.set(tmp, 1);
+            } else {
+                data.set(privKeyBytes, 1);
+            }
         } else {
             data.set(parentPublicKey, 0);
         }
@@ -202,11 +224,14 @@ export class HDKeyDerivation {
         const il = i.slice(0, 32);
         const chainCode = i.slice(32, 64);
         const ilInt = BigInt('0x' + HDKeyDerivation.bufferToHex(il));
-        HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
-        const priv = parent.getPrivKey();
         const N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
-        const kiBigInt = (priv + ilInt) % N;
-        HDKeyDerivation.assertNonZero(kiBigInt, 'Illegal derived key: derived private key equals 0.');
+        const priv = parent.getPrivKey();
+        let kiBigInt = (priv + ilInt) % N;
+        // According to BIP32: if the resulting key is 0, we need to derive again with incremented index
+        if (kiBigInt === 0n) {
+            // Increment to the next child number and recursively derive
+            return HDKeyDerivation.deriveChildKeyBytesFromPrivate(parent, new ChildNumber(childNumber.num() + 1, childNumber.isHardened()));
+        }
         const ki = kiBigInt;
         const kiBytes = HDKeyDerivation.bigIntToBytes(ki, 32);
         return new RawKeyBytes(kiBytes, chainCode);
@@ -237,18 +262,18 @@ export class HDKeyDerivation {
         const il = i.slice(0, 32);
         const chainCode = i.slice(32, 64);
         const ilInt = BigInt('0x' + HDKeyDerivation.bufferToHex(il));
-        HDKeyDerivation.assertLessThanN(ilInt, 'Illegal derived key: I_L >= n');
         const N = BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        const ilIntModN = ilInt % N;
         let Ki: ECPoint;
         const parentPubPoint = parent.getPubKeyPoint();
         if (!parentPubPoint) throw new Error('Parent public key is missing');
         switch (mode) {
             case PublicDeriveMode.NORMAL:
-                Ki = ECKey.publicPointFromPrivate(ilInt).add(parentPubPoint);
+                Ki = ECKey.publicPointFromPrivate(ilIntModN).add(parentPubPoint);
                 break;
             case PublicDeriveMode.WITH_INVERSION: {
                 const randIntBig = BigInt(HDKeyDerivation.RAND_INT.toString()); // Keep as bigint for modulo with N (which is bigint)
-                const Ki1 = ECKey.publicPointFromPrivate((ilInt + randIntBig) % N);
+                const Ki1 = ECKey.publicPointFromPrivate((ilIntModN + randIntBig) % N);
                 const additiveInverse = (N - (randIntBig % N)) % N;
                 const Ki2 = Ki1.add(ECKey.publicPointFromPrivate(additiveInverse));
                 Ki = Ki2.add(parentPubPoint);

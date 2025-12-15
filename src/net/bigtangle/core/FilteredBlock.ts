@@ -6,7 +6,7 @@ import { NetworkParameters } from '../params/NetworkParameters';
 import { Message } from './Message';
  
 import { VerificationException } from '../exception/VerificationException';
-import { Buffer } from 'buffer';
+;
 
 /**
  * <p>A FilteredBlock is used to relay a block with its transactions filtered using a {@link BloomFilter}. It consists
@@ -20,14 +20,14 @@ export class FilteredBlock extends Message {
     private cachedTransactionHashes: Sha256Hash[] | null = null;
     private associatedTransactions: Map<Sha256Hash, Transaction> = new Map();
 
-    constructor(params: NetworkParameters, payloadBytes: Buffer);
+    constructor(params: NetworkParameters, payloadBytes: Uint8Array);
     constructor(params: NetworkParameters, header: Block, pmt: PartialMerkleTree);
-    constructor(params: NetworkParameters, arg1: Buffer | Block, arg2?: PartialMerkleTree) {
+    constructor(params: NetworkParameters, arg1: Uint8Array | Block, arg2?: PartialMerkleTree) {
         super(params);
         if (arg1 instanceof Buffer) {
             // Constructor(params, payloadBytes)
             this.payload = arg1;
-            this.merkleTree = new PartialMerkleTree(params, Buffer.alloc(0), 0); // Placeholder
+            this.merkleTree = new PartialMerkleTree(params, new Uint8Array(0), 0); // Placeholder
             this.parse();
         } else {
             // Constructor(params, header, pmt)
@@ -57,9 +57,9 @@ export class FilteredBlock extends Message {
             throw new Error("Payload is not set for parsing.");
         }
         const headerBytes = this.payload.subarray(0, NetworkParameters.HEADER_SIZE);
-        this.header = this.params!.getDefaultSerializer().makeBlock(Buffer.from(headerBytes));
+        this.header = this.params!.getDefaultSerializer().makeBlock(new Uint8Array(headerBytes));
 
-        this.merkleTree = new PartialMerkleTree(this.params!, Buffer.from(this.payload), NetworkParameters.HEADER_SIZE);
+        this.merkleTree = new PartialMerkleTree(this.params!, new Uint8Array(this.payload), NetworkParameters.HEADER_SIZE);
 
         this.length = NetworkParameters.HEADER_SIZE + this.merkleTree.getMessageSize();
     }

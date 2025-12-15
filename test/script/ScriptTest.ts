@@ -253,7 +253,7 @@ describe('ScriptTest', () => {
         ).toEqual(toAddress);
         const p2shScript = ScriptBuilder.createP2SHOutputScript(Buffer.alloc(20));
         const scriptAddress = new Address(PARAMS, PARAMS.getP2SHHeader(), Buffer.from(p2shScript.getPubKeyHash()!));
-        expect(p2shScript.getToAddress(PARAMS, true)).toEqual(scriptAddress);
+        expect(p2shScript.getToAddress(PARAMS, true)!.equals(scriptAddress)).toBe(true);
     });
 
     test('getToAddressNoPubKey', () => {

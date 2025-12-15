@@ -34,11 +34,11 @@ export class SpentBlock extends DataClass {
     const baos = new UnsafeByteArrayOutputStream();
 
     // Write superclass data
-    const superBytes = Buffer.from(super.toByteArray());
+    const superBytes = new Uint8Array(super.toByteArray());
     baos.writeBytes(superBytes, 0, superBytes.length);
 
     // Write class-specific data
-    const blockHashBytes = Buffer.from(this.blockHash === null
+    const blockHashBytes = new Uint8Array(this.blockHash === null
       ? Sha256Hash.ZERO_HASH.getBytes()
       : this.blockHash.getBytes());
     baos.writeBytes(blockHashBytes, 0, blockHashBytes.length);
@@ -46,7 +46,7 @@ export class SpentBlock extends DataClass {
     baos.writeBoolean(this.confirmed);
     baos.writeBoolean(this.spent);
     
-    const spenderBlockHashBytes = Buffer.from(this.spenderBlockHash === null
+    const spenderBlockHashBytes = new Uint8Array(this.spenderBlockHash === null
       ? Sha256Hash.ZERO_HASH.getBytes()
       : this.spenderBlockHash.getBytes());
     baos.writeBytes(spenderBlockHashBytes, 0, spenderBlockHashBytes.length);
@@ -70,7 +70,7 @@ export class SpentBlock extends DataClass {
   }
 
   public parse(buf: Uint8Array): SpentBlock {
-    const bain = new DataInputStream(Buffer.from(buf));
+    const bain = new DataInputStream(new Uint8Array(buf));
     try {
       this.parseDIS(bain);
       bain.close();

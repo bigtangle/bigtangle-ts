@@ -36,14 +36,14 @@ export class ContractEventInfo extends DataClass {
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            const superBytes = Buffer.from(super.toByteArray());
+            const superBytes = new Uint8Array(super.toByteArray());
             baos.writeBytes(superBytes, 0, superBytes.length);
             baos.writeNBytesString(this.beneficiaryAddress);
             baos.writeNBytesString(this.offerTokenid);
             baos.writeNBytesString(this.contractTokenid);
             baos.writeNBytesString(this.offerSystem);
             const b = Utils.bigIntToBytes(this.offerValue! )
-            const buffer = Buffer.from(b);
+            const buffer = new Uint8Array(b);
             baos.writeBytes(buffer, 0, buffer.length); // Assuming 32 bytes for BigInteger
             baos.close();
         } catch (e: any) {
@@ -63,7 +63,7 @@ export class ContractEventInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): ContractEventInfo {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

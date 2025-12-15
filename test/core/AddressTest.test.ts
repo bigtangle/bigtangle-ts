@@ -32,7 +32,7 @@ describe('AddressTest', () => {
            testParams,
             'n4eA2nbYqErp7H6jebchxAN59DmNpksexv',
         );
-        expect(a.getHash160().toString('hex')).toBe(
+        expect(Utils.HEX.encode(a.getHash160())).toBe(
             'fda79a24e50ff70ff42f7d89585da5bd19d9e5cc',
         );
 
@@ -40,7 +40,7 @@ describe('AddressTest', () => {
             mainParams,
             '17kzeh4N8g49GFvdDzSf8PjaPfyoD1MndL',
         );
-        expect(b.getHash160().toString('hex')).toBe(
+        expect(Utils.HEX.encode(b.getHash160())).toBe(
             '4a22c3c4cbb31e4d03b15550636762bda0baf85a',
         );
     });

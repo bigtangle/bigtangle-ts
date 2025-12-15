@@ -27,7 +27,7 @@ export class UserSettingData {
     }
 
     public parse(buf: Uint8Array): UserSettingData {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

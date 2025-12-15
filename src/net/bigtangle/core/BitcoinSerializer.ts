@@ -9,7 +9,7 @@ import { FilteredBlock } from './FilteredBlock';
 import { HeadersMessage } from './HeadersMessage';
 import { Sha256Hash } from './Sha256Hash';
 import { Utils } from '../utils/Utils';
-import { Buffer } from 'buffer';
+;
 
 const MAX_MESSAGE_SIZE = 0x02000000; // 32MB
 const COMMAND_LEN = 12;
@@ -18,19 +18,19 @@ export class BitcoinPacketHeader {
     /** The largest number of bytes that a header can represent */
     public static readonly HEADER_LENGTH = COMMAND_LEN + 4 + 4;
 
-    public readonly header: Buffer;
+    public readonly header: Uint8Array;
     public readonly command: string;
     public readonly size: number;
-    public readonly checksum: Buffer;
+    public readonly checksum: Uint8Array;
 
-    constructor(inBuffer: Buffer, params: NetworkParameters) {
+    constructor(inBuffer: Uint8Array, params: NetworkParameters) {
         // Check if the buffer is long enough to contain the header
         if (inBuffer.length < BitcoinPacketHeader.HEADER_LENGTH) {
             throw new ProtocolException(`Buffer too short to contain header: ${inBuffer.length} < ${BitcoinPacketHeader.HEADER_LENGTH}`);
         }
         
-        this.header = Buffer.alloc(BitcoinPacketHeader.HEADER_LENGTH);
-        inBuffer.copy(this.header, 0, 0, BitcoinPacketHeader.HEADER_LENGTH);
+        this.header = new Uint8Array(BitcoinPacketHeader.HEADER_LENGTH);
+        this.header.set(inBuffer.subarray(0, BitcoinPacketHeader.HEADER_LENGTH), 0);
 
         let cursor = 0;
 
@@ -38,7 +38,7 @@ export class BitcoinPacketHeader {
         // in which case the termination is implicit.
         let commandEnd = 0;
         for (; commandEnd < COMMAND_LEN && this.header[commandEnd] !== 0; commandEnd++);
-        this.command = this.header.subarray(0, commandEnd).toString('ascii');
+        this.command = new TextDecoder().decode(this.header.subarray(0, commandEnd));
         cursor = COMMAND_LEN;
 
         this.size = Utils.readUint32(this.header, cursor);
@@ -48,9 +48,9 @@ export class BitcoinPacketHeader {
             throw new ProtocolException(`Message size too large: ${this.size}`);
 
         // Old clients don't send the checksum.
-        this.checksum = Buffer.alloc(4);
+        this.checksum = new Uint8Array(4);
         // Note that the size read above includes the checksum bytes.
-        this.header.copy(this.checksum, 0, cursor, cursor + 4);
+        this.checksum.set(this.header.subarray(cursor, cursor + 4), 0);
         cursor += 4;
     }
 }
@@ -85,20 +85,23 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
     /**
      * Writes message to to the output stream.
      */
-    public serialize(name: string, message: any, out: any, offset?: number, length?: number, hash?: Buffer | null): void {
+    public serialize(name: string, message: any, out: any, offset?: number, length?: number, hash?: Uint8Array | null): void {
         // Convert message to Buffer if it's not already
-        let messageBuffer: Buffer;
-        if (Buffer.isBuffer(message)) {
-            messageBuffer = message;
+        let messageBuffer: Uint8Array;
+        if (message && message.constructor && message.constructor.name === 'Buffer') {
+            messageBuffer = new Uint8Array(message);
         } else if (message instanceof Uint8Array) {
-            messageBuffer = Buffer.from(message);
+            messageBuffer = message;
         } else {
             throw new Error("Message must be a Buffer or Uint8Array");
         }
         
-        const header = Buffer.alloc(4 + COMMAND_LEN + 4 + 4 /* checksum */);
+        const header = new Uint8Array(4 + COMMAND_LEN + 4 + 4 /* checksum */);
         const packetMagic = this.params.getPacketMagic();
-        header.writeUInt32BE(packetMagic, 0);
+        header[0] = (packetMagic >>> 24) & 0xff;
+        header[1] = (packetMagic >>> 16) & 0xff;
+        header[2] = (packetMagic >>> 8) & 0xff;
+        header[3] = packetMagic & 0xff;
 
         // The header array is initialized to zero by JavaScript so we don't have to worry about
         // NULL terminating the string here.
@@ -106,10 +109,14 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
             header[4 + i] = name.charCodeAt(i) & 0xFF;
         }
 
-        header.writeUInt32LE(messageBuffer.length, 4 + COMMAND_LEN);
+        const len = messageBuffer.length;
+        header[4 + COMMAND_LEN] = len & 0xff;
+        header[4 + COMMAND_LEN + 1] = (len >>> 8) & 0xff;
+        header[4 + COMMAND_LEN + 2] = (len >>> 16) & 0xff;
+        header[4 + COMMAND_LEN + 3] = (len >>> 24) & 0xff;
 
         const hashResult = Sha256Hash.hashTwice(messageBuffer);
-        hashResult.copy(header, 4 + COMMAND_LEN + 4, 0, 4);
+        header.set(hashResult.subarray(0, 4), 4 + COMMAND_LEN + 4);
         
         out.push(header);
         out.push(messageBuffer);
@@ -129,7 +136,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
     /**
      * Reads a message from the given Buffer and returns it.
      */
-    public deserialize(inBuffer: Buffer): Message {
+    public deserialize(inBuffer: Uint8Array): Message {
         // A Bitcoin protocol message has the following format.
         //
         //   - 4 byte magic number: 0xfabfb5da for the testnet or
@@ -154,25 +161,29 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Deserialize payload only.  You must provide a header, typically obtained by calling
      * {@link BitcoinSerializer#deserializeHeader}.
      */
-    public deserializePayload(header: BitcoinPacketHeader, inBuffer: Buffer): Message {
-        const payloadBytes = Buffer.alloc(header.size);
-        inBuffer.copy(payloadBytes, 0, 0, header.size);
+    public deserializePayload(header: BitcoinPacketHeader, inBuffer: Uint8Array): Message {
+        const payloadBytes = new Uint8Array(header.size);
+        payloadBytes.set(inBuffer.subarray(0, header.size), 0);
 
         // Verify the checksum.
         const hash = Sha256Hash.hashTwice(payloadBytes);
         if (header.checksum[0] !== hash[0] || header.checksum[1] !== hash[1] ||
                 header.checksum[2] !== hash[2] || header.checksum[3] !== hash[3]) {
-            throw new ProtocolException(`Checksum failed to verify, actual ${hash.toString('hex')} vs ${header.checksum.toString('hex')}`);
+            const hashHex = Array.from(hash).map(b => b.toString(16).padStart(2, '0')).join('');
+            const checksumHex = Array.from(header.checksum).map(b => b.toString(16).padStart(2, '0')).join('');
+            throw new ProtocolException(`Checksum failed to verify, actual ${hashHex} vs ${checksumHex}`);
         }
 
         try {
+            const payloadHex = Array.from(payloadBytes).map(b => b.toString(16).padStart(2, '0')).join('');
             return this.makeMessage(header.command, header.size, payloadBytes, hash, header.checksum);
         } catch (e) {
-            throw new ProtocolException(`Error deserializing message ${payloadBytes.toString('hex')}\n`);
+            const payloadHex = Array.from(payloadBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            throw new ProtocolException(`Error deserializing message ${payloadHex}\n`);
         }
     }
 
-    private makeMessage(command: string, length: number, payloadBytes: Buffer, hash: Buffer, checksum: Buffer): Message {
+    private makeMessage(command: string, length: number, payloadBytes: Uint8Array, hash: Uint8Array, checksum: Uint8Array): Message {
         // We use an if ladder rather than reflection because reflection is very slow.
         let message: Message;
         if (command === "block") {
@@ -202,7 +213,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Make an alert message from the payload. Extension point for alternative
      * serialization format support.
      */
-    public makeAlertMessage(payloadBytes: Buffer): AlertMessage {
+    public makeAlertMessage(payloadBytes: Uint8Array): AlertMessage {
         return new AlertMessage(this.params, payloadBytes);
     }
 
@@ -210,7 +221,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Make a block from the payload. Extension point for alternative
      * serialization format support.
      */
-    public makeBlock(payloadBytes: Buffer): Block {
+    public makeBlock(payloadBytes: Uint8Array): Block {
         return Block.setBlock5(this.params, payloadBytes,0, this, payloadBytes.length);
     }
 
@@ -218,7 +229,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Make a filtered block from the payload. Extension point for alternative
      * serialization format support.
      */
-    public makeFilteredBlock(payloadBytes: Buffer): FilteredBlock {
+    public makeFilteredBlock(payloadBytes: Uint8Array): FilteredBlock {
         return new FilteredBlock(this.params, payloadBytes);
     }
 
@@ -226,7 +237,7 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Make a headers message from the payload. Extension point for alternative
      * serialization format support.
      */
-    public makeHeadersMessage(payloadBytes: Buffer): HeadersMessage {
+    public makeHeadersMessage(payloadBytes: Uint8Array): HeadersMessage {
         return new HeadersMessage(this.params, payloadBytes);
     }
 
@@ -234,11 +245,11 @@ export class BitcoinSerializer extends MessageSerializer<NetworkParameters> {
      * Make a transaction from the payload. Extension point for alternative
      * serialization format support.
      */
-    public makeTransaction(payloadBytes: Buffer): Transaction {
+    public makeTransaction(payloadBytes: Uint8Array): Transaction {
         return Transaction.fromTransaction6(this.params, payloadBytes, 0, null, this, payloadBytes.length);
     }
 
-    public seekPastMagicBytes(inBuffer: Buffer): Buffer {
+    public seekPastMagicBytes(inBuffer: Uint8Array): Uint8Array {
         let magicCursor = 3;  // Which byte of the magic we're looking for currently.
         let position = 0;
         const packetMagic = this.params.getPacketMagic();

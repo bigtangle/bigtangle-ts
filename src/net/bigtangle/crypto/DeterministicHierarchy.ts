@@ -41,6 +41,8 @@ export class DeterministicHierarchy {
     private readonly rootPath: ChildNumber[];
     // Keep track of how many child keys each node has. This is kind of weak.
     private readonly lastChildNumbers: Map<string, ChildNumber> = new Map();
+    // Map from requested paths to actual derived paths (for BIP32 retry mechanism)
+    private readonly pathMap: Map<string, string> = new Map();
 
     public static readonly BIP32_STANDARDISATION_TIME_SECS = 1369267200;
 
@@ -59,13 +61,14 @@ export class DeterministicHierarchy {
      */
     public putKey(key: DeterministicKey): void {
         const path = key.getPath();
+        const pathStr = HDUtils.formatPath(path);
         // Update our tracking of what the next child in each branch of the tree should be. Just assume that keys are
         // inserted in order here.
         const parent = key.getParent();
         if (parent != null) {
             this.lastChildNumbers.set(HDUtils.formatPath(parent.getPath()), key.getChildNumber());
         }
-        this.keys.set(HDUtils.formatPath(path), key);
+        this.keys.set(pathStr, key);
     }
 
     /**
@@ -83,7 +86,10 @@ export class DeterministicHierarchy {
                 : [...path];
         const absolutePathStr = HDUtils.formatPath(absolutePath);
 
-        if (!this.keys.has(absolutePathStr)) {
+        // Check if we have a mapping from requested path to actual path
+        const actualPathStr = this.pathMap.get(absolutePathStr) || absolutePathStr;
+
+        if (!this.keys.has(actualPathStr)) {
             if (!create) {
                 throw new Error(`No key found for ${relativePath ? "relative" : "absolute"} path ${HDUtils.formatPath(path)}.`);
             }
@@ -92,9 +98,32 @@ export class DeterministicHierarchy {
             }
             const parentPath = absolutePath.slice(0, absolutePath.length - 1);
             const parent = this.get(parentPath, false, create);
-            this.putKey(HDKeyDerivation.deriveChildKey(parent, absolutePath[absolutePath.length - 1]));
+            if (!parent) {
+                throw new Error(`Parent key is null or undefined for path: ${HDUtils.formatPath(parentPath)}`);
+            }
+            const derivedKey = HDKeyDerivation.deriveChildKey(parent, absolutePath[absolutePath.length - 1]);
+            const derivedPathStr = HDUtils.formatPath(derivedKey.getPath());
+
+            // Store the key using its actual derived path
+            this.putKey(derivedKey);
+
+            // If the derived path is different from requested, create a mapping
+            if (derivedPathStr !== absolutePathStr) {
+                this.pathMap.set(absolutePathStr, derivedPathStr);
+                // Now look up using the new actual path
+                const key = this.keys.get(derivedPathStr);
+                if (!key) {
+                    throw new Error(`Key was not found after attempted creation: ${absolutePathStr}`);
+                }
+                return key;
+            }
         }
-        return this.keys.get(absolutePathStr)!;
+
+        const key = this.keys.get(actualPathStr);
+        if (!key) {
+            throw new Error(`Key was not found after attempted creation: ${absolutePathStr}`);
+        }
+        return key;
     }
 
     /**

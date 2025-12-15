@@ -23,7 +23,7 @@ export class SHA256DigestSpi extends MessageDigestSpi {
         }
         const hashResult = sha256(combinedBuffer);
         // Return as Buffer to maintain compatibility with existing tests
-        return Buffer.from(hashResult);
+        return new Uint8Array(hashResult);
     }
     
     protected engineReset(): void {

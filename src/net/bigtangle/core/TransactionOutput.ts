@@ -261,7 +261,7 @@ export class TransactionOutput extends ChildMessage {
     const tokenid = this.readBytes(this.tokenLen);
 
     // Create the Coin with the parsed value and tokenid
-    this.value = Coin.valueOf(valueBigInt, Buffer.from(tokenid));
+    this.value = Coin.valueOf(valueBigInt, new Uint8Array(tokenid));
 
     // Read script length
     this.scriptLen = this.readVarInt();

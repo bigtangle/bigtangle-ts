@@ -23,7 +23,7 @@ export abstract class NetworkParameters {
   static readonly ORDER_TIMEOUT_MAX = 30 * 24 * 60 * 60; // 30 days in seconds
   static readonly BIGTANGLE_TOKENID_STRING = "bc";
   public static getBIGTANGLE_TOKENID() {
-    return Buffer.from(Utils.HEX.decode(this.BIGTANGLE_TOKENID_STRING)); // Use the same as Constants.BIGTANGLE_TOKENID
+    return new Uint8Array(Utils.HEX.decode(this.BIGTANGLE_TOKENID_STRING)); // Use the same as Constants.BIGTANGLE_TOKENID
   }
   static readonly BIGTANGLE_TOKENNAME = "BigTangle";
   static readonly BIGTANGLE_DECIMAL = 6;

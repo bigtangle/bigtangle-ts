@@ -27,7 +27,7 @@ export class SignedDataClass {
     }
 
     setSerializedData(byteData: Uint8Array): void {
-        this.serializedData = Buffer.from(byteData).toString('hex');
+        this.serializedData = Array.from(byteData).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     // Stub: encryptToMemo

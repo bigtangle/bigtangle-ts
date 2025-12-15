@@ -16,19 +16,19 @@ export class TokensumsMap extends DataClass {
     }
 
     public hash(): Sha256Hash {
-        return Sha256Hash.of(Buffer.from(this.toByteArray()));
+        return Sha256Hash.of(new Uint8Array(this.toByteArray()));
     }
 
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            const superBytes = Buffer.from(super.toByteArray());
+            const superBytes = new Uint8Array(super.toByteArray());
             baos.writeBytes(superBytes, 0, superBytes.length);
             // Sort keys to ensure consistent serialization
             const sortedKeys = Array.from(this.tokensumsMap.keys()).sort((a, b) => a.localeCompare(b));
             for (const key of sortedKeys) {
                 Utils.writeNBytesString(baos, key);
-                const tokensumsBytes = Buffer.from(this.tokensumsMap.get(key)!.toByteArray());
+                const tokensumsBytes = new Uint8Array(this.tokensumsMap.get(key)!.toByteArray());
                 baos.writeBytes(tokensumsBytes, 0, tokensumsBytes.length);
             }
             baos.close();

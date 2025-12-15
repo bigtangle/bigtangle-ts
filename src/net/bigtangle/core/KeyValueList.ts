@@ -16,11 +16,11 @@ export class KeyValueList extends DataClass {
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            const superBytes = Buffer.from(super.toByteArray());
+            const superBytes = new Uint8Array(super.toByteArray());
             baos.writeBytes(superBytes, 0, superBytes.length);
             baos.writeInt(this.keyvalues.length);
             for (const c of this.keyvalues) {
-                const bytes = Buffer.from(c.toByteArray());
+                const bytes = new Uint8Array(c.toByteArray());
                 baos.writeBytes(bytes, 0, bytes.length);
             }
             baos.close();
@@ -41,7 +41,7 @@ export class KeyValueList extends DataClass {
     }
 
     public parse(buf: Uint8Array): this {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

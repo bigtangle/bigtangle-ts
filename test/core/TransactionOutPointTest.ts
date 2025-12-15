@@ -27,8 +27,8 @@ describe('TransactionOutPointTest', () => {
         const deserialized = TransactionOutPoint.fromTransactionOutPoint5(PARAMS, serialized, 0, null, PARAMS.getDefaultSerializer());
 
         // Check that the deserialized object matches the original
-        expect(deserialized.getBlockHash()).toEqual(blockHash);
-        expect(deserialized.getTxHash()).toEqual(txHash);
+        expect(deserialized.getBlockHash().equals(blockHash)).toBe(true);
+        expect(deserialized.getTxHash().equals(txHash)).toBe(true);
         expect(deserialized.getIndex()).toBe(123);
     });
 
@@ -45,8 +45,8 @@ describe('TransactionOutPointTest', () => {
         const deserialized = TransactionOutPoint.fromTransactionOutPoint5(PARAMS, serialized, 0, null, PARAMS.getDefaultSerializer());
 
         // Check that the deserialized object matches the original
-        expect(deserialized.getBlockHash()).toEqual(Sha256Hash.ZERO_HASH);
-        expect(deserialized.getTxHash()).toEqual(Sha256Hash.ZERO_HASH);
+        expect(deserialized.getBlockHash().equals(Sha256Hash.ZERO_HASH)).toBe(true);
+        expect(deserialized.getTxHash().equals(Sha256Hash.ZERO_HASH)).toBe(true);
         expect(deserialized.getIndex()).toBe(456);
     });
 });

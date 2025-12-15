@@ -333,7 +333,7 @@ export class Utils {
     if (message !== null) {
       const bytes = new TextEncoder().encode(message);
       dos.writeInt(bytes.length);
-      dos.write(Buffer.from(bytes));
+      dos.write(new Uint8Array(bytes));
     }
   }
 
@@ -363,7 +363,7 @@ export class Utils {
     dos.writeBoolean(message !== null);
     if (message !== null) {
       dos.writeInt(message.length);
-      dos.write(Buffer.from(message));
+      dos.write(new Uint8Array(message));
     }
   }
 
@@ -564,9 +564,9 @@ export class Utils {
     return Array.from(items).join(" ");
   }
 
-  public static copyOf(input: Buffer, length: number): Buffer {
-    const out = Buffer.alloc(length);
-    input.copy(out, 0, 0, Math.min(length, input.length));
+  public static copyOf(input: Uint8Array, length: number): Uint8Array {
+    const out = new Uint8Array(length);
+    out.set(input.subarray(0, Math.min(length, input.length)), 0);
     return out;
   }
 
@@ -684,7 +684,7 @@ export class Utils {
   /**
    * Compares two Buffers for byte-wise equality.
    */
-  public static bytesEqual(a: Buffer, b: Buffer): boolean {
+  public static bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) return false;

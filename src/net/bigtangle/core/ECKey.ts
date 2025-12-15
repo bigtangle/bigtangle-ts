@@ -2,7 +2,7 @@
 import * as secp256k1 from 'secp256k1';
 import { sha256 } from "@noble/hashes/sha256";
 import { ripemd160 } from "@noble/hashes/ripemd160";
-import { Buffer } from 'buffer';
+;
 import { ECDSASignature } from "../core/ECDSASignature";
 import { TransactionSignature } from "../crypto/TransactionSignature";
 import { SigHash } from "../core/SigHash";
@@ -62,7 +62,7 @@ export class ECKey {
       hex = hex.substring(hex.length - length * 2);
     }
     // Convert hex string to Uint8Array
-    return Uint8Array.from(Buffer.from(hex, "hex"));
+    return Uint8Array.from(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
   }
 
   // Helper to convert Buffer or Uint8Array to hex string
@@ -269,8 +269,8 @@ export class ECKey {
     public verifyWithPubKey(data: Uint8Array, signature: Uint8Array, pub: Uint8Array): boolean {
         try {
             // Convert to Buffer format which secp256k1 expects
-            const dataBuffer = Buffer.from(data);
-            const pubBuffer = Buffer.from(pub);
+            const dataBuffer = new Uint8Array(data);
+            const pubBuffer = new Uint8Array(pub);
             
             // Check if this is a DER format signature (starts with 0x30)
             if (signature.length > 0 && signature[0] === 0x30) {
@@ -286,16 +286,16 @@ export class ECKey {
                     const compactSig = new Uint8Array([...rBytes, ...sBytes]);
                     
                     // Verify using the compact format
-                    const compactSigBuffer = Buffer.from(compactSig);
+                    const compactSigBuffer = new Uint8Array(compactSig);
                     return secp256k1.ecdsaVerify(compactSigBuffer, dataBuffer, pubBuffer);
                 } catch (decodeError) {
                     // If DER decoding fails, try direct verification (for backwards compatibility)
-                    const signatureBuffer = Buffer.from(signature);
+                    const signatureBuffer = new Uint8Array(signature);
                     return secp256k1.ecdsaVerify(signatureBuffer, dataBuffer, pubBuffer);
                 }
             } else {
                 // This is likely a compact format signature
-                const signatureBuffer = Buffer.from(signature);
+                const signatureBuffer = new Uint8Array(signature);
                 return secp256k1.ecdsaVerify(signatureBuffer, dataBuffer, pubBuffer);
             }
         } catch (e) {
@@ -429,18 +429,18 @@ export class ECKey {
 
   public async signMessage(message: string): Promise<Uint8Array> {
     // Sign a message following Bitcoin's message signing standard
-    const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");
-    const messageBuffer = Buffer.from(message, "utf-8");
+    const prefix = new TextEncoder().encode("\x18Bitcoin Signed Message:\n");
+    const messageBuffer = new TextEncoder().encode(message);
 
     // Create a buffer to write the VarInt
     const varInt = new VarInt(messageBuffer.length);
     const varIntBuffer = varInt.encode();
 
-    const buffer = Buffer.concat([
-      prefix,
-      varIntBuffer,
-      messageBuffer,
-    ]);
+    const bufferLength = prefix.length + varIntBuffer.length + messageBuffer.length;
+    const buffer = new Uint8Array(bufferLength);
+    buffer.set(prefix, 0);
+    buffer.set(varIntBuffer, prefix.length);
+    buffer.set(messageBuffer, prefix.length + varIntBuffer.length);
     const hash = sha256(sha256(buffer));
     const signature = await this.sign(Uint8Array.from(hash));
     return signature.encodeToDER();
@@ -451,29 +451,29 @@ export class ECKey {
     signatureBase64: string
   ): ECKey {
     // Implementation of message recovery
-    const prefix = Buffer.from("\x18Bitcoin Signed Message:\n");
-    const messageBuffer = Buffer.from(message, "utf-8");
+    const prefix = new TextEncoder().encode("\x18Bitcoin Signed Message:\n");
+    const messageBuffer = new TextEncoder().encode(message);
 
     // Create a buffer to write the VarInt
     const varInt = new VarInt(messageBuffer.length);
     const varIntBuffer = varInt.encode();
 
-    const buffer = Buffer.concat([
-      prefix,
-      varIntBuffer,
-      messageBuffer,
-    ]);
+    const bufferLength = prefix.length + varIntBuffer.length + messageBuffer.length;
+    const buffer = new Uint8Array(bufferLength);
+    buffer.set(prefix, 0);
+    buffer.set(varIntBuffer, prefix.length);
+    buffer.set(messageBuffer, prefix.length + varIntBuffer.length);
     const messageHash = sha256(sha256(buffer));
 
-    const signatureBuffer = Buffer.from(signatureBase64, "base64");
+    const signatureBuffer = new Uint8Array(atob(signatureBase64).split('').map(c => c.charCodeAt(0)));
     if (signatureBuffer.length !== 65) {
       throw new Error("Invalid signature length");
     }
 
     const headerByte = signatureBuffer[0];
     const recoveryId = (headerByte - 27) & 0x03; // Ensure recoveryId is 0-3
-    const r = BigInt("0x" + signatureBuffer.slice(1, 33).toString("hex"));
-    const s = BigInt("0x" + signatureBuffer.slice(33, 65).toString("hex"));
+    const r = BigInt("0x" + Array.from(signatureBuffer.slice(1, 33)).map(b => b.toString(16).padStart(2, '0')).join(''));
+    const s = BigInt("0x" + Array.from(signatureBuffer.slice(33, 65)).map(b => b.toString(16).padStart(2, '0')).join(''));
 
     // Create a signature object
     new ECDSASignature(r, s);
@@ -510,7 +510,7 @@ export class ECKey {
     return new Address.Address(
       params,
       version,
-      Buffer.from(this.getPubKeyHash())
+      new Uint8Array(this.getPubKeyHash())
     );
   }
 

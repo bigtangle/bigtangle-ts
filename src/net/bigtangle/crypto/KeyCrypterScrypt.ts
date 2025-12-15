@@ -1,5 +1,5 @@
 import { scrypt } from 'scrypt-js';
-import { Buffer } from 'buffer';
+;
 import { EncryptionType } from './EncryptableItem';
 import { KeyParameter, KeyCrypter } from './KeyCrypter';
 import { EncryptedData } from './EncryptedData';
@@ -50,7 +50,7 @@ export class KeyCrypterScrypt implements KeyCrypter {
   }
 
   async deriveKey(password: string): Promise<KeyParameter> {
-    const passwordBytes = Buffer.from(password, 'utf8');
+    const passwordBytes = new TextEncoder().encode(password);
     const { N, r, p, salt } = this.scryptParameters;
 
     const key = await scrypt(passwordBytes, salt, N, r, p, KeyCrypterScrypt.KEY_LENGTH);
@@ -98,10 +98,12 @@ export class KeyCrypterScrypt implements KeyCrypter {
       // Fallback to Node.js crypto for AES-CBC encryption
       try {
         const cipher = nodeCrypto.createCipheriv('aes-256-cbc', keyBytes, iv);
-        let encrypted = cipher.update(Buffer.from(plainBytes));
+        let encrypted = cipher.update(new Uint8Array(plainBytes));
         const final = cipher.final();
-        const encryptedBuffer = Buffer.concat([encrypted, final]);
-        return new EncryptedData(iv, new Uint8Array(encryptedBuffer));
+        const encryptedBuffer = new Uint8Array(encrypted.length + final.length);
+        encryptedBuffer.set(encrypted, 0);
+        encryptedBuffer.set(final, encrypted.length);
+        return new EncryptedData(iv, encryptedBuffer);
       } catch (e) {
         throw new Error('bad decrypt');
       }
@@ -140,10 +142,12 @@ export class KeyCrypterScrypt implements KeyCrypter {
       // Fallback to Node.js crypto for AES-CBC decryption
       try {
         const decipher = nodeCrypto.createDecipheriv('aes-256-cbc', keyBytes, iv);
-        let decrypted = decipher.update(Buffer.from(encryptedBytes));
+        let decrypted = decipher.update(new Uint8Array(encryptedBytes));
         const final = decipher.final();
-        const decryptedBuffer = Buffer.concat([decrypted, final]);
-        return new Uint8Array(decryptedBuffer);
+        const decryptedBuffer = new Uint8Array(decrypted.length + final.length);
+        decryptedBuffer.set(decrypted, 0);
+        decryptedBuffer.set(final, decrypted.length);
+        return decryptedBuffer;
       } catch (e) {
         throw new Error('bad decrypt');
       }
@@ -173,8 +177,8 @@ export class KeyCrypterScrypt implements KeyCrypter {
     if (other instanceof KeyCrypterScrypt) {
       return (
         Buffer.compare(
-          Buffer.from(this.scryptParameters.salt),
-          Buffer.from(other.scryptParameters.salt)
+          new Uint8Array(this.scryptParameters.salt),
+          new Uint8Array(other.scryptParameters.salt)
         ) === 0 &&
         this.scryptParameters.N === other.scryptParameters.N &&
         this.scryptParameters.r === other.scryptParameters.r &&

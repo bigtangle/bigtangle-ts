@@ -2,7 +2,7 @@ import { Message } from './Message';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { ProtocolException } from '../exception/Exceptions';
 import { Sha256Hash } from './Sha256Hash';
-import { Buffer } from 'buffer';
+;
 // TODO: Implement UnsafeByteArrayOutputStream
 // import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
 
@@ -101,7 +101,7 @@ export class AlertMessage extends Message {
      * doesn't verify, because that would allow arbitrary attackers to spam your users.
      */
     public isSignatureValid(): boolean {
-        const hash = Sha256Hash.hashTwice(Buffer.from(this.content));
+        const hash = Sha256Hash.hashTwice(new Uint8Array(this.content));
         // TODO: Implement proper signature verification
         // This is a placeholder since we don't have ECDSASignature implemented
         return true;
@@ -240,8 +240,8 @@ export class AlertMessage extends Message {
     // Implementation of abstract method from Message class
     public bitcoinSerializeToStream(stream: any): void {
         // Serialize the content and signature as byte arrays (with length prefix)
-        this.writeByteArrayToStream(stream, Buffer.from(this.content));
-        this.writeByteArrayToStream(stream, Buffer.from(this.signature));
+        this.writeByteArrayToStream(stream, new Uint8Array(this.content));
+        this.writeByteArrayToStream(stream, new Uint8Array(this.signature));
 
         // Now serialize the embedded structure (alert fields)
         // The embedded structure is serialized as:
@@ -275,7 +275,7 @@ export class AlertMessage extends Message {
     // Helper methods for serialization
     private writeByteArrayToStream(stream: any, arr: Uint8Array): void {
         this.writeVarIntToStream(stream, arr.length);
-        stream.write(Buffer.from(arr));
+        stream.write(new Uint8Array(arr));
     }
     private writeVarIntToStream(stream: any, value: number): void {
         const VarInt = require('./VarInt').VarInt;
@@ -283,17 +283,22 @@ export class AlertMessage extends Message {
         stream.write(varInt.encode());
     }
     private writeUint32ToStream(stream: any, value: number): void {
-        const buf = Buffer.alloc(4);
-        buf.writeUInt32LE(value, 0);
+        const buf = new Uint8Array(4);
+        buf[0] = value & 0xff;
+        buf[1] = (value >>> 8) & 0xff;
+        buf[2] = (value >>> 16) & 0xff;
+        buf[3] = (value >>> 24) & 0xff;
         stream.write(buf);
     }
     private writeUint64ToStream(stream: any, value: bigint): void {
-        const buf = Buffer.alloc(8);
-        buf.writeBigUInt64LE(value, 0);
+        const buf = new Uint8Array(8);
+        for (let i = 0; i < 8; i++) {
+            buf[i] = Number((value >> BigInt(i * 8)) & 0xffn);
+        }
         stream.write(buf);
     }
     private writeStrToStream(stream: any, str: string): void {
-        const strBuf = Buffer.from(str, 'utf8');
+        const strBuf = new TextEncoder().encode(str);
         this.writeVarIntToStream(stream, strBuf.length);
         stream.write(strBuf);
     }

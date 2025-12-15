@@ -332,7 +332,7 @@ export class Script {
      */
     getFromAddress(params: NetworkParameters): Address {
         // Use Address constructor with correct arguments
-        return new Address(params, params.getAddressHeader(), Buffer.from(this.getPubKeyHash()));
+        return new Address(params, params.getAddressHeader(), new Uint8Array(this.getPubKeyHash()));
     }
 
     /**
@@ -344,11 +344,11 @@ export class Script {
         if (this.isSentToAddress()) {
             // Use the correct Address constructor: (params, version, hash160)
             // Assuming params.p2pkhVersion exists; adjust as needed for your codebase
-            return new Address(params, params.getAddressHeader(), Buffer.from(this.getPubKeyHash()));
+            return new Address(params, params.getAddressHeader(), new Uint8Array(this.getPubKeyHash()));
         } else if (this.isPayToScriptHash()) {
             // For P2SH, use the correct Address constructor with the P2SH version
             // Assuming params.p2shVersion exists; adjust as needed for your codebase
-            return new Address(params, params.getP2SHHeader(), Buffer.from(this.getPubKeyHash()));
+            return new Address(params, params.getP2SHHeader(), new Uint8Array(this.getPubKeyHash()));
         } else if (forcePayToPubKey && this.isSentToRawPubKey()) {
             // Use ECKey.fromPublic instead of fromPublicOnly
             return ECKey.fromPublic(this.getPubKey()).toAddress(params);
@@ -542,7 +542,7 @@ export class Script {
                 // Use ECKey.fromPublic to create a key and call verify
                 const pubKey = ECKey.fromPublic(this.chunks[i + 1].data!);
                 // Create ECDSASignature from the raw signature bytes
-                const sig = ECDSASignature.decodeFromDER(Buffer.from(signatureBytes));
+                const sig = ECDSASignature.decodeFromDER(new Uint8Array(signatureBytes));
                 if (pubKey.verify(hash.getBytes(), sig.encodeToDER())) {
                     return i;
                 }
@@ -781,7 +781,7 @@ export class Script {
             }
             if (!skip) {
                 bos.write(opcode);
-                bos.write(Buffer.from(inputScript.slice(cursor, cursor + additionalBytes)));
+                bos.write(new Uint8Array(inputScript.slice(cursor, cursor + additionalBytes)));
             }
             cursor += additionalBytes;
         }
@@ -1302,7 +1302,7 @@ export class Script {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
                     const dataToHash = stack.pop()!;
-                    const hashResult = Sha256Hash.hash(Buffer.from(dataToHash));
+                    const hashResult = Sha256Hash.hash(new Uint8Array(dataToHash));
                     stack.push(hashResult);
                     break;
                 case OP_HASH160:
@@ -1317,7 +1317,7 @@ export class Script {
                         throw new ScriptException("Attempted OP_SHA256 on an empty stack");
                     }
                     const dataToHash256 = stack.pop()!;
-                    const hash256Result = Sha256Hash.hashTwice(Buffer.from(dataToHash256));
+                    const hash256Result = Sha256Hash.hashTwice(new Uint8Array(dataToHash256));
                     stack.push(hash256Result);
                     break;
                 case OP_CODESEPARATOR:
@@ -1585,7 +1585,7 @@ export class Script {
             if (params === null) {
                 throw new Error("Transaction parameters are null");
             }
-            clonedTx = params.getDefaultSerializer().makeTransaction(Buffer.from(payloadBytes));
+            clonedTx = params.getDefaultSerializer().makeTransaction(new Uint8Array(payloadBytes));
         } catch (e: any) {
             throw new Error(e);   // Should not happen unless we were given a totally broken transaction.
         }

@@ -10,11 +10,11 @@ import { Utils } from '../utils/Utils';
  
  */
 export class UnsafeByteArrayOutputStream {
-    private buf: Buffer;
+    private buf: Uint8Array;
     private count: number = 0;
 
     constructor(size: number = 168) {
-        this.buf = Buffer.alloc(size);
+        this.buf = new Uint8Array(size);
     }
 
     /**
@@ -34,7 +34,7 @@ export class UnsafeByteArrayOutputStream {
             // (small overhead, acceptable for diagnosis)
          //   console.log(`UnsafeByteArrayOutputStream.write: wrote 1 byte, new size=${this.count}`);
         } else {
-            const buffer = b instanceof Buffer ? b : Buffer.from(b);
+            const buffer = b instanceof Buffer ? b : new Uint8Array(b);
             this.writeBytes(buffer, 0, buffer.length);
         }
     }
@@ -47,7 +47,7 @@ export class UnsafeByteArrayOutputStream {
      * @param off the start offset in the data.
      * @param len the number of bytes to write.
      */
-    public writeBytes(b: Buffer, off: number, len: number): void {
+    public writeBytes(b: Uint8Array, off: number, len: number): void {
         if ((off < 0) || (off > b.length) || (len < 0) ||
                 ((off + len) > b.length) || ((off + len) < 0)) {
             throw new RangeError("IndexOutOfBoundsException");
@@ -58,7 +58,7 @@ export class UnsafeByteArrayOutputStream {
         if (newcount > this.buf.length) {
             this.buf = Utils.copyOf(this.buf, Math.max(this.buf.length << 1, newcount));
         }
-        b.copy(this.buf, this.count, off, off + len);
+        this.buf.set(b.subarray(off, off + len), this.count);
         this.count = newcount;
     // Debug: log bulk writes for tracing
    // console.log(`UnsafeByteArrayOutputStream.writeBytes: wrote ${len} bytes, new size=${this.count}`);
@@ -95,7 +95,7 @@ export class UnsafeByteArrayOutputStream {
      * @return the current contents of this output stream, as a byte array.
      * @see java.io.ByteArrayOutputStream#size()
      */
-    public toByteArray(): Buffer {
+    public toByteArray(): Uint8Array {
     // Diagnostic: log internal state to detect truncation/return issues
   
     return   Utils.copyOf(this.buf, this.count);
@@ -150,7 +150,7 @@ export class UnsafeByteArrayOutputStream {
             const encoder = new TextEncoder();
             const bytes = encoder.encode(s);
             this.writeInt(bytes.length);
-            this.writeBytes(Buffer.from(bytes), 0, bytes.length);
+            this.writeBytes(new Uint8Array(bytes), 0, bytes.length);
         }
     }
 

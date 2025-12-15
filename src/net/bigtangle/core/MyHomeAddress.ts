@@ -27,7 +27,7 @@ export class MyHomeAddress {
     }
 
     public parse(buf: Uint8Array): MyHomeAddress {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             const readOptionalString = (): string | null => {
                 const hasValue = bain.readBoolean();

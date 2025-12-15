@@ -40,7 +40,7 @@ export class Contact {
     }
 
     public parse(buf: Uint8Array): this {
-        const buffer = Buffer.from(buf); // Convert Uint8Array to Buffer
+        const buffer = new Uint8Array(buf); // Convert Uint8Array to Buffer
         const bain = new DataInputStream(buffer);
         try {
             this.parseDIS(bain);

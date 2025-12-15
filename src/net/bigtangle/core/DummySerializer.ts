@@ -4,7 +4,7 @@ import { Block } from './Block';
 import { Transaction } from './Transaction';
 import { AlertMessage } from './AlertMessage';
 import { BloomFilter } from './BloomFilter';
-import { Buffer } from 'buffer';
+;
 
 /**
  * Dummy serializer used ONLY for objects which do not have network parameters
@@ -22,36 +22,36 @@ export class DummySerializer extends MessageSerializer<null> {
         super(null, false); // Pass null for params and false for parseRetain as it's a dummy
     }
 
-    deserialize(inBuffer: Buffer): Message {
+    deserialize(inBuffer: Uint8Array): Message {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    makeAlertMessage(payloadBytes: Buffer): AlertMessage {
+    makeAlertMessage(payloadBytes: Uint8Array): AlertMessage {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    makeBlock(payloadBytes: Buffer): Block;
-    makeBlock(payloadBytes: Buffer, length: number): Block;
-    makeBlock(payloadBytes: Buffer, offset: number, length: number): Block;
-    makeBlock(payloadBytes: Buffer, arg2?: number, arg3?: number): Block {
+    makeBlock(payloadBytes: Uint8Array): Block;
+    makeBlock(payloadBytes: Uint8Array, length: number): Block;
+    makeBlock(payloadBytes: Uint8Array, offset: number, length: number): Block;
+    makeBlock(payloadBytes: Uint8Array, arg2?: number, arg3?: number): Block {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    makeBloomFilter(payloadBytes: Buffer): BloomFilter {
+    makeBloomFilter(payloadBytes: Uint8Array): BloomFilter {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    makeTransaction(payloadBytes: Buffer, offset: number = 0, length: number = payloadBytes.length, hash: Buffer | null = null): Transaction {
+    makeTransaction(payloadBytes: Uint8Array, offset: number = 0, length: number = payloadBytes.length, hash: Uint8Array | null = null): Transaction {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    seekPastMagicBytes(inBuffer: Buffer): Buffer {
+    seekPastMagicBytes(inBuffer: Uint8Array): Uint8Array {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 
-    serialize(message: Message): Buffer;
-    serialize(name: string, message: Buffer): Buffer;
-    serialize(...args: any[]): Buffer {
+    serialize(message: Message): Uint8Array;
+    serialize(name: string, message: Uint8Array): Uint8Array;
+    serialize(...args: any[]): Uint8Array {
         throw new Error(DummySerializer.DEFAULT_EXCEPTION_MESSAGE);
     }
 }

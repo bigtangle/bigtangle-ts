@@ -278,7 +278,7 @@ export class MonetaryFormat {
         return new Coin(this.parseValue(str, NetworkParameters.BIGTANGLE_DECIMAL), NetworkParameters.getBIGTANGLE_TOKENID() );
     }
 
-    parseWithToken(str: string, tokenid: Buffer , decimal: number): Coin {
+    parseWithToken(str: string, tokenid: Uint8Array , decimal: number): Coin {
         return new Coin(this.parseValue(str, decimal), tokenid);
     }
 

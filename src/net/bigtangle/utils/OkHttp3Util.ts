@@ -8,7 +8,6 @@ import type {
 import * as zlib from "zlib";
 import { promisify } from "util";
 import * as https from "https";
-import { Buffer } from "buffer";
 import { ObjectMapper } from "jackson-js";
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
@@ -48,14 +47,14 @@ export class OkHttp3Util {
           // Compress request body if needed
           if (config.data && !config.headers["Content-Encoding"]) {
             // Only compress if data is not empty
-            if (Buffer.isBuffer(config.data) && config.data.length > 0) {
-              config.data = await gzip(config.data as Buffer);
+            if (config.data && config.data.length > 0) {
+              config.data = await gzip(config.data);
               config.headers["Content-Encoding"] = "gzip";
             } else if (
               typeof config.data === "string" &&
               config.data.length > 0
             ) {
-              config.data = await gzip(Buffer.from(config.data, "utf8"));
+              config.data = await gzip(new TextEncoder().encode(config.data));
               config.headers["Content-Encoding"] = "gzip";
             }
             // For empty data, we send it as-is without compression
@@ -67,7 +66,7 @@ export class OkHttp3Util {
 
       // Add response interceptor for decompression
       this.instance.interceptors.response.use(
-        async (response: AxiosResponse<Buffer>) => {
+        async (response: AxiosResponse<Uint8Array>) => {
           if (response.headers["content-encoding"] === "gzip") {
             response.data = await gunzip(response.data);
           }
@@ -78,7 +77,7 @@ export class OkHttp3Util {
     return this.instance;
   }
 
-  public static async post(url: string, data: Buffer): Promise<string> {
+  public static async post(url: string, data: Uint8Array): Promise<string> {
     return   this.postStringSingle(url, data);
   }
 
@@ -87,15 +86,15 @@ export class OkHttp3Util {
     params: any,
     responseClass: new () => T // Ensure responseClass is a constructor that returns T
   ): Promise<T> {
-    let dataToSend: Buffer;
+    let dataToSend: Uint8Array;
 
-    // If params is already a Buffer, use it directly
-    if (Buffer.isBuffer(params)) {
+    // If params is already a Uint8Array, use it directly
+    if (params instanceof Uint8Array) {
       dataToSend = params;
     } else {
-      // If params is an object, stringify it and convert to Buffer
+      // If params is an object, stringify it and convert to Uint8Array
       const jsonPayload = this.objectMapper.stringify(params);
-      dataToSend = Buffer.from(jsonPayload);
+      dataToSend = new TextEncoder().encode(jsonPayload);
     }
 
     const responseString = await OkHttp3Util.postStringSingle(
@@ -129,7 +128,7 @@ export class OkHttp3Util {
 
   public static async postStringSingle(
     url: string,
-    data: Buffer
+    data: Uint8Array
   ): Promise<string> {
     // Change return type to string
     this.logger.debug(`POST to ${url}`);
@@ -138,7 +137,7 @@ export class OkHttp3Util {
     let requestData = data;
     if (data && data.length === 0) {
       // For empty data, we need to ensure it's properly handled
-      requestData = Buffer.alloc(0);
+      requestData = new Uint8Array(0);
     }
 
     const response = await this.getAxiosInstance().post(url, requestData);
@@ -149,7 +148,7 @@ export class OkHttp3Util {
   }
 
   private static checkResponse(
-    responseData: Buffer,
+    responseData: Uint8Array,
     url: string,
     status: number
   ): void {

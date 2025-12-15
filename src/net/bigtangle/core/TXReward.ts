@@ -2,7 +2,7 @@ import { SpentBlock } from './SpentBlock';
 import { Sha256Hash } from './Sha256Hash';
 import { DataInputStream } from '../utils/DataInputStream';
 import { UnsafeByteArrayOutputStream } from './UnsafeByteArrayOutputStream';
-import { Buffer } from 'buffer';
+;
 import { JsonProperty } from "jackson-js";
 
 export class TXReward extends SpentBlock {
@@ -32,11 +32,11 @@ export class TXReward extends SpentBlock {
         if (chainLength !== undefined) this.chainLength = chainLength;
     }
 
-    public toByteArray(): Buffer {
+    public toByteArray(): Uint8Array {
         const dos = new UnsafeByteArrayOutputStream();
         try {
             const superBytes = super.toByteArray();
-            dos.write(Buffer.from(superBytes));
+            dos.write(new Uint8Array(superBytes));
             const prevBlockHashBytes = this.prevBlockHash ? this.prevBlockHash.getBytes() : Sha256Hash.ZERO_HASH.getBytes();
             dos.writeBytes(prevBlockHashBytes, 0, prevBlockHashBytes.length);
             dos.writeLong(this.difficulty);
@@ -56,7 +56,7 @@ export class TXReward extends SpentBlock {
         return this;
     }
 
-    public parse(buf: Buffer): SpentBlock {
+    public parse(buf: Uint8Array): SpentBlock {
         const bain = new DataInputStream(buf);
         try {
             this.parseDIS(bain);

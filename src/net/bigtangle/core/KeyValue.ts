@@ -50,7 +50,7 @@ export class KeyValue {
     }
 
     public parse(buf: Uint8Array): KeyValue {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

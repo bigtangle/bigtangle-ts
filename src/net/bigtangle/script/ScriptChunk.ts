@@ -162,7 +162,7 @@ export class ScriptChunk {
                 // Handle any other opcodes by writing the opcode byte and then the data
                 stream.writeByte(this.opcode);
             }
-            stream.write(Buffer.from(this.data));
+            stream.write(new Uint8Array(this.data));
         } else if (this.isSmallNumOpCode(this.opcode)) {
             // This case is for small numbers (OP_0, OP_1 to OP_16, OP_1NEGATE) where data is null
             stream.writeByte(this.opcode);

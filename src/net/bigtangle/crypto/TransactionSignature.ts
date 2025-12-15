@@ -2,7 +2,7 @@ import { ECDSASignature } from '../core/ECDSASignature';
 import { SigHash } from '../core/SigHash';
 import { VerificationException } from '../exception/VerificationException';
 
-import { Buffer } from 'buffer';
+;
 
 /**
  * A TransactionSignature wraps an {@link net.bigtangle.core.ECKey.ECDSASignature} and adds methods for handling
@@ -182,7 +182,7 @@ export class TransactionSignature extends ECDSASignature {
 
         let sig: ECDSASignature;
         try {
-            sig = ECDSASignature.decodeDER(Buffer.from(derBytes));
+            sig = ECDSASignature.decodeDER(new Uint8Array(derBytes));
         } catch (e: any) {
             throw new VerificationException("Could not decode DER: " + e.message, e);
         }

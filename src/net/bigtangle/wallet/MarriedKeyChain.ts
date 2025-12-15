@@ -155,18 +155,20 @@ export class MarriedKeyChain extends DeterministicKeyChain {
         for (const followedKey of this.getLeafKeys()) {
             const redeemData = this.getRedeemData(followedKey);
             const scriptPubKey = ScriptBuilder.createP2SHOutputScript(redeemData.redeemScript.getProgram());
-            this.marriedKeysRedeemData.set(Buffer.from(scriptPubKey.getPubKeyHash()).toString('hex'), redeemData);
+            this.marriedKeysRedeemData.set(Array.from(new Uint8Array(scriptPubKey.getPubKeyHash())).map(b => b.toString(16).padStart(2, '0')).join(''), redeemData);
         }
     }
 
     public findRedeemDataByScriptHash(bytes: Uint8Array): RedeemData | null {
-        return this.marriedKeysRedeemData.get(Buffer.from(bytes).toString('hex')) || null;
+        const hex = Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+        return this.marriedKeysRedeemData.get(hex) || null;
     }
 
     public getFilter(size: number, falsePositiveRate: number, tweak: number): BloomFilter {
         const filter = new BloomFilter(this.params, size, falsePositiveRate, tweak);
         for (const [key, redeemData] of this.marriedKeysRedeemData.entries()) {
-            filter.insert(Buffer.from(key, 'hex'));
+            const keyBytes = new Uint8Array(key.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            filter.insert(keyBytes);
             filter.insert(redeemData.redeemScript.getProgram());
         }
         return filter;

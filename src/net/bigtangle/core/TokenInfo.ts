@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+;
 import { DataClass } from './DataClass';
 import { Token } from './Token';
 import { MultiSignAddress } from './MultiSignAddress';
@@ -96,7 +96,7 @@ export class TokenInfo extends DataClass {
                 
                 // Handle blockhash if it exists
                 if (addrObj.blockhash && addrObj.blockhash.bytes) {
-                    const hashBytes = Buffer.from(addrObj.blockhash.bytes);
+                    const hashBytes = new Uint8Array(addrObj.blockhash.bytes);
                     const sha256Hash = Sha256Hash.wrap(hashBytes);
                     if (sha256Hash) {
                         addr.setBlockhash(sha256Hash);

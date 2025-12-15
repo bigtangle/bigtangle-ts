@@ -4,7 +4,7 @@ export class ECPoint {
 
     constructor(pubKey: Uint8Array) {
         // Handle case where pubKey is a Buffer object rather than a proper Uint8Array
-        if (Buffer.isBuffer(pubKey)) {
+        if (pubKey && (pubKey as any).constructor.name === 'Buffer') {
             // Convert Buffer to Uint8Array
             this.pubKey = new Uint8Array(pubKey);
         }
@@ -26,23 +26,18 @@ export class ECPoint {
 
     public encode(compressed?: boolean): Uint8Array {
         const shouldCompress = compressed ?? this.compressed;
-        
+
         // If already in correct format, return as is
         if ((this.pubKey.length === 33 && shouldCompress) || (this.pubKey.length === 65 && !shouldCompress)) {
             // Ensure we always return Uint8Array not Buffer
-            if (this.pubKey instanceof Uint8Array) {
-                return this.pubKey;
-            } else {
-                // If it's a Buffer object, convert it to Uint8Array
-                return new Uint8Array(this.pubKey);
-            }
+            return this.pubKey;
         }
-        
+
         // If we need to convert format, try using secp256k1 conversion
         try {
             // Import secp256k1 library to perform conversion
             const secp256k1Lib = require('secp256k1');
-            
+
             // If input is compressed (33 bytes) but we want uncompressed (65 bytes)
             if (this.pubKey.length === 33 && !shouldCompress) {
                 const uncompressed = secp256k1Lib.publicKeyConvert(this.pubKey, false);
@@ -54,20 +49,12 @@ export class ECPoint {
                 return new Uint8Array(compressed);
             }
         } catch (e: any) {
-            // If conversion fails, return original but ensure it's Uint8Array
-            if (this.pubKey instanceof Uint8Array) {
-                return this.pubKey;
-            } else {
-                return new Uint8Array(this.pubKey);
-            }
-        }
-        
-        // Fallback - ensure we always return Uint8Array
-        if (this.pubKey instanceof Uint8Array) {
+            // If conversion fails, return original
             return this.pubKey;
-        } else {
-            return new Uint8Array(this.pubKey);
         }
+
+        // Fallback - ensure we always return Uint8Array
+        return this.pubKey;
     }
 
     public decompress(): ECPoint {
@@ -88,9 +75,11 @@ export class ECPoint {
             // Compressed format starts at index 1
             startIdx = 1;
         }
-        
+
         const xBytes = this.pubKey.slice(startIdx, startIdx + 32);
-        const hex = Buffer.from(xBytes).toString('hex');
+        const hex = Array.from(xBytes)
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
         return BigInt('0x' + hex);
     }
 
@@ -99,7 +88,9 @@ export class ECPoint {
         if (this.pubKey.length === 65) {
             // Uncompressed format has Y starting at index 33
             const yBytes = this.pubKey.slice(33, 65);
-            const hex = Buffer.from(yBytes).toString('hex');
+            const hex = Array.from(yBytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
             return BigInt('0x' + hex);
         } else if (this.pubKey.length === 33) {
             // For compressed, we need to compute Y from X and the prefix
@@ -123,7 +114,7 @@ export class ECPoint {
     }
 
     public multiply(k: bigint): ECPoint {
-        // EC point multiplication requires more complex implementation 
+        // EC point multiplication requires more complex implementation
         // This is non-trivial with the secp256k1 library and would need significant work
         throw new Error("EC point multiplication not implemented with secp256k1 library");
     }

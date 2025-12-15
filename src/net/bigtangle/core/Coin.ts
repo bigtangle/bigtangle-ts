@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 
 import { MonetaryFormat } from "../utils/MonetaryFormat";
 import { JsonProperty } from "jackson-js";
@@ -9,29 +8,33 @@ export class Coin implements IMonetary, IComparable<Coin> {
   private static readonly serialVersionUID: bigint = 551802452657362699n;
 
   @JsonProperty() public value: bigint;
-  @JsonProperty() public tokenid: Buffer;
+  @JsonProperty() public tokenid: Uint8Array;
 
-  constructor(satoshis?: bigint, tokenid?: Buffer | string) {
+  constructor(satoshis?: bigint, tokenid?: Uint8Array | string) {
     this.value = satoshis || 0n;
 
     // Convert tokenid to Buffer if it's a string
     if (typeof tokenid === "string") {
       // Handle base64 encoded strings
       if (/^[A-Za-z0-9+/=]+$/.test(tokenid)) {
-        this.tokenid = Buffer.from(tokenid, "base64");
+        this.tokenid = Uint8Array.from(atob(tokenid), c => c.charCodeAt(0));
       }
       // Handle hex strings
       else if (/^[0-9a-fA-F]+$/.test(tokenid)) {
-        this.tokenid = Buffer.from(tokenid, "hex");
+        const bytes = [];
+        for (let i = 0; i < tokenid.length; i += 2) {
+          bytes.push(parseInt(tokenid.substr(i, 2), 16));
+        }
+        this.tokenid = new Uint8Array(bytes);
       }
       // Fallback to UTF-8
       else {
-        this.tokenid = Buffer.from(tokenid);
+        this.tokenid = new TextEncoder().encode(tokenid);
       }
     } else {
       this.tokenid =
         tokenid ||
-        Buffer.from(
+        new Uint8Array(
           Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING)
         );
     }
@@ -48,12 +51,12 @@ export class Coin implements IMonetary, IComparable<Coin> {
       coin.value = BigInt(json.value.toString());
     }
     if (json.tokenHex) {
-      coin.tokenid = Buffer.from(Utils.HEX.decode(json.tokenHex));
+      coin.tokenid = new Uint8Array(Utils.HEX.decode(json.tokenHex));
     }
     return coin;
   }
 
-  public static valueOf(satoshis: bigint, tokenid?: Buffer): Coin {
+  public static valueOf(satoshis: bigint, tokenid?: Uint8Array): Coin {
     return new Coin(
       satoshis,
       tokenid || NetworkParameters.getBIGTANGLE_TOKENID()
@@ -61,7 +64,14 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public static valueOfString(satoshis: bigint, tokenid?: string): Coin {
-    const tokenIdBuffer = tokenid ? Buffer.from(tokenid, "hex") : undefined;
+    let tokenIdBuffer: Uint8Array | undefined;
+    if (tokenid) {
+      const bytes = [];
+      for (let i = 0; i < tokenid.length; i += 2) {
+        bytes.push(parseInt(tokenid.substr(i, 2), 16));
+      }
+      tokenIdBuffer = new Uint8Array(bytes);
+    }
     return new Coin(
       satoshis,
       tokenIdBuffer || NetworkParameters.getBIGTANGLE_TOKENID()
@@ -69,7 +79,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public static fromBigInteger(value: bigint, tokenid: Uint8Array): Coin {
-    return new Coin(value, Buffer.from(tokenid));
+    return new Coin(value, new Uint8Array(tokenid));
   }
 
   public getValue(): bigint {
@@ -85,7 +95,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public add(value: Coin): Coin {
-    if (Buffer.compare(this.tokenid, value.tokenid) !== 0) {
+    if (!Utils.arraysEqual(this.tokenid, value.tokenid)) {
       throw new Error("Token IDs must match for addition");
     }
     // Ensure both values are BigInt before addition
@@ -111,7 +121,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public subtract(value: Coin): Coin {
-    if (!this.tokenid.equals(value.tokenid)) {
+    if (!Utils.arraysEqual(this.tokenid, value.tokenid)) {
       throw new Error("Token IDs must match for subtraction");
     }
     const result = this.value - value.value;
@@ -161,7 +171,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public divideBy(divisor: Coin): bigint {
-    if (!this.tokenid.equals(divisor.tokenid)) {
+    if (!Utils.arraysEqual(this.tokenid, divisor.tokenid)) {
       throw new Error("Token IDs must match for division");
     }
     return this.value / divisor.value;
@@ -198,7 +208,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public isBIG(): boolean {
-    return this.tokenid.equals(NetworkParameters.getBIGTANGLE_TOKENID());
+    return Utils.arraysEqual(this.tokenid, NetworkParameters.getBIGTANGLE_TOKENID());
   }
 
   public isGreaterThan(other: Coin): boolean {
@@ -224,7 +234,9 @@ export class Coin implements IMonetary, IComparable<Coin> {
   public hashCode(): number {
     const prime = 31;
     let result = 1;
-    const tokenHex = this.tokenid.toString("hex");
+    const tokenHex = Array.from(this.tokenid)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
     const valueStr = this.value.toString();
     result = prime * result + this.stringHashCode(tokenHex);
     result = prime * result + this.stringHashCode(valueStr);
@@ -247,7 +259,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     if (this.constructor !== obj.constructor) return false;
 
     const other = obj as Coin;
-    return this.tokenid.equals(other.tokenid) && this.value === other.value;
+    return Utils.arraysEqual(this.tokenid, other.tokenid) && this.value === other.value;
   }
 
   public compareTo(other: Coin): number {
@@ -256,14 +268,16 @@ export class Coin implements IMonetary, IComparable<Coin> {
     return 0;
   }
 
-  public getTokenid(): Buffer {
+  public getTokenid(): Uint8Array {
     return this.tokenid;
   }
 
   public toJSON() {
     return {
       value: this.value.toString(),
-      tokenid: this.tokenid.toString("hex"),
+      tokenid: Array.from(this.tokenid)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(''),
     };
   }
 }

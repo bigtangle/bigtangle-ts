@@ -17,7 +17,7 @@ export class Spent extends DataClass {
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            const superBytes = Buffer.from(super.toByteArray());
+            const superBytes = new Uint8Array(super.toByteArray());
             baos.writeBytes(superBytes, 0, superBytes.length);
             baos.writeBoolean(this.confirmed);
             baos.writeBoolean(this.spent);
@@ -44,7 +44,7 @@ export class Spent extends DataClass {
     }
 
     public parse(buf: Uint8Array): Spent {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

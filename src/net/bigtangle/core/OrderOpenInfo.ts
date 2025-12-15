@@ -68,34 +68,34 @@ export class OrderOpenInfo extends DataClass {
     public toByteArray(): Uint8Array {
         const dos = new UnsafeByteArrayOutputStream();
         try {
-            dos.write(Buffer.from(super.toByteArray()));
+            dos.write(new Uint8Array(super.toByteArray()));
 
             dos.writeLong(this.targetValue);
             dos.writeLong(this.validToTime || 0);
             dos.writeLong(this.validFromTime || 0);
             dos.writeInt(this.beneficiaryPubKey ? this.beneficiaryPubKey.length : 0);
             if (this.beneficiaryPubKey) {
-                dos.write(Buffer.from(this.beneficiaryPubKey));
+                dos.write(new Uint8Array(this.beneficiaryPubKey));
             }
 
             dos.writeBoolean(this.targetTokenid !== null);
             if (this.targetTokenid !== null) {
                 const bytes = new TextEncoder().encode(this.targetTokenid);
                 dos.writeInt(bytes.length);
-                dos.write(Buffer.from(bytes));
+                dos.write(new Uint8Array(bytes));
             }
 
             dos.writeBoolean(this.beneficiaryAddress !== null);
             if (this.beneficiaryAddress !== null) {
                 const bytes = new TextEncoder().encode(this.beneficiaryAddress);
                 dos.writeInt(bytes.length);
-                dos.write(Buffer.from(bytes));
+                dos.write(new Uint8Array(bytes));
             }
             dos.writeBoolean(this.orderBaseToken !== null);
             if (this.orderBaseToken !== null) {
                 const bytes = new TextEncoder().encode(this.orderBaseToken);
                 dos.writeInt(bytes.length);
-                dos.write(Buffer.from(bytes));
+                dos.write(new Uint8Array(bytes));
             }
             dos.writeLong(this.price || 0);
             dos.writeLong(this.offerValue);
@@ -103,7 +103,7 @@ export class OrderOpenInfo extends DataClass {
             if (this.offerTokenid !== null) {
                 const bytes = new TextEncoder().encode(this.offerTokenid);
                 dos.writeInt(bytes.length);
-                dos.write(Buffer.from(bytes));
+                dos.write(new Uint8Array(bytes));
             }
             dos.close();
             dos.close();
@@ -133,7 +133,7 @@ export class OrderOpenInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): this {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

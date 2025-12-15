@@ -7,12 +7,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*Test.ts', '**/*test*.ts', '**/*.spec.ts'],
-    exclude: [
-      '**/testintegration/**',
-      '**/Abstract*.ts',
-      'vitest.config.ts',
-      'node_modules/**'
-    ],
+    exclude: process.env.INCLUDE_INTEGRATION_TESTS
+      ? ['**/Abstract*.ts', 'vitest.config.ts', 'node_modules/**']
+      : ['**/testintegration/**', '**/Abstract*.ts', 'vitest.config.ts', 'node_modules/**'],
   },
 
 });

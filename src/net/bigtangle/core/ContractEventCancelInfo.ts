@@ -38,7 +38,7 @@ export class ContractEventCancelInfo {
     }
 
     public parse(buf: Uint8Array): ContractEventCancelInfo {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         try {
             this.parseDIS(bain);
             bain.close();

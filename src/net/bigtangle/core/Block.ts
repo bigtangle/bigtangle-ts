@@ -41,7 +41,7 @@ import { ECKey } from './ECKey';
 import { TransactionInput } from './TransactionInput';
 import { TransactionOutput } from './TransactionOutput';
 import { TransactionOutPoint } from './TransactionOutPoint';
-import { Buffer } from 'buffer';
+;
 
 /**
  * <p>
@@ -273,7 +273,7 @@ export class Block extends Message {
         
         // Calculate hash only if we have enough data for the header
         if (this.cursor <= this.payload!.length) {
-            this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(this.payload!.subarray(this.offset, this.cursor))));
+            this.hash = Sha256Hash.wrapReversed(Sha256Hash.hashTwice(new Uint8Array(this.payload!.subarray(this.offset, this.cursor))));
         }
         this.headerBytesValid = this.serializer!.isParseRetainMode();
         
@@ -300,7 +300,7 @@ export class Block extends Message {
     writeHeader(stream: any): void {
         // try for cached write first
         if (this.headerBytesValid && this.payload && this.payload.length >= this.offset + NetworkParameters.HEADER_SIZE) {
-            stream.write(Buffer.from(this.payload.subarray(this.offset, this.offset + NetworkParameters.HEADER_SIZE)));
+            stream.write(new Uint8Array(this.payload.subarray(this.offset, this.offset + NetworkParameters.HEADER_SIZE)));
             return;
         }
 
@@ -433,7 +433,7 @@ export class Block extends Message {
     private calculateHash(): Sha256Hash {
         const bos = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
         this.writeHeader(bos);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(bos.toByteArray())));
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(new Uint8Array(bos.toByteArray())));
     }
 
     /**
@@ -442,7 +442,7 @@ export class Block extends Message {
     private calculatePoWHash(): Sha256Hash {
         const bos = new UnsafeByteArrayOutputStream(NetworkParameters.HEADER_SIZE);
         this.writeHeader(bos);
-        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(Buffer.from(bos.toByteArray())));
+        return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(new Uint8Array(bos.toByteArray())));
     }
 
     /**
@@ -526,7 +526,7 @@ export class Block extends Message {
         s += "   difficulty target (nBits):    " + this.difficultyTarget + "\n";
         s += "   nonce: " + this.nonce + "\n";
         if (this.minerAddress !== null)
-            s += "   mineraddress: " + new Address(this.params!, this.params!.getAddressHeader(), Buffer.from(this.minerAddress)).toBase58() + "\n";
+            s += "   mineraddress: " + new Address(this.params!, this.params!.getAddressHeader(), new Uint8Array(this.minerAddress)).toBase58() + "\n";
 
         s += "   blocktype: " + this.blockType + "\n";
         if (this.transactions !== null && this.transactions.length > 0) {
@@ -705,7 +705,7 @@ export class Block extends Message {
         const tree = this.buildMerkleTree();
         if (tree.length === 0)
             return Sha256Hash.ZERO_HASH;
-        return Sha256Hash.wrap(Buffer.from(tree[tree.length - 1]));
+        return Sha256Hash.wrap(new Uint8Array(tree[tree.length - 1]));
     }
 
     public getMerkleRoot(): Sha256Hash {
@@ -776,8 +776,8 @@ export class Block extends Message {
                 const right = Math.min(left + 1, levelSize - 1);
                 const leftBytes = tree[levelOffset + left];
                 const rightBytes = tree[levelOffset + right];
-                const leftReversed = Utils.reverseBytes(Buffer.from(leftBytes));
-                const rightReversed = Utils.reverseBytes(Buffer.from(rightBytes));
+                const leftReversed = Utils.reverseBytes(new Uint8Array(leftBytes));
+                const rightReversed = Utils.reverseBytes(new Uint8Array(rightBytes));
                 const hashResult = Sha256Hash.hashTwiceRanges(
                     leftReversed, 0, leftReversed.length,
                     rightReversed, 0, rightReversed.length

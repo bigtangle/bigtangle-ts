@@ -27,7 +27,7 @@ export class SHA256Digest extends MessageDigest {
     }
     const hashResult = sha256(combinedBuffer);
     // Return as Buffer to maintain compatibility with existing tests
-    return Buffer.from(hashResult);
+    return new Uint8Array(hashResult);
   }
 
   protected engineReset(): void {

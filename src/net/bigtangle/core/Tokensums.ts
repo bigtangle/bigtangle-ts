@@ -80,23 +80,23 @@ export class Tokensums extends DataClass {
     public toByteArray(): Uint8Array {
         const dos = new UnsafeByteArrayOutputStream();
         try {
-            const superBytes = Buffer.from(super.toByteArray());
+            const superBytes = new Uint8Array(super.toByteArray());
             dos.writeBytes(superBytes, 0, superBytes.length);
             dos.writeNBytesString(this.tokenid ?? "");
-            const initialBytes = Buffer.from(Utils.bigIntToBytes(this.initial ));
+            const initialBytes = new Uint8Array(Utils.bigIntToBytes(this.initial ));
             dos.writeBytes(initialBytes, 0, initialBytes.length);
-            const unspentBytes = Buffer.from(Utils.bigIntToBytes(this.unspent ));
+            const unspentBytes = new Uint8Array(Utils.bigIntToBytes(this.unspent ));
             dos.writeBytes(unspentBytes, 0, unspentBytes.length);
-            const orderBytes = Buffer.from(Utils.bigIntToBytes(this.order));
+            const orderBytes = new Uint8Array(Utils.bigIntToBytes(this.order));
             dos.writeBytes(orderBytes, 0, orderBytes.length);
             dos.writeInt(this.utxos.length);
             for (const c of this.utxos) {
-                const bytes = Buffer.from(c.toByteArray());
+                const bytes = new Uint8Array(c.toByteArray());
                 dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.writeInt(this.orders.length);
             for (const c of this.orders) {
-                const bytes = Buffer.from(c.toByteArray());
+                const bytes = new Uint8Array(c.toByteArray());
                 dos.writeBytes(bytes, 0, bytes.length);
             }
             dos.close();

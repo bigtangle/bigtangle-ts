@@ -18,43 +18,49 @@ function debugDERStructure() {
     // Manually create r INTEGER
     let rHex = r.toString(16);
     if (rHex.length % 2 !== 0) rHex = '0' + rHex;
-    let rBytes = Buffer.from(rHex, 'hex');
-    console.log('rBytes before DER processing (hex):', rBytes.toString('hex'));
+    let rBytes = new Uint8Array(rHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+    console.log('rBytes before DER processing (hex):', Array.from(rBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
     console.log('rBytes before DER processing (length):', rBytes.length);
     console.log('rBytes[0]:', rBytes[0], 'MSB set?', (rBytes[0] & 0x80) !== 0);
-    
+
     if (rBytes[0] & 0x80) {
-        rBytes = Buffer.concat([Buffer.from([0x00]), rBytes]);
+        const newRBytes = new Uint8Array(rBytes.length + 1);
+        newRBytes[0] = 0x00;
+        newRBytes.set(rBytes, 1);
+        rBytes = newRBytes;
         console.log('Added leading zero for r');
     }
-    
+
     const rDERLength = 1 + 1 + rBytes.length; // TAG + LENGTH + VALUE
     console.log('r INTEGER DER length:', rDERLength);
-    
+
     // Manually create s INTEGER
     let sHex = s.toString(16);
     if (sHex.length % 2 !== 0) sHex = '0' + sHex;
-    let sBytes = Buffer.from(sHex, 'hex');
-    console.log('sBytes before DER processing (hex):', sBytes.toString('hex'));
+    let sBytes = new Uint8Array(sHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+    console.log('sBytes before DER processing (hex):', Array.from(sBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
     console.log('sBytes before DER processing (length):', sBytes.length);
     console.log('sBytes[0]:', sBytes[0], 'MSB set?', (sBytes[0] & 0x80) !== 0);
-    
+
     if (sBytes[0] & 0x80) {
-        sBytes = Buffer.concat([Buffer.from([0x00]), sBytes]);
+        const newSBytes = new Uint8Array(sBytes.length + 1);
+        newSBytes[0] = 0x00;
+        newSBytes.set(sBytes, 1);
+        sBytes = newSBytes;
         console.log('Added leading zero for s');
     }
-    
+
     const sDERLength = 1 + 1 + sBytes.length; // TAG + LENGTH + VALUE
     console.log('s INTEGER DER length:', sDERLength);
-    
+
     // Total content length
     const totalDERContentLength = rDERLength + sDERLength;
     console.log('Total DER content length:', totalDERContentLength);
-    
+
     // Generate using actual method
     console.log('\n--- Actual method results ---');
     const der = signature.encodeDER();
-    console.log('Full DER signature (hex):', Buffer.from(der).toString('hex'));
+    console.log('Full DER signature (hex):', Array.from(der).map(b => b.toString(16).padStart(2, '0')).join(''));
     console.log('Full DER signature (length):', der.length);
     console.log('signature[0] (SEQUENCE):', der[0]);
     console.log('signature[1] (length byte):', der[1]);

@@ -348,7 +348,7 @@ export class Transaction extends ChildMessage {
      
      if (this.hash === null) {
       // Serialize the transaction excluding memo and dataSignature fields using positive count
-      const buf = Buffer.from(this.bitcoinSerializeWithoutMemoAndDataSignature());
+      const buf = new Uint8Array(this.bitcoinSerializeWithoutMemoAndDataSignature());
       // console.debug("bitcoinSerializeWithoutMemoAndDataSignature transaction= " + Utils.HEX.encode(buf));
       this.hash = Sha256Hash.wrapReversed(
         Sha256Hash.hashTwice(buf)
@@ -1094,7 +1094,7 @@ export class Transaction extends ChildMessage {
     // make changes to the inputs and outputs.
     // It would not be thread-safe to change the attributes of the
     // transaction object itself.
-    const tx = this.params.getDefaultSerializer().makeTransaction(Buffer.from(this.bitcoinSerialize()));
+    const tx = this.params.getDefaultSerializer().makeTransaction(new Uint8Array(this.bitcoinSerialize()));
 
     // Clear input scripts in preparation for signing. If we're signing
     // a fresh transaction that step isn't very helpful, but it doesn't add much
@@ -1271,8 +1271,9 @@ export class Transaction extends ChildMessage {
     if (this.dataClassName == null) {
       Utils.uint32ToByteStreamLE(0, stream);
     } else {
-      Utils.uint32ToByteStreamLE(this.dataClassName.length, stream);
-      stream.write(this.dataClassName);
+      const classNameBytes = new TextEncoder().encode(this.dataClassName);
+      Utils.uint32ToByteStreamLE(classNameBytes.length, stream);
+      stream.write(classNameBytes);
     }
 
     // write data

@@ -2,7 +2,7 @@
 // TypeScript translation of ECDSASignature from ECKey.java
 // Combined version with strict BIP-66 DER encoding and additional methods
 
-import { Buffer } from 'buffer';
+;
 
 import * as asn1js from 'asn1js';
 import { InvalidTransactionDataException } from '../exception/Exceptions';
@@ -57,7 +57,7 @@ export class ECDSASignature {
      * It's somewhat like protocol buffers but less convenient. This method returns a standard DER encoding
      * of the signature, as recognized by OpenSSL and other libraries.
      */
-    public encodeToDER(): Buffer {
+    public encodeToDER(): Uint8Array {
         // Use the BIP-66 compliant implementation to ensure strict compliance
         return this.encodeDERStrict();
     }
@@ -65,14 +65,14 @@ export class ECDSASignature {
     /**
      * Alias for encodeToDER for compatibility with TransactionSignature
      */
-    public encodeDER(): Buffer {
+    public encodeDER(): Uint8Array {
         return this.encodeToDER();
     }
 
     /**
      * Strict BIP-66 DER encoding implementation (for compatibility with crypto version)
      */
-    public encodeDERStrict(): Buffer {
+    public encodeDERStrict(): Uint8Array {
         // Convert r and s to minimal signed DER format (following Bitcoin's DER rules)
         
         // Convert r to DER integer format
@@ -85,16 +85,16 @@ export class ECDSASignature {
         const totalLen = rBytes.length + sBytes.length;
 
         // Create buffer with exact size needed for the complete DER signature
-        const der = Buffer.alloc(2 + totalLen); // SEQUENCE tag + length byte + content
+        const der = new Uint8Array(2 + totalLen); // SEQUENCE tag + length byte + content
         let offset = 0;
 
         der[offset++] = 0x30; // SEQUENCE tag
         der[offset++] = totalLen; // Length of the content that follows
 
         // Copy r and s DER-encoded integers
-        rBytes.copy(der, offset);
+        der.set(rBytes, offset);
         offset += rBytes.length;
-        sBytes.copy(der, offset);
+        der.set(sBytes, offset);
 
         return der;
     }
@@ -104,9 +104,9 @@ export class ECDSASignature {
      * - If the value has the high bit set (>= 0x80), prepend 0x00 to indicate positive
      * - Ensure minimal encoding (no unnecessary leading 0x00)
      */
-    private toDERInteger(value: bigint): Buffer {
+    private toDERInteger(value: bigint): Uint8Array {
         if (value === 0n) {
-            return Buffer.from([0x02, 0x01, 0x00]); // INTEGER, length=1, value=0
+            return new Uint8Array([0x02, 0x01, 0x00]); // INTEGER, length=1, value=0
         }
 
         // For DER encoding, we need to represent the value as a signed integer
@@ -118,10 +118,10 @@ export class ECDSASignature {
         if (hex.length % 2 !== 0) {
             hex = '0' + hex; // Ensure even number of hex chars
         }
-        let bytes = Buffer.from(hex, 'hex');
-        
-        // Remove non-significant leading zeros, but make sure we don't remove 
-        // a zero that's needed to keep the number positive 
+        let bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+
+        // Remove non-significant leading zeros, but make sure we don't remove
+        // a zero that's needed to keep the number positive
         while (bytes.length > 1 && bytes[0] === 0x00) {
             // Only remove the leading zero if the next byte doesn't have high bit set
             // (which would make the positive number appear negative)
@@ -137,7 +137,10 @@ export class ECDSASignature {
         // If the first byte has the high bit set, this value would appear negative
         // in two's complement representation, so prepend a 0x00 to make it positive
         if ((bytes[0] & 0x80) !== 0) {
-            bytes = Buffer.concat([Buffer.from([0x00]), bytes]);
+            const newBytes = new Uint8Array(bytes.length + 1);
+            newBytes[0] = 0x00;
+            newBytes.set(bytes, 1);
+            bytes = newBytes;
         }
         
         // Verify that bytes length fits in a single byte (DER length field is 1 byte for lengths < 128)
@@ -146,10 +149,10 @@ export class ECDSASignature {
         }
         
         // Create the DER integer: tag (0x02) + length + value
-        const result = Buffer.alloc(2 + bytes.length);
+        const result = new Uint8Array(2 + bytes.length);
         result[0] = 0x02; // INTEGER tag
         result[1] = bytes.length; // Length of value
-        bytes.copy(result, 2);
+        result.set(bytes, 2);
         
         return result;
     }
@@ -157,31 +160,38 @@ export class ECDSASignature {
     /**
      * Returns the signature as a Buffer in compact format (r, s concatenated, 64 bytes).
      */
-    public toCompact(): Buffer {
-        const rBuf = Buffer.from(this.r.toString(16).padStart(64, '0'), 'hex');
-        const sBuf = Buffer.from(this.s.toString(16).padStart(64, '0'), 'hex');
-        return Buffer.concat([rBuf, sBuf]);
+    public toCompact(): Uint8Array {
+        const rHex = this.r.toString(16).padStart(64, '0');
+        const sHex = this.s.toString(16).padStart(64, '0');
+
+        const rBytes = new Uint8Array(rHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        const sBytes = new Uint8Array(sHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+
+        const result = new Uint8Array(64);
+        result.set(rBytes, 0);
+        result.set(sBytes, 32);
+        return result;
     }
 
     /**
      * Returns the signature as a hex string (DER encoded).
      */
     public toHexDER(): string {
-        return this.encodeDER().toString('hex');
+        return Array.from(this.encodeDER()).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     /**
      * Returns the signature as a hex string (compact format).
      */
     public toHexCompact(): string {
-        return this.toCompact().toString('hex');
+        return Array.from(this.toCompact()).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     /**
      * Parse a DER-encoded signature Buffer into an ECDSASignature.
      * This is a strict implementation that follows Bitcoin's BIP-66.
      */
-    public static decodeDER(buffer: Buffer): ECDSASignature {
+    public static decodeDER(buffer: Uint8Array): ECDSASignature {
         if (buffer.length < 8 || buffer.length > 72) throw new InvalidTransactionDataException('Invalid DER signature length');
         if (buffer[0] !== 0x30) throw new InvalidTransactionDataException('Invalid DER sequence');
         
@@ -199,7 +209,7 @@ export class ECDSASignature {
         if (rLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('r is not minimally encoded');
         
         const rSlice = buffer.slice(offset, offset + rLen);
-        const r = BigInt('0x' + rSlice.toString('hex'));
+        const r = BigInt('0x' + Array.from(rSlice).map(b => b.toString(16).padStart(2, '0')).join(''));
         offset += rLen;
 
         if (buffer[offset] !== 0x02) throw new InvalidTransactionDataException('Invalid DER integer for s');
@@ -212,7 +222,7 @@ export class ECDSASignature {
         if (sLen > 1 && buffer[offset] === 0x00 && !(buffer[offset + 1] & 0x80)) throw new InvalidTransactionDataException('s is not minimally encoded');
 
         const sSlice = buffer.slice(offset, offset + sLen);
-        const s = BigInt('0x' + sSlice.toString('hex'));
+        const s = BigInt('0x' + Array.from(sSlice).map(b => b.toString(16).padStart(2, '0')).join(''));
         offset += sLen;
 
         if (offset !== buffer.length) throw new InvalidTransactionDataException('Extra data at end of signature');
@@ -226,7 +236,7 @@ export class ECDSASignature {
     public static decodeFromDER(bytes: Uint8Array): ECDSASignature {
         // First, try the strict BIP-66 decoder
         try {
-            return ECDSASignature.decodeDER(Buffer.from(bytes));
+            return ECDSASignature.decodeDER(new Uint8Array(bytes));
         } catch (e) {
             // If BIP-66 fails, try the asn1js decoder as fallback
             try {
@@ -255,8 +265,8 @@ export class ECDSASignature {
                 const rValue = rValueBlock.valueHex;
                 const sValue = sValueBlock.valueHex;
 
-                const r = BigInt('0x' + Buffer.from(rValue).toString('hex'));
-                const s = BigInt('0x' + Buffer.from(sValue).toString('hex'));
+                const r = BigInt('0x' + Array.from(new Uint8Array(rValue)).map(b => b.toString(16).padStart(2, '0')).join(''));
+                const s = BigInt('0x' + Array.from(new Uint8Array(sValue)).map(b => b.toString(16).padStart(2, '0')).join(''));
 
                 return new ECDSASignature(r, s);
             } catch (e2) {

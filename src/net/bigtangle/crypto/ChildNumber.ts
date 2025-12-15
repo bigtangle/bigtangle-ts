@@ -37,10 +37,18 @@ export class ChildNumber {
 
     constructor(childNumber: number, isHardened?: boolean) {
         if (isHardened === undefined) {
+            // Used when deserializing; the childNumber already includes the hardened bit if set
+            // Verify it's a valid 32-bit unsigned integer
+            if (childNumber < 0 || childNumber > 0xFFFFFFFF || !Number.isInteger(childNumber)) {
+                throw new Error("Child number must be a valid 32-bit unsigned integer: " + childNumber);
+            }
             this.i = childNumber;
         } else {
-            if (ChildNumber.hasHardenedBit(childNumber)) {
-                throw new Error("Most significant bit is reserved and shouldn't be set: " + childNumber);
+            // Used when creating new ChildNumber from an index
+            // If isHardened is true, then childNumber is the index (before applying hardened bit)
+            // If isHardened is false, then childNumber is the index (without hardened bit)
+            if (childNumber < 0 || childNumber >= ChildNumber.HARDENED_BIT || !Number.isInteger(childNumber)) {
+                throw new Error("Child number index must be between 0 and 2^31-1: " + childNumber);
             }
             this.i = isHardened ? (childNumber | ChildNumber.HARDENED_BIT) : childNumber;
         }

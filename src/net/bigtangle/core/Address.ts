@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+;
 import { Utils } from './Utils.js';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Sha256Hash } from './Sha256Hash.js';
@@ -10,23 +10,23 @@ import { Script } from '../script/Script';
 export class Address {
     private readonly params: NetworkParameters;
     private readonly version: number;
-    private readonly hash160: Buffer;
+    private readonly hash160: Uint8Array;
 
     public static fromKey(params: NetworkParameters, key: ECKey): Address {
-        return Address.fromP2PKH(params, Buffer.from(key.getPubKeyHash()));
+        return Address.fromP2PKH(params, new Uint8Array(key.getPubKeyHash()));
     }
 
-    constructor(params: NetworkParameters, version: number, hash160: Buffer) {
+    constructor(params: NetworkParameters, version: number, hash160: Uint8Array) {
         this.params = params;
         this.version = version;
         this.hash160 = hash160;
     }
 
-    public static fromP2SHHash(params: NetworkParameters, hash160: Buffer): Address {
+    public static fromP2SHHash(params: NetworkParameters, hash160: Uint8Array): Address {
         return new Address(params, params.getP2SHHeader(), hash160);
     }
 
-    public static fromP2PKH(params: NetworkParameters, hash160: Buffer): Address {
+    public static fromP2PKH(params: NetworkParameters, hash160: Uint8Array): Address {
         return new Address(params, params.getAddressHeader(), hash160);
     }
 
@@ -34,7 +34,7 @@ export class Address {
         return this.version;
     }
 
-    public getHash160(): Buffer {
+    public getHash160(): Uint8Array {
         return this.hash160;
     }
 
@@ -60,21 +60,24 @@ export class Address {
             throw new WrongNetworkException(version, params.getAcceptableAddressCodes());
         }
 
-        const checksum = Sha256Hash.hashTwice(Buffer.from(bytes.slice(0, bytes.length - 4))) .subarray(0, 4);
-        if (!Buffer.from(bytes.slice(bytes.length - 4)).equals(checksum)) {
+        const checksum = Sha256Hash.hashTwice(new Uint8Array(bytes.slice(0, bytes.length - 4))) .subarray(0, 4);
+        if (!Utils.arraysEqual(new Uint8Array(bytes.slice(bytes.length - 4)), checksum)) {
             throw new AddressFormatException('Checksum does not validate');
         }
 
-        return new Address(params, version, Buffer.from(hash160));
+        return new Address(params, version, new Uint8Array(hash160));
     }
 
     public toBase58(): string {
-        const bytes = Buffer.alloc(21);
+        const bytes = new Uint8Array(21);
         bytes[0] = this.version;
-        this.hash160.copy(bytes, 1, 0, 20);
+        bytes.set(this.hash160.subarray(0, 20), 1);
 
         const checksum = Sha256Hash.hashTwice(bytes) .slice(0, 4);
-        return Utils.bytesToBase58(Buffer.concat([bytes, checksum]));
+        const combined = new Uint8Array(bytes.length + checksum.length);
+        combined.set(bytes);
+        combined.set(checksum, bytes.length);
+        return Utils.bytesToBase58(combined);
     }
 
     private static isAcceptableVersion(params: NetworkParameters, version: number): boolean {
@@ -88,7 +91,7 @@ export class Address {
     public equals(other: Address): boolean {
         return this.params === other.params && 
                this.version === other.version && 
-               this.hash160.equals(other.hash160);
+               Utils.arraysEqual(this.hash160, other.hash160);
     }
   compareTo(other: Address): number {
     const thisBytes = this.getHash160();
@@ -106,7 +109,7 @@ export class Address {
         const scriptObj = new Script(script);
         if (scriptObj.isSentToAddress()) {
             const pubKeyHash = scriptObj.getPubKeyHash();
-            return Address.fromP2PKH(params, Buffer.from(pubKeyHash));
+            return Address.fromP2PKH(params, new Uint8Array(pubKeyHash));
         }
         return null;
     } catch (e) {

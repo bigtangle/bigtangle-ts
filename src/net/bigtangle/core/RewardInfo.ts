@@ -138,7 +138,7 @@ export class RewardInfo extends DataClass {
     }
 
     public parse(buf: Uint8Array): RewardInfo {
-        const bain = new DataInputStream(Buffer.from(buf));
+        const bain = new DataInputStream(new Uint8Array(buf));
         const r = new RewardInfo();
         try {
             r.chainlength = bain.readLong();

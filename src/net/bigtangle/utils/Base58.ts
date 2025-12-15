@@ -111,7 +111,7 @@ export class Base58 {
 
         // Ensure data is a Buffer if Sha256Hash.hashTwice expects Buffer, otherwise keep as Uint8Array
         // @ts-ignore
-        const hash = Sha256Hash.hashTwice(Buffer.from(data));
+        const hash = Sha256Hash.hashTwice(new Uint8Array(data));
         const expectedChecksum = hash.slice(0, 4);
 
         // Use Utils.arraysEqual instead of non-existent bytesEqual
