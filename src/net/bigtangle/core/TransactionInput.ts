@@ -312,7 +312,8 @@ export class TransactionInput extends ChildMessage {
         if (this.params === null) {
             throw new ScriptException("Network parameters are null");
         }
-        return this.getScriptSig().getFromAddress(this.params);
+        const scriptSig = this.getScriptSig();
+        return scriptSig.getFromAddress(this.params);
     }
 
     /**

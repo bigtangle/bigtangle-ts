@@ -1,3 +1,7 @@
+import {
+    OP_0, OP_1NEGATE, OP_1, OP_16
+} from './ScriptOpCodes';
+
 /**
  * Utilities for script operations
  */
@@ -17,7 +21,3 @@ export class ScriptUtils {
     /** Maximum allowed size for a script element in bytes */
     static readonly MAX_SCRIPT_ELEMENT_SIZE = 520;
 }
-
-import {
-    OP_0, OP_1NEGATE, OP_1, OP_16
-} from './ScriptOpCodes';

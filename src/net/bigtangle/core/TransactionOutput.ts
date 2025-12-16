@@ -19,6 +19,17 @@
  * limitations under the License.
  */
 
+/**
+ * TransactionOutput class
+ *
+ * NOTE: This class uses lazy initialization for Coin constants to avoid circular dependencies
+ * during module loading. Always use CoinConstants.[CONSTANT_NAME] instead of direct Coin
+ * static properties when possible.
+ *
+ * For circular dependency avoidance, this class uses dynamic imports via bigtangle-wrapper
+ * which are initialized only when needed.
+ */
+
 import { ChildMessage } from "./ChildMessage";
 import { Script } from "../script/Script";
 import { ScriptBuilder } from "../script/ScriptBuilder";
@@ -95,8 +106,10 @@ export class TransactionOutput extends ChildMessage {
     // as a sentinel value when calculating
     // SIGHASH_SINGLE signatures, so unfortunately we have to allow that
     // here.
+    // Using CoinConstants.NEGATIVE_SATOSHI with lazy initialization to avoid circular dependency
+    const negativeSatoshi = CoinConstants.NEGATIVE_SATOSHI;
     checkArgument(
-      value.signum() >= 0 || value.equals(CoinConstants.NEGATIVE_SATOSHI),
+      value.signum() >= 0 || value.equals(negativeSatoshi),
       "Negative values not allowed"
     );
     // checkArgument(!params.hasMaxMoney() ||
@@ -137,10 +150,12 @@ export class TransactionOutput extends ChildMessage {
     offset: number,
     serializer: any
   ): TransactionOutput {
+    // Using CoinConstants.ZERO which has lazy initialization to avoid circular dependency
+    const zeroCoin = CoinConstants.ZERO;
     const a = new TransactionOutput(
       params,
       parent,
-      CoinConstants.ZERO,
+      zeroCoin,
       new Uint8Array(0)
     );
     a.setValues5(
@@ -213,8 +228,9 @@ export class TransactionOutput extends ChildMessage {
   public getAddressFromP2PKHScript(
     networkParameters: NetworkParameters
   ): Address | null {
-    if (this.getScriptPubKey().isSentToAddress())
-      return this.getScriptPubKey().getToAddress(networkParameters);
+    const scriptPubKey = this.getScriptPubKey();
+    if (scriptPubKey.isSentToAddress())
+      return scriptPubKey.getToAddress(networkParameters);
 
     return null;
   }
@@ -243,8 +259,9 @@ export class TransactionOutput extends ChildMessage {
   public getAddressFromP2SH(
     networkParameters: NetworkParameters
   ): Address | null {
-    if (this.getScriptPubKey().isPayToScriptHash())
-      return this.getScriptPubKey().getToAddress(networkParameters);
+    const scriptPubKey = this.getScriptPubKey();
+    if (scriptPubKey.isPayToScriptHash())
+      return scriptPubKey.getToAddress(networkParameters);
 
     return null;
   }

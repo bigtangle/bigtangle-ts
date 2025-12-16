@@ -36,11 +36,33 @@ export { VarInt } from './net/bigtangle/core/VarInt';
 
 // Network parameters
 export { NetworkParameters } from './net/bigtangle/params/NetworkParameters';
+export { TestParams } from './net/bigtangle/params/TestParams';
+
+// Cryptographic utilities
+export { KeyCrypterScrypt } from './net/bigtangle/crypto/KeyCrypterScrypt';
 
 // Coin and monetary types - constants are now in separate module
 export { Coin } from './net/bigtangle/core/Coin';
 export { CoinConstants } from './net/bigtangle/core/CoinConstants';
 export { Monetary } from './net/bigtangle/core/Monetary';
+
+// Initialize CoinConstants with the Coin class to ensure proper object compatibility
+import { Coin as CoinClass } from './net/bigtangle/core/Coin';
+import { CoinConstants as CC } from './net/bigtangle/core/CoinConstants';
+try {
+  // Set the Coin class reference to make CoinConstants create proper Coin instances
+  (CC as any)._setCoinReference(CoinClass);
+} catch (e) {
+  // Silently fail if _setCoinReference method doesn't exist (for robustness)
+  console.debug && console.debug('Could not set Coin class reference in CoinConstants:', e);
+}
+
+// Script types
+export { Script } from './net/bigtangle/script/Script';
+export { ScriptBuilder } from './net/bigtangle/script/ScriptBuilder';
+export { ScriptChunk } from './net/bigtangle/script/ScriptChunk';
+export { ScriptProvider, getGlobalScriptProvider } from './net/bigtangle/script/ScriptProvider';
+// Note: ScriptOpCodes are exported as individual constants from the ScriptOpCodes file
 
 // Other common types
 export { UTXO } from './net/bigtangle/core/UTXO';

@@ -2,7 +2,18 @@ import { NetworkParameters } from '../params/NetworkParameters.js';
 import { Sha256Hash } from '../core/Sha256Hash.js';
 import { Address } from '../core/Address.js';
 import { ECKey } from '../core/ECKey.js';
-import { Transaction } from '../core/Transaction.js';
+// Using dynamic import to avoid circular dependency during module initialization
+// The Transaction class will be loaded on-demand when first accessed
+let _Transaction: any = null;
+
+async function getTransactionClass() {
+  if (_Transaction === null) {
+    const { Transaction } = await import('../core/Transaction.js');
+    _Transaction = Transaction;
+  }
+  return _Transaction;
+}
+
 import { TransactionSignature } from '../crypto/TransactionSignature.js';
 import { ScriptException } from '../exception/ScriptException.js';
 import { Utils } from '../utils/Utils.js';
@@ -50,12 +61,6 @@ export class Script {
     /** Max number of sigops allowed in a standard p2sh redeem script */
     static readonly MAX_P2SH_SIGOPS = 15;
 
-    private static readonly STANDARD_TRANSACTION_SCRIPT_CHUNKS: ScriptChunk[] = [
-        new ScriptChunk(OP_DUP, null, 0),
-        new ScriptChunk(OP_HASH160, null, 1),
-        new ScriptChunk(OP_EQUALVERIFY, null, 23),
-        new ScriptChunk(OP_CHECKSIG, null, 24),
-    ];
 
     /** Creates an empty script that serializes to nothing. */
     constructor();
@@ -196,7 +201,14 @@ export class Script {
                 chunk = new ScriptChunk(opcode, data, startLocationInProgram);
             }
             // Save some memory by eliminating redundant copies of the same chunk objects.
-            for (const c of Script.STANDARD_TRANSACTION_SCRIPT_CHUNKS) {
+            // Use inline standard chunks to avoid circular dependency issues during module loading
+            const standardChunks = [
+                new ScriptChunk(OP_DUP, null, 0),
+                new ScriptChunk(OP_HASH160, null, 1),
+                new ScriptChunk(OP_EQUALVERIFY, null, 23),
+                new ScriptChunk(OP_CHECKSIG, null, 24),
+            ];
+            for (const c of standardChunks) {
                 if (c.equals(chunk)) chunk = c;
             }
             this.chunks.push(chunk);
@@ -837,8 +849,8 @@ export class Script {
      * is useful if you need more precise control or access to the final state of the stack. This interface is very
      * likely to change in future.
      */
-    static executeScript(txContainingThis: Transaction | null, index: number,
-                         script: Script, stack: Uint8Array[], verifyFlags: Set<Script.VerifyFlag>): void {
+    static async executeScript(txContainingThis: any | null, index: number,
+                         script: Script, stack: Uint8Array[], verifyFlags: Set<Script.VerifyFlag>): Promise<void> {
         let opCount = 0;
         let lastCodeSepLocation = 0;
 
@@ -1380,7 +1392,7 @@ export class Script {
     }
 
     // This is more or less a direct translation of the code in Bitcoin Core
-    private static executeCheckLockTimeVerify(txContainingThis: Transaction, index: number, script: Script, stack: Uint8Array[],
+    private static executeCheckLockTimeVerify(txContainingThis: any, index: number, script: Script, stack: Uint8Array[],
                                         lastCodeSepLocation: number, opcode: number,
                                         verifyFlags: Set<Script.VerifyFlag>): void {
         if (stack.length < 1) {
@@ -1397,8 +1409,8 @@ export class Script {
 
         // There are two kinds of nLockTime, need to ensure we're comparing apples-to-apples
         if (!(
-            ((txContainingThis.getLockTime() <  Transaction.LOCKTIME_THRESHOLD) && (nLockTime < BigInt(Transaction.LOCKTIME_THRESHOLD.toString()))) ||
-            ((txContainingThis.getLockTime() >= Transaction.LOCKTIME_THRESHOLD) && (nLockTime >= BigInt(Transaction.LOCKTIME_THRESHOLD.toString())))
+            ((txContainingThis.getLockTime() <  BigInt(500000000)) && (nLockTime < BigInt(500000000))) ||
+            ((txContainingThis.getLockTime() >= BigInt(500000000)) && (nLockTime >= BigInt(500000000)))
         )) {
             throw new ScriptException("Locktime requirement type mismatch");
         }
@@ -1424,7 +1436,7 @@ export class Script {
         }
     }
 
-    private static executeCheckSig(txContainingThis: Transaction, index: number, script: Script, stack: Uint8Array[],
+    private static executeCheckSig(txContainingThis: any, index: number, script: Script, stack: Uint8Array[],
         lastCodeSepLocation: number, opcode: number,
         verifyFlags: Set<Script.VerifyFlag>): void {
         const requireCanonical = verifyFlags.has(Script.VerifyFlag.STRICTENC) ||
@@ -1472,7 +1484,7 @@ export class Script {
         }
     }
 
-    private static executeMultiSig(txContainingThis: Transaction, index: number, script: Script, stack: Uint8Array[],
+    private static executeMultiSig(txContainingThis: any, index: number, script: Script, stack: Uint8Array[],
         opCount: number, lastCodeSepLocation: number, opcode: number,
         verifyFlags: Set<Script.VerifyFlag>): number {
         const requireCanonical = verifyFlags.has(Script.VerifyFlag.STRICTENC) ||
@@ -1571,11 +1583,11 @@ export class Script {
      * @param verifyFlags Each flag enables one validation rule. If in doubt, use {@link #correctlySpends(Transaction, long, Script)}
      *                    which sets all flags.
      */
-    correctlySpends(txContainingThis: Transaction, scriptSigIndex: number, scriptPubKey: Script,
-                    verifyFlags: Set<Script.VerifyFlag>): void {
+    async correctlySpends(txContainingThis: any, scriptSigIndex: number, scriptPubKey: Script,
+                    verifyFlags: Set<Script.VerifyFlag>): Promise<void> {
         // Clone the transaction because executing the script involves editing it, and if we die, we'll leave
         // the tx half broken (also it's not so thread safe to work on it directly)
-        let clonedTx: Transaction;
+        let clonedTx: any;
         try {
             // This needs BitcoinSerializer.makeTransaction, which is not yet translated.
             // For now, use a dummy clone.

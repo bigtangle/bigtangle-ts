@@ -18,6 +18,59 @@ export class Coin implements IMonetary, IComparable<Coin> {
   @JsonProperty() public value: bigint;
   @JsonProperty() public tokenid: Uint8Array;
 
+  // Define constants with lazy initialization to avoid circular dependencies during module loading
+  private static _ZERO: Coin | null = null;
+  private static _COIN: Coin | null = null;
+  private static _SATOSHI: Coin | null = null;
+  private static _NEGATIVE_SATOSHI: Coin | null = null;
+  private static _FEE_DEFAULT: Coin | null = null;
+
+  public static get ZERO(): Coin {
+    if (Coin._ZERO === null) {
+      Coin._ZERO = new Coin(0n, Coin.getDefaultTokenIdForConstants());
+    }
+    return Coin._ZERO;
+  }
+
+  public static get COIN(): Coin {
+    if (Coin._COIN === null) {
+      Coin._COIN = new Coin(1000000n, Coin.getDefaultTokenIdForConstants());
+    }
+    return Coin._COIN;
+  }
+
+  public static get SATOSHI(): Coin {
+    if (Coin._SATOSHI === null) {
+      Coin._SATOSHI = new Coin(1n, Coin.getDefaultTokenIdForConstants());
+    }
+    return Coin._SATOSHI;
+  }
+
+  public static get NEGATIVE_SATOSHI(): Coin {
+    if (Coin._NEGATIVE_SATOSHI === null) {
+      Coin._NEGATIVE_SATOSHI = new Coin(-1n, Coin.getDefaultTokenIdForConstants());
+    }
+    return Coin._NEGATIVE_SATOSHI;
+  }
+
+  public static get FEE_DEFAULT(): Coin {
+    if (Coin._FEE_DEFAULT === null) {
+      Coin._FEE_DEFAULT = new Coin(1000n, Coin.getDefaultTokenIdForConstants());
+    }
+    return Coin._FEE_DEFAULT;
+  }
+
+  // Internal method to get default token ID for constants initialization
+  // This avoids circular dependency during module loading
+  private static getDefaultTokenIdForConstants(): Uint8Array {
+    const tokenString = "bc";
+    const bytes = [];
+    for (let i = 0; i < tokenString.length; i += 2) {
+      bytes.push(parseInt(tokenString.substr(i, 2), 16));
+    }
+    return new Uint8Array(bytes);
+  }
+
   constructor(satoshis?: bigint, tokenid?: Uint8Array | string) {
     this.value = satoshis || 0n;
 
@@ -40,8 +93,8 @@ export class Coin implements IMonetary, IComparable<Coin> {
         this.tokenid = new TextEncoder().encode(tokenid);
       }
     } else {
-      // Use the string constant directly instead of calling a method that might cause circular deps
-      this.tokenid = tokenid || this.stringToByteArray(NetworkParameters.BIGTANGLE_TOKENID_STRING);
+      // Use the default token id directly to avoid circular dependency
+      this.tokenid = tokenid || Coin.getDefaultTokenIdForConstants();
     }
   }
 
@@ -73,19 +126,8 @@ export class Coin implements IMonetary, IComparable<Coin> {
   public static valueOf(satoshis: bigint, tokenid?: Uint8Array): Coin {
     return new Coin(
       satoshis,
-      tokenid || Coin.getBigtangleTokenId()
+      tokenid || Coin.getDefaultTokenIdForConstants()
     );
-  }
-
-  // Static method to get the default BigTangle token ID without circular dependency
-  private static getBigtangleTokenId(): Uint8Array {
-    // Simple hex decoder to replace Utils.HEX.decode
-    const tokenString = "bc"; // Using the constant inline
-    const bytes = [];
-    for (let i = 0; i < tokenString.length; i += 2) {
-      bytes.push(parseInt(tokenString.substr(i, 2), 16));
-    }
-    return new Uint8Array(bytes);
   }
 
   public static valueOfString(satoshis: bigint, tokenid?: string): Coin {
@@ -99,7 +141,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
     }
     return new Coin(
       satoshis,
-      tokenIdBuffer || Coin.getBigtangleTokenId()
+      tokenIdBuffer || Coin.getDefaultTokenIdForConstants()
     );
   }
 
@@ -239,7 +281,7 @@ export class Coin implements IMonetary, IComparable<Coin> {
   }
 
   public isBIG(): boolean {
-    return arraysEqual(this.tokenid, Coin.getBigtangleTokenId());
+    return arraysEqual(this.tokenid, Coin.getDefaultTokenIdForConstants());
   }
 
   public isGreaterThan(other: Coin): boolean {
