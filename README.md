@@ -1,14 +1,14 @@
-# @bigtangle/bigtangle-ts
+# social-app
 
-A TypeScript library for blockchain operations, compatible with Node.js, React Native, and web browsers.
+A TypeScript library for building decentralized social networking applications, compatible with Node.js, React Native, and web browsers.
 
 ## Features
 
 - Full TypeScript support
-- React Native and web browser compatible (no Node.js built-ins dependency)
-- Blockchain operations including key management, transactions, and block handling
-- BIP32, BIP39, and other standard cryptocurrency functionality
-- AES encryption for key protection
+- React Native and web browser compatible
+- Social networking features including profiles, posts, messaging, and connections
+- Decentralized identity and privacy controls
+- Peer-to-peer communication capabilities
 
 ## Installation
 

@@ -281,3 +281,36 @@ export function getOpCode(opCodeName: string): number {
     }
     return OP_INVALIDOPCODE;
 }
+
+/**
+ * Encode a value (-1 to 16) into its corresponding opcode.
+ * This is moved here from Script.ts to avoid circular dependencies.
+ */
+export function encodeToOpN(value: number): number {
+    if (value < -1 || value > 16) {
+        throw new Error(`encodeToOpN called for ${value} which we cannot encode in an opcode.`);
+    }
+    if (value === 0) {
+        return OP_0;
+    } else if (value === -1) {
+        return OP_1NEGATE;
+    } else {
+        return value - 1 + OP_1;
+    }
+}
+
+/**
+ * Decode an opcode back to its corresponding value.
+ * This is moved here from Script.ts to avoid circular dependencies.
+ */
+export function decodeFromOpN(opcode: number): number {
+    if (opcode === OP_0) {
+        return 0;
+    } else if (opcode === OP_1NEGATE) {
+        return -1;
+    } else if (opcode >= OP_1 && opcode <= OP_16) {
+        return opcode + 1 - OP_1;
+    } else {
+        throw new Error(`decodeFromOpN called on non push-number opcode: ${opcode}`);
+    }
+}

@@ -1768,4 +1768,34 @@ export class Wallet extends WalletBase {
 
     return info;
   }
+
+  /**
+   * Search for tokens by name
+   * @param tokenname Optional token name to search for
+   * @returns Object containing tokenList and amountMap
+   */
+  async searchToken(tokenname?: string): Promise<{
+    tokenList: Token[];
+    amountMap: Map<string, string> | null;
+  }> {
+    const requestParam: Record<string, any> = {};
+
+    if (tokenname && tokenname.trim() !== "") {
+      requestParam["name"] = tokenname;
+    }
+
+    const response = await OkHttp3Util.post(
+      this.getServerURL() + ReqCmd.searchTokens,
+      new TextEncoder().encode(Json.jsonmapper().stringify(requestParam))
+    );
+
+    const getTokensResponse: GetTokensResponse = Json.jsonmapper().parse(response, {
+      mainCreator: () => [GetTokensResponse],
+    });
+
+    return {
+      tokenList: getTokensResponse.getTokens() || [],
+      amountMap: getTokensResponse.getAmountMap(),
+    };
+  }
 }

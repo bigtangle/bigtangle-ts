@@ -1,10 +1,49 @@
 import { ScriptChunk } from './ScriptChunk';
-import { Script } from './Script';
+// Type-only import to avoid circular dependency during module initialization
+import type { Script } from './Script';
 import { Address } from '../core/Address';
 import { ECKey } from '../core/ECKey';
 import { Utils } from '../utils/Utils';
 import { TransactionSignature } from '../crypto/TransactionSignature';
 import * as ScriptOpCodes from './ScriptOpCodes';
+import { encodeToOpN } from './ScriptOpCodes';
+
+// Lazy-loaded Script class reference - loaded on first use via getter
+let _ScriptClass: typeof Script | null = null;
+
+/**
+ * Get the Script class, initializing it on first use.
+ * The key insight is that by the time any code calls build(),
+ * all module initialization is complete, so we can safely access Script.
+ */
+function getScriptClass(): typeof Script {
+  if (_ScriptClass === null) {
+    // This is a "trick" - we use Function constructor to do a dynamic require
+    // that works in both ESM and CJS environments
+    // The import happens at runtime AFTER all static initialization is complete
+    try {
+      // For bundlers/webpack - they will transform this properly
+      _ScriptClass = (globalThis as any).__SCRIPT_CLASS__;
+      if (!_ScriptClass) {
+        throw new Error('Script not registered');
+      }
+    } catch {
+      throw new Error(
+        'Script class not available. Make sure to import Script before using ScriptBuilder. ' +
+        'Either import from the main index.ts or import Script directly before using ScriptBuilder.'
+      );
+    }
+  }
+  return _ScriptClass;
+}
+
+/**
+ * Register the Script class globally. This is called by index.ts
+ */
+export function registerScriptForBuilder(scriptClass: typeof Script): void {
+  _ScriptClass = scriptClass;
+  (globalThis as any).__SCRIPT_CLASS__ = scriptClass;
+}
 
 export class ScriptBuilder {
     private chunks: ScriptChunk[];
@@ -43,7 +82,7 @@ export class ScriptBuilder {
         } else if (data.length === 1) {
             const b = data[0];
             if (b >= 1 && b <= 16) {
-                opcode = Script.encodeToOpN(b);
+                opcode = encodeToOpN(b);
             } else {
                 opcode = 1;
             }
@@ -71,7 +110,7 @@ export class ScriptBuilder {
         if (num < 0 || num > 16) {
             throw new Error("Cannot encode numbers outside 0-16 with smallNum");
         }
-        return this.addChunk(new ScriptChunk(Script.encodeToOpN(num), null));
+        return this.addChunk(new ScriptChunk(encodeToOpN(num), null));
     }
 
     protected bigNum(num: number | bigint): ScriptBuilder {
@@ -107,7 +146,8 @@ export class ScriptBuilder {
     }
 
     build(): Script {
-        return new Script(this.chunks);
+        const ScriptClass = getScriptClass();
+        return new ScriptClass(this.chunks);
     }
 
     static createOutputScript(to: Address | ECKey): Script {

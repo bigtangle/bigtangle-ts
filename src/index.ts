@@ -1,69 +1,71 @@
 /**
  * Main entry point for the bigtangle-ts library
  *
- * This library previously had circular dependency issues that manifested at
- * runtime as "Cannot access 'Coin' before initialization" ReferenceErrors.
- * These issues have been resolved by moving static constants to the
- * CoinConstants class to avoid static initialization order problems.
- *
- * For safe usage of Coin constants, use CoinConstants instead of Coin static properties:
- * - Use CoinConstants.ZERO instead of  CoinConstants.ZERO (if it still exists)
- * - Use CoinConstants.COIN instead of  CoinConstants.COIN (if it still exists)
- * - etc.
- *
- * This approach uses lazy initialization to avoid circular dependencies
- * that occur during static module loading.
+ * This library provides types and utilities for working with the Bigtangle blockchain protocol,
+ * including core components like addresses, transactions, blocks, cryptographic functions, etc.
  */
 
-// Core blockchain types
+// Core types
 export { Address } from './net/bigtangle/core/Address';
 export { Block } from './net/bigtangle/core/Block';
+export { Coin } from './net/bigtangle/core/Coin';
+export { CoinConstants } from './net/bigtangle/core/CoinConstants';
+export { ECKey } from './net/bigtangle/core/ECKey';
+export { ECPoint } from './net/bigtangle/core/ECPoint';
+export { Sha256Hash } from './net/bigtangle/core/Sha256Hash';
 export { Transaction } from './net/bigtangle/core/Transaction';
 export { TransactionInput } from './net/bigtangle/core/TransactionInput';
 export { TransactionOutput } from './net/bigtangle/core/TransactionOutput';
 export { TransactionOutPoint } from './net/bigtangle/core/TransactionOutPoint';
-
-// Cryptographic types
-export { ECKey } from './net/bigtangle/core/ECKey';
-export { ECPoint } from './net/bigtangle/core/ECPoint';
-export { ECDSASignature } from './net/bigtangle/core/ECDSASignature';
-export { Sha256Hash } from './net/bigtangle/core/Sha256Hash';
-
-// Utilities
+export { UTXO } from './net/bigtangle/core/UTXO';
+export { Token } from './net/bigtangle/core/Token';
+export { Monetary } from './net/bigtangle/core/Monetary';
+export { BloomFilter } from './net/bigtangle/core/BloomFilter';
+export { PartialMerkleTree } from './net/bigtangle/core/PartialMerkleTree';
+export { VarInt } from './net/bigtangle/core/VarInt';
 export { Utils } from './net/bigtangle/core/Utils';
 export { BigIntegerConverter } from './net/bigtangle/core/BigIntegerConverter';
-export { VarInt } from './net/bigtangle/core/VarInt';
+export { ECDSASignature } from './net/bigtangle/core/ECDSASignature';
+export { SigHash } from './net/bigtangle/core/SigHash';
+export { VersionedChecksummedBytes } from './net/bigtangle/core/VersionedChecksummedBytes';
 
 // Network parameters
 export { NetworkParameters } from './net/bigtangle/params/NetworkParameters';
-export { TestParams } from './net/bigtangle/params/TestParams';
 
-// Cryptographic utilities
-export { KeyCrypterScrypt } from './net/bigtangle/crypto/KeyCrypterScrypt';
+// Crypto utilities and serializers
+export { BitcoinSerializer } from './net/bigtangle/core/BitcoinSerializer';
+export { UtilGeneseBlock } from './net/bigtangle/core/UtilGeneseBlock';
 
-// Coin and monetary types - constants are now in separate module
-export { Coin } from './net/bigtangle/core/Coin';
-export { CoinConstants } from './net/bigtangle/core/CoinConstants';
-export { Monetary } from './net/bigtangle/core/Monetary';
+// Wallet functionality
+export { DumpedPrivateKey } from './net/bigtangle/core/DumpedPrivateKey';
 
-// Initialize CoinConstants with the Coin class to ensure proper object compatibility
-import { Coin as CoinClass } from './net/bigtangle/core/Coin';
-import { CoinConstants as CC } from './net/bigtangle/core/CoinConstants';
-try {
-  // Set the Coin class reference to make CoinConstants create proper Coin instances
-  (CC as any)._setCoinReference(CoinClass);
-} catch (e) {
-  // Silently fail if _setCoinReference method doesn't exist (for robustness)
-  console.debug && console.debug('Could not set Coin class reference in CoinConstants:', e);
-}
+// Additional blockchain elements
+export { SpentBlock } from './net/bigtangle/core/SpentBlock';
+export { SpentBlockData } from './net/bigtangle/core/SpentBlockData';
+export { Spent } from './net/bigtangle/core/Spent';
+export { TXReward } from './net/bigtangle/core/TXReward';
+export { RewardInfo } from './net/bigtangle/core/RewardInfo';
 
-// Script types
-export { Script } from './net/bigtangle/script/Script';
+// Multi-signature support
+export { MultiSign } from './net/bigtangle/core/MultiSign';
+export { MultiSignAddress } from './net/bigtangle/core/MultiSignAddress';
+export { PayMultiSign } from './net/bigtangle/core/PayMultiSign';
+export { PayMultiSignAddress } from './net/bigtangle/core/PayMultiSignAddress';
+export { PayMultiSignExt } from './net/bigtangle/core/PayMultiSignExt';
+
+// Script types - exported AFTER all other modules to avoid circular dependencies
+// Import Script class and register it with both ScriptHelper and ScriptBuilder
+import { Script } from './net/bigtangle/script/Script';
+import { registerScriptClass } from './net/bigtangle/script/ScriptHelper';
+import { registerScriptForBuilder } from './net/bigtangle/script/ScriptBuilder';
+
+// Register Script class immediately after import - this enables ScriptHelper and ScriptBuilder to work
+registerScriptClass(Script);
+registerScriptForBuilder(Script);
+
+export { Script };
 export { ScriptBuilder } from './net/bigtangle/script/ScriptBuilder';
 export { ScriptChunk } from './net/bigtangle/script/ScriptChunk';
-export { ScriptProvider, getGlobalScriptProvider } from './net/bigtangle/script/ScriptProvider';
-// Note: ScriptOpCodes are exported as individual constants from the ScriptOpCodes file
+export { ScriptHelper } from './net/bigtangle/script/ScriptHelper';
 
-// Other common types
-export { UTXO } from './net/bigtangle/core/UTXO';
-export { BloomFilter } from './net/bigtangle/core/BloomFilter';
+export { PayMultiSignInfo } from './net/bigtangle/core/PayMultiSignInfo';

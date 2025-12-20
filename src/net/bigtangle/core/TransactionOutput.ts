@@ -31,8 +31,9 @@
  */
 
 import { ChildMessage } from "./ChildMessage";
-import { Script } from "../script/Script";
+import type { Script } from "../script/Script";
 import { ScriptBuilder } from "../script/ScriptBuilder";
+import { ScriptHelper } from "../script/ScriptHelper";
 import { NetworkParameters } from "../params/NetworkParameters";
 import { Address } from "./Address";
 import { ECKey } from "./ECKey";
@@ -206,7 +207,7 @@ export class TransactionOutput extends ChildMessage {
 
   public getScriptPubKey(): Script {
     if (this.scriptPubKey === null) {
-      this.scriptPubKey = new Script(this.scriptBytes);
+      this.scriptPubKey = ScriptHelper.fromBytes(this.scriptBytes);
     }
     return this.scriptPubKey;
   }

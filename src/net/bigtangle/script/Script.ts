@@ -28,6 +28,7 @@ import {
     OP_1ADD, OP_1SUB, OP_2MUL, OP_2DIV, OP_NEGATE, OP_ABS, OP_NOT, OP_0NOTEQUAL, OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_LSHIFT, OP_RSHIFT, OP_BOOLAND, OP_BOOLOR, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_LESSTHAN, OP_GREATERTHAN, OP_LESSTHANOREQUAL, OP_GREATERTHANOREQUAL, OP_MIN, OP_MAX, OP_WITHIN,
     OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256, OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY, OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY,
     OP_CHECKLOCKTIMEVERIFY, OP_NOP1, OP_NOP3, OP_NOP4, OP_NOP5, OP_NOP6, OP_NOP7, OP_NOP8, OP_NOP9, OP_NOP10, OP_INVALIDOPCODE,
+    encodeToOpN as _encodeToOpN, decodeFromOpN as _decodeFromOpN,
 } from './ScriptOpCodes.js';
 import { UnsafeByteArrayOutputStream } from '../core/UnsafeByteArrayOutputStream.js';
 import { ScriptBuilder } from './ScriptBuilder.js';
@@ -594,30 +595,20 @@ export class Script {
         return sigOps;
     }
 
+    /**
+     * Decode an opcode back to its corresponding value.
+     * @deprecated Use decodeFromOpN from ScriptOpCodes instead to avoid circular dependencies.
+     */
     static decodeFromOpN(opcode: number): number {
-        if (!((opcode === OP_0 || opcode === OP_1NEGATE) || (opcode >= OP_1 && opcode <= OP_16))) {
-            throw new Error("decodeFromOpN called on non OP_N opcode");
-        }
-        if (opcode === OP_0) {
-            return 0;
-        } else if (opcode === OP_1NEGATE) {
-            return -1;
-        } else {
-            return opcode + 1 - OP_1;
-        }
+        return _decodeFromOpN(opcode);
     }
 
+    /**
+     * Encode a value (-1 to 16) into its corresponding opcode.
+     * @deprecated Use encodeToOpN from ScriptOpCodes instead to avoid circular dependencies.
+     */
     static encodeToOpN(value: number): number {
-        if (value < -1 || value > 16) {
-            throw new Error(`encodeToOpN called for ${value} which we cannot encode in an opcode.`);
-        }
-        if (value === 0) {
-            return OP_0;
-        } else if (value === -1) {
-            return OP_1NEGATE;
-        } else {
-            return value - 1 + OP_1;
-        }
+        return _encodeToOpN(value);
     }
 
     /**
@@ -1725,3 +1716,8 @@ export namespace Script {
         Object.values(VerifyFlag).filter(v => typeof v === "number") as VerifyFlag[]
     );
 }
+
+// Self-registration: Register Script class globally so ScriptBuilder can access it
+// This runs after the Script class is fully defined
+// Using globalThis ensures it works in all environments (browser, Node.js, React Native)
+(globalThis as any).__SCRIPT_CLASS__ = Script;

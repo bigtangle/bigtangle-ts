@@ -21,7 +21,8 @@
 
 import { ChildMessage } from './ChildMessage';
 import { TransactionOutPoint } from './TransactionOutPoint';
-import { Script } from '../script/Script';
+import type { Script } from '../script/Script';
+import { ScriptHelper } from '../script/ScriptHelper';
 import { NetworkParameters } from '../params/NetworkParameters';
 import { Address } from './Address';
 import { ScriptException } from '../exception/ScriptException';
@@ -182,7 +183,7 @@ export class TransactionInput extends ChildMessage {
         // this
         // parameter is overloaded to be something totally different.
         if (this.scriptSig === null) {
-            this.scriptSig = new Script(this.scriptBytes);
+            this.scriptSig = ScriptHelper.fromBytes(this.scriptBytes);
         }
         return this.scriptSig;
     }
@@ -409,7 +410,7 @@ export class TransactionInput extends ChildMessage {
         const pubKey = output.getScriptPubKey();
         const myIndex = this.getParentTransaction()!.getInputs().indexOf(this);
         const r = this.getScriptSig();
-        r.correctlySpends(this.getParentTransaction()!, myIndex, pubKey, Script.ALL_VERIFY_FLAGS);
+        r.correctlySpends(this.getParentTransaction()!, myIndex, pubKey, ScriptHelper.getAllVerifyFlags());
     }
 
     /**
