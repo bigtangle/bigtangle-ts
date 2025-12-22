@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./dist/*": {
+      "import": "./dist/*",
+      "require": "./dist/*"
     }
   },
   "keywords": [
@@ -55,17 +59,25 @@
     "lint": "eslint . --ext .ts,.js --fix --ignore-pattern 'debug*.ts' --ignore-pattern 'test/**' --ignore-pattern 'dist/**' --ignore-pattern '*.mjs' --ignore-pattern 'temp_method.ts'"
   },
   "dependencies": {
+    "@babel/runtime": "^7.28.4",
+    "@noble/ciphers": "^2.1.1",
+    "@noble/hashes": "^1.7.1",
     "axios": "^1.1.0",
-    "ws": "^8.18.0",
+    "bs58": "^6.0.0",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
+    "deepmerge": "^4.3.1",
+    "immutable": "^5.0.2",
+    "jackson-js": "^1.1.0",
+    "jwt-decode": "^4.0.0",
+    "rxjs": "^7.8.1",
+    "scrypt-js": "^3.0.1",
+    "secp256k1": "^5.0.1",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
-    "crypto-js": "^4.2.0",
+    "uint8array-tools": "^0.0.9",
     "uuid": "^11.0.3",
     "validator": "^13.15.15",
-    "date-fns": "^4.1.0",
-    "immutable": "^5.0.2",
-    "rxjs": "^7.8.1",
-    "jwt-decode": "^4.0.0",
-    "deepmerge": "^4.3.1"
+    "ws": "^8.18.0"
   }
 }

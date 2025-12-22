@@ -40,7 +40,6 @@ import { PermissionedAddressesResponse } from "../response/PermissionedAddresses
 import { KeyPurpose } from "../wallet/KeyChain";
 
 export class Wallet extends WalletBase {
-  private static readonly log = console; // Replace with a logger if needed
   keyChainGroup: KeyChainGroup;
   url: string | null = null;
 
@@ -501,8 +500,8 @@ export class Wallet extends WalletBase {
     signkey: ECKey,
     aesKey: any
   ): Promise<Block> {
-    // Get token info from server
-    const token = await this.checkTokenId(tokenid);
+    // Verify token exists on server
+    await this.checkTokenId(tokenid);
 
     // Get the pending multi-sign data for this token and address
     const multiSignBlock = await this.multiSign(tokenid, signkey, aesKey);
@@ -1016,9 +1015,6 @@ export class Wallet extends WalletBase {
     baseToken: string,
     allowRemainder: boolean
   ): Promise<Block> {
-    // Calculate total amount for the sell order (price * amount)
-    const totalAmount = sellPrice * offerValue;
-
     // Get spendable outputs to fund the order (the tokens being sold)
     const coinList = await this.calculateAllSpendCandidates(aesKey, false);
 
@@ -1635,10 +1631,6 @@ export class Wallet extends WalletBase {
     }
 
     return result;
-  }
-
-  private isBlank(str: string | null | undefined): boolean {
-    return !str || str.trim().length === 0;
   }
 
   async getPrevTokenMultiSignAddressList(

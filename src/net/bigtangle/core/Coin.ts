@@ -1,7 +1,6 @@
 
 import { MonetaryFormat } from "../utils/MonetaryFormat";
 import { JsonProperty } from "jackson-js";
-import { NetworkParameters } from "../params/NetworkParameters";
 
 // Define a helper function to check array equality to avoid circular dependencies
 function arraysEqual(a: Uint8Array, b: Uint8Array): boolean {

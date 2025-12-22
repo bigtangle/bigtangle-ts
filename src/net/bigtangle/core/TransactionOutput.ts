@@ -42,7 +42,7 @@ import { CoinConstants } from "./CoinConstants";
 import { Sha256Hash } from "./Sha256Hash";
 import { Utils } from "./Utils";
 import { VarInt } from "./VarInt";
-import { TransactionInput } from "./TransactionInput";
+import type { TransactionInput } from "./TransactionInput";
 import { TransactionBag } from "./TransactionBag";
 import { Preconditions } from "../utils/Preconditions";
 import { Buffer } from "buffer";

@@ -69,3 +69,13 @@ export { ScriptChunk } from './net/bigtangle/script/ScriptChunk';
 export { ScriptHelper } from './net/bigtangle/script/ScriptHelper';
 
 export { PayMultiSignInfo } from './net/bigtangle/core/PayMultiSignInfo';
+export { TestParams } from './net/bigtangle/params/TestParams';
+export { MainNetParams } from './net/bigtangle/params/MainNetParams';
+export { Base58 } from './net/bigtangle/utils/Base58';
+
+// Wallet functionality
+export { Wallet } from './net/bigtangle/wallet/Wallet';
+
+// Crypto functionality
+export { KeyCrypterScrypt } from './net/bigtangle/crypto/KeyCrypterScrypt';
+

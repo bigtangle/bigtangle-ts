@@ -68,7 +68,14 @@ export class OkHttp3Util {
       this.instance.interceptors.response.use(
         async (response: AxiosResponse<Uint8Array>) => {
           if (response.headers["content-encoding"] === "gzip") {
-            response.data = await gunzip(response.data);
+            // Convert to Buffer for browserify-zlib compatibility
+            let data = response.data;
+            if (data instanceof ArrayBuffer) {
+              data = Buffer.from(data);
+            } else if (data instanceof Uint8Array && !(data instanceof Buffer)) {
+              data = Buffer.from(data);
+            }
+            response.data = await gunzip(data);
           }
           return response;
         }
@@ -142,6 +149,12 @@ export class OkHttp3Util {
 
     const response = await this.getAxiosInstance().post(url, requestData);
     let responseBuffer = response.data;
+    // Convert to Buffer for browserify-zlib compatibility
+    if (responseBuffer instanceof ArrayBuffer) {
+      responseBuffer = Buffer.from(responseBuffer);
+    } else if (responseBuffer instanceof Uint8Array && !(responseBuffer instanceof Buffer)) {
+      responseBuffer = Buffer.from(responseBuffer);
+    }
     responseBuffer = await gunzip(responseBuffer);
     this.checkResponse(responseBuffer, url, response.status);
     return responseBuffer.toString("utf8"); // Convert to string here

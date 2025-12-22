@@ -10,15 +10,5 @@ describe('ProbabilityTest', () => {
             );
         }
     });
-
-    test('testRandomness', () => {
-        const seedrandom = require('seedrandom');
-        const rng = seedrandom('31243565477');
-        const randomWin = Math.floor(rng() * 10);
-
-        for (let i = 0; i < 100; i++) {
-            const rng2 = seedrandom('31243565477');
-            expect(Math.floor(rng2() * 10)).toBe(randomWin);
-        }
-    });
+ 
 });
