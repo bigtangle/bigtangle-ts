@@ -42,12 +42,39 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
                 continue;
             }
 
-            try {
-                txIn.getScriptSig().correctlySpends(tx, i, txIn.getConnectedOutput()!.getScriptPubKey(), LocalTransactionSigner.MINIMUM_VERIFY_FLAGS);
-                console.warn(`Input ${i} already correctly spends output, assuming SIGHASH type used will be safe and skipping signing.`);
-                continue;
-            } catch {
-                // Expected.
+            // Only skip signing if the scriptSig is already fully populated with both signature and public key
+            // For P2PKH transactions, scriptSig should have 2 elements: signature and public key
+            // For P2PK transactions, scriptSig should have 1 element: signature
+            const currentScriptSig = txIn.getScriptSig();
+            if (currentScriptSig.getChunks().length > 0) {
+                const connectedOutput = txIn.getConnectedOutput()!;
+                const currentScriptPubKey = connectedOutput.getScriptPubKey();
+
+                // Check if it's a P2PK output (pubkey OP_CHECKSIG)
+                if (currentScriptPubKey.isSentToRawPubKey()) {
+                    // For P2PK outputs, scriptSig should have exactly 1 element (signature)
+                    if (currentScriptSig.getChunks().length === 1) {
+                        try {
+                            txIn.getScriptSig().correctlySpends(tx, i, txIn.getConnectedOutput()!.getScriptPubKey(), LocalTransactionSigner.MINIMUM_VERIFY_FLAGS);
+                            console.warn(`Input ${i} already correctly spends output, assuming SIGHASH type used will be safe and skipping signing.`);
+                            continue;
+                        } catch {
+                            // Expected - proceed with signing
+                        }
+                    }
+                } else {
+                    // For P2PKH outputs (OP_DUP OP_HASH160 pubKeyHash OP_EQUALVERIFY OP_CHECKSIG),
+                    // scriptSig should have exactly 2 elements (signature, pubkey)
+                    if (currentScriptSig.getChunks().length === 2) {
+                        try {
+                            txIn.getScriptSig().correctlySpends(tx, i, txIn.getConnectedOutput()!.getScriptPubKey(), LocalTransactionSigner.MINIMUM_VERIFY_FLAGS);
+                            console.warn(`Input ${i} already correctly spends output, assuming SIGHASH type used will be safe and skipping signing.`);
+                            continue;
+                        } catch {
+                            // Expected - proceed with signing
+                        }
+                    }
+                }
             }
 
             const redeemData = await txIn.getConnectedRedeemData(keyBag);
@@ -77,21 +104,22 @@ export class LocalTransactionSigner extends StatelessTransactionSigner {
             const currentScriptPubKey = connectedOutput.getScriptPubKey();
             try {
                 const signature = await tx.calculateSignature(i, key, currentScriptPubKey.getProgram(),  SigHash.ALL, false);
-                 // For P2PK outputs (scriptPubKey is PUSHDATA(pubkey) OP_CHECKSIG), 
+                 // For P2PK outputs (scriptPubKey is PUSHDATA(pubkey) OP_CHECKSIG),
                  // the scriptSig should only contain the signature, not signature + public key
                  if (currentScriptPubKey.isSentToRawPubKey()) {
                      // For raw public key outputs, only push the signature
-                    
+
                      const newInputScript = ScriptBuilder.createInputScript(signature, undefined);
                      txIn.setScriptSig(newInputScript);
-                  
+
                  } else {
                      // For P2PKH outputs (scriptPubKey is OP_DUP OP_HASH160 PUSHDATA(pubKeyHash) OP_EQUALVERIFY OP_CHECKSIG),
                      // the scriptSig should contain the signature and public key
-               
+                     // Also for other script types that require both signature and public key
+
                      const newInputScript = ScriptBuilder.createInputScript(signature, key);
                      txIn.setScriptSig(newInputScript);
-                
+
                  }
             } catch (e: any) {
                 if (e instanceof MissingPrivateKeyException) {
