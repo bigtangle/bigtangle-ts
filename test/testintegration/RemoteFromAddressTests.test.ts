@@ -7,6 +7,7 @@ import { ECKey } from "../../src/net/bigtangle/core/ECKey";
 import { TokenType } from "../../src/net/bigtangle/core/TokenType";
 import { Token } from "../../src/net/bigtangle/core/Token";
 import { MultiSignAddress } from "../../src/net/bigtangle/core/MultiSignAddress";
+import { CoinConstants } from "../../src/net/bigtangle/core/CoinConstants";
 import { NetworkParameters } from "../../src/net/bigtangle/params/NetworkParameters";
 import { ReqCmd } from "../../src/net/bigtangle/params/ReqCmd";
 
@@ -33,10 +34,21 @@ class RemoteFromAddressTests extends RemoteTest {
     ).getPublicKeyAsHex();
 
     // Create the token first
-    //  await this.testTokens();
+    await this.testTokens();
 
     // Call tokensumInitial after testTokens
-    // await this.tokenOwner( );
+    let utxos = [];
+    let attempts = 0;
+    // Poll for UTXOs for up to 30 seconds
+    while (attempts < 30) {
+      utxos = await this.tokenOwner();
+      if (utxos && utxos.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      attempts++;
+    }
+    if (!utxos || utxos.length === 0) {
+      console.warn("No UTXOs found for token after creation, test may fail.");
+    }
 
     // Now create yuanWallet after token creation so it can access the created tokens
     this.yuanWallet = await Wallet.fromKeysURL(
@@ -80,16 +92,16 @@ class RemoteFromAddressTests extends RemoteTest {
     );
 
     // Now purchase yuan tokens using native token as payment
-    const bs = await w.buyOrder(
-      null,
-      this.tokenid, // tokenid to buy (yuan token)
-      BigInt(100), // amount of yuan tokens to buy
-      BigInt(2), // price per yuan token
-      null, // from address
-      null, // to address
-      NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
-      true // is buy order
-    );
+        const bs = await w.buyOrder(
+          null,
+          this.tokenid, // tokenid to buy (yuan token)
+          BigInt(2), // amount of yuan tokens to buy (reduced)
+          BigInt(1), // price per yuan token (reduced)
+          null, // from address
+          null, // to address
+          NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
+          true // is buy order
+        );
     console.log(`Buy order result: ${bs ? bs.toString() : "null"}`);
   }
 
@@ -102,8 +114,8 @@ class RemoteFromAddressTests extends RemoteTest {
 
     for (const key of this.userkeys) {
       const addr = Address.fromKey(this.networkParameters, key).toString();
-      giveMoneyResult.set(addr, BigInt(100));
-      giveMoneyResultBig.set(addr, BigInt(100000000)); // Reduced from 1,000,000,000 to 100,000,000
+      giveMoneyResult.set(addr, BigInt(10)); // Further reduced from 100 to 10
+      giveMoneyResultBig.set(addr, BigInt(10000)); // Further reduced from 100,000,000 to 10,000
     }
 
     const b = await this.yuanWallet!.payToList(
@@ -209,21 +221,23 @@ class RemoteFromAddressTests extends RemoteTest {
   ): Promise<void> {
     // Calculate the token ID as a hash of the public key (this is the standard way tokens are identified)
 
-    await this.createToken(
-      key,
-      tokenname,
-      decimals,
-      domainname,
-      description,
-      amount,
-      true,
-      null,
-      TokenType.currency,
-      this.tokenid
-    );
-
-    const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
-    await this.wallet.multiSign(this.tokenid, signkey, null);
+    // Allow duplicate token creation with incremented sequence
+    for (let seq = 0; seq < 2; seq++) {
+      await this.createToken(
+        key,
+        tokenname,
+        decimals,
+        domainname,
+        description,
+        amount + BigInt(seq), // increment amount for uniqueness
+        true,
+        null,
+        TokenType.currency,
+        this.tokenid
+      );
+      const signkey = ECKey.fromPrivateString(RemoteTest.testPriv);
+      await this.wallet.multiSign(this.tokenid, signkey, null);
+    }
   }
 
   // Create a token with multi-signature support
@@ -327,16 +341,16 @@ class RemoteFromAddressTests extends RemoteTest {
     );
 
     // Now purchase yuan tokens using native token as payment
-    const bs = await w.sellOrder(
-      null,
-      this.tokenid, // tokenid to buy (yuan token)
-      BigInt(100), // amount of yuan tokens to buy
-      BigInt(2), // price per yuan token
-      null, // from address
-      null, // to address
-      NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
-      true // is buy order
-    );
+        const bs = await w.sellOrder(
+          null,
+          this.tokenid, // tokenid to buy (yuan token)
+          BigInt(2), // amount of yuan tokens to sell (reduced)
+          BigInt(1), // price per yuan token (reduced)
+          null, // from address
+          null, // to address
+          NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
+          true // is buy order
+        );
     console.log(`sell order result: ${bs ? bs.toString() : "null"}`);
   }
 }

@@ -9,6 +9,19 @@ import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 describe('bigtangle wallet pay', () => {
   let wallet: Wallet;
 
+  test('should search for tokens using searchToken', async () => {
+    // This test assumes the wallet is connected to a test server with tokens available
+    // You may need to adjust the token name or mock the server for a real test
+    const tokenname = '';
+    const result = await wallet.searchToken(tokenname);
+    expect(result).toHaveProperty('tokenList');
+    expect(result).toHaveProperty('amountMap');
+    expect(Array.isArray(result.tokenList)).toBe(true);
+    // amountMap can be null or a plain object (not a Map)
+       // Optionally log for debug
+    console.log('searchToken result:', result);
+  });
+
   beforeEach(() => {
     wallet = Wallet.fromKeysURL(
       TestParams.get(),

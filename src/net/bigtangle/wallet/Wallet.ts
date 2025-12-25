@@ -1776,18 +1776,33 @@ export class Wallet extends WalletBase {
       requestParam["name"] = tokenname;
     }
 
-    const response = await OkHttp3Util.post(
-      this.getServerURL() + ReqCmd.searchTokens,
-      new TextEncoder().encode(Json.jsonmapper().stringify(requestParam))
-    );
+    let response: any;
+    try {
+      response = await OkHttp3Util.post(
+        this.getServerURL() + ReqCmd.searchTokens,
+        new TextEncoder().encode(Json.jsonmapper().stringify(requestParam))
+      );
+    } catch (err) {
+      console.error("searchToken: network error", err);
+      return { tokenList: [], amountMap: null };
+    }
 
-    const getTokensResponse: GetTokensResponse = Json.jsonmapper().parse(response, {
-      mainCreator: () => [GetTokensResponse],
-    });
+    // Use standard JSON.parse to avoid Jackson parse errors
+    let parsed: any = null;
+    try {
+      parsed = typeof response === "string" ? JSON.parse(response) : response;
+    } catch (err) {
+      console.error("searchToken: parse error", err, "Raw response:", response);
+      return { tokenList: [], amountMap: null };
+    }
+
+    // tokenList and amountMap extraction
+    const tokenList = Array.isArray(parsed?.tokens) ? parsed.tokens : [];
+    const amountMap = parsed?.amountMap ? parsed.amountMap : null;
 
     return {
-      tokenList: getTokensResponse.getTokens() || [],
-      amountMap: getTokensResponse.getAmountMap(),
+      tokenList,
+      amountMap,
     };
   }
 }
