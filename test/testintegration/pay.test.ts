@@ -6,6 +6,13 @@ import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
 import { ECKey } from "../../src/net/bigtangle/core/ECKey";
 import { TestParams } from "../../src/net/bigtangle/params/TestParams";
 
+type Token = {
+  tokenid: string;
+  tokenname: string;
+  decimals: number;
+  balance?: number;
+};
+
 describe('bigtangle wallet pay', () => {
   let wallet: Wallet;
 
@@ -18,9 +25,21 @@ describe('bigtangle wallet pay', () => {
     expect(result).toHaveProperty('amountMap');
     expect(Array.isArray(result.tokenList)).toBe(true);
     // amountMap can be null or a plain object (not a Map)
-       // Optionally log for debug
+    // Optionally log for debug
     console.log('searchToken result:', result);
+
+    if (result && Array.isArray(result.tokenList)) {
+      // Map tokenList to Token[] and include domainName
+      const tokens: Token[] = result.tokenList.map((t: any) => ({
+        tokenid: t.tokenid,
+        tokenname: t.tokenname, 
+        decimals: t.decimals ?? 8,
+        balance: undefined, // balance not available from search
+      }));
+      // Optionally do something with tokens here
+    }
   });
+
 
   beforeEach(() => {
     wallet = Wallet.fromKeysURL(
@@ -35,8 +54,7 @@ describe('bigtangle wallet pay', () => {
   test('should pay to an address using payToList', async () => {
     const quantity = '1';
     const decimals = 8;
-    const tokenid =
-      'bc';
+    const tokenid = 'bc';
 
     // Parse the amount - convert to smallest unit based on decimals
     const amountInSmallestUnit = BigInt(
@@ -69,4 +87,3 @@ describe('bigtangle wallet pay', () => {
     expect(txHashStr).toBeDefined();
     console.log(`Payment transaction hash: ${txHashStr}`);
   });
-});
