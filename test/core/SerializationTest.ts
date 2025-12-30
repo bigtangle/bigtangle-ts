@@ -72,17 +72,17 @@ describe('SerializationTest', () => {
 
     test('testOrderOpenInfoSerialization', () => {
         const info1 = new OrderOpenInfo(
-            2, // version
-            'test1',
-            Buffer.from([2]),
             3, // targetValue (number)
-            4, // validFromTime (number)
-            Side.SELL,
-            'test2',
-            NetworkParameters.BIGTANGLE_TOKENID_STRING,
-            1, // validToTime (number)
-            3, // signnumber
-            NetworkParameters.BIGTANGLE_TOKENID_STRING,
+            'test1', // targetTokenid
+            Buffer.from([2]), // beneficiaryPubKey
+            1, // validToTimeMilli (number)
+            4, // validFromTimeMilli (number)
+            Side.SELL, // side
+            'test2', // beneficiaryAddress
+            NetworkParameters.BIGTANGLE_TOKENID_STRING, // orderBaseToken
+            5, // price (number)
+            2, // offerValue (number)
+            NetworkParameters.BIGTANGLE_TOKENID_STRING, // offerTokenid
         );
         const info2 = new OrderOpenInfo().parse(info1.toByteArray());
 
@@ -99,6 +99,10 @@ describe('SerializationTest', () => {
         expect(info1.getValidFromTime()).toBe(info2.getValidFromTime());
         expect(info1.getValidToTime()).toBe(info2.getValidToTime());
         expect(info1.getVersion()).toBe(info2.getVersion());
+        expect(info1.getPrice()).toBe(info2.getPrice());
+        expect(info1.getOfferValue()).toBe(info2.getOfferValue());
+        expect(info1.getOfferTokenid()).toBe(info2.getOfferTokenid());
+        console.log(Utils.HEX.encode(info1.toByteArray()));
     });
 
     test('testContractEventInfoSerialization', () => {

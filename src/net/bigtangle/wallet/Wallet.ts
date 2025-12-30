@@ -33,6 +33,7 @@ import { MemoInfo } from "../core/MemoInfo";
 import { OrderOpenInfo } from "../core/OrderOpenInfo";
 import { BlockType } from "../core/BlockType";
 import { MultiSign } from "../core/MultiSign";
+import { Side } from "../core/Side";
 import { MultiSignAddress } from "../core/MultiSignAddress";
 import { MultiSignBy } from "../core/MultiSignBy";
 import { MultiSignByRequest } from "../response/MultiSignByRequest";
@@ -249,9 +250,7 @@ export class Wallet extends WalletBase {
     // Add fee transaction like the Java implementation does
     // For token creation, we'll skip fee transaction to avoid insufficient funds errors
     if (this.getFee()) {
-      const coinList = await this.calculateAllSpendCandidates(aesKey, false);
-      const feeTx = await this.feeTransaction1(aesKey, coinList);
-      block.addTransaction(feeTx);
+      const feeTx = await this.feeTransaction(aesKey, block);
     }
 
     const transactions = block.getTransactions ? block.getTransactions() : [];
@@ -307,8 +306,8 @@ export class Wallet extends WalletBase {
     transaction.setDataSignature(new TextEncoder().encode(jsonData));
 
     this.checkMultiSignBy(multiSignBies, transaction);
- //   console.log(     " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize()));
- //   console.log(" block:" + block.toString());
+    //   console.log(     " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize()));
+    //   console.log(" block:" + block.toString());
     return await this.adjustSolveAndSign(block);
   }
 
@@ -388,9 +387,6 @@ export class Wallet extends WalletBase {
     const coinList = await this.calculateAllSpendCandidates(aesKey, false);
     const transaction = await this.feeTransaction1(aesKey, coinList);
     block.addTransaction(transaction);
-
-    // Update merkle root after adding transaction
-    block.setMerkleRoot(null); // This will trigger recalculation when accessed
 
     return block;
   }
@@ -481,7 +477,9 @@ export class Wallet extends WalletBase {
 
     if (beneficiary == null || amount.isNegative()) {
       throw new InsufficientMoneyException(
-        CoinConstants.FEE_DEFAULT.getValue() + " outputs size= " + coinListTokenid.length
+        CoinConstants.FEE_DEFAULT.getValue() +
+          " outputs size= " +
+          coinListTokenid.length
       );
     }
 
@@ -527,7 +525,9 @@ export class Wallet extends WalletBase {
 
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenSignByAddress,
-      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(
+        Json.jsonmapper().stringify(Object.fromEntries(requestParam))
+      )
     );
 
     // Properly deserialize the response using Jackson
@@ -557,8 +557,10 @@ export class Wallet extends WalletBase {
         (multiSign as any).getblockhashhex ||
         "";
     }
- 
-    const block = this.params.getDefaultSerializer().makeBlock( new Uint8Array(Utils.HEX.decode(blockHashHex)));
+
+    const block = this.params
+      .getDefaultSerializer()
+      .makeBlock(new Uint8Array(Utils.HEX.decode(blockHashHex)));
     // replace block prototype if it is too too old
 
     const transactions = block.getTransactions ? block.getTransactions() : [];
@@ -566,12 +568,7 @@ export class Wallet extends WalletBase {
       throw new Error("No transactions found in block");
     }
     const transaction = transactions[0];
-    console.debug(
-      " multiSign block binary: " +
-        Utils.HEX.encode(block.unsafeBitcoinSerialize())
-    );
-    console.debug(" multiSign block: " + block.toString());
-    console.debug(" transaction: " + transaction.getHash());
+
     let multiSignBies: MultiSignBy[];
     if (transaction.getDataSignature() == null) {
       multiSignBies = [];
@@ -722,7 +719,9 @@ export class Wallet extends WalletBase {
     // Using OkHttp3Util.post instead of postString
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getTokenById,
-      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(
+        Json.jsonmapper().stringify(Object.fromEntries(requestParam))
+      )
     );
 
     const token: GetTokensResponse = Json.jsonmapper().parse(resp, {
@@ -801,15 +800,14 @@ export class Wallet extends WalletBase {
 
     let amount = summe.negate();
     // Add fee if needed
-    if (this.getFee()   &&  amount.isBIG()) {
+    if (this.getFee() && amount.isBIG()) {
       const fee = Coin.valueOf(
         CoinConstants.FEE_DEFAULT.getValue(),
         amount.getTokenid()
       );
       amount = amount.add(fee.negate());
-    } 
-   
-  
+    }
+
     let beneficiary: ECKey | null = null;
     // Filter only for tokenid
     const coinListTokenid = this.filterTokenid(tokenid, coinList);
@@ -842,12 +840,10 @@ export class Wallet extends WalletBase {
     await this.signTransaction(multispent, aesKey, "THROW");
     const block = await this.getTip();
     block.addTransaction(multispent);
- if (this.getFee()   && ! amount.isBIG()) {
-  
+    if (this.getFee() && !amount.isBIG()) {
       const feeTx = await this.feeTransaction1(aesKey, coinList);
       block.addTransaction(feeTx);
-   
-     }
+    }
     return await this.solveAndPost(block);
   }
 
@@ -884,6 +880,9 @@ export class Wallet extends WalletBase {
    */
   async solveAndPost(block: Block): Promise<Block> {
     try {
+      console.log(
+        " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize())
+      );
       // Solve the block
       block.solve();
 
@@ -933,24 +932,6 @@ export class Wallet extends WalletBase {
     const baseTokenBytes = new Uint8Array(Utils.HEX.decode(baseToken));
     const totalCoin = new Coin(totalAmount, baseTokenBytes);
 
-    // Add order information as transaction data
-    const orderInfo = new OrderOpenInfo();
-    orderInfo.setTargetTokenid(tokenId);
-    orderInfo.setPrice(Number(buyPrice));
-    orderInfo.setTargetValue(Number(buyAmount));
-    orderInfo.setOrderBaseToken(baseToken);
-    orderInfo.setOfferTokenid(baseToken); // For buy orders, offer token is the base token
-
-    if (validToTime) {
-      orderInfo.setValidToTime(validToTime.getTime());
-    }
-
-    if (validFromTime) {
-      orderInfo.setValidFromTime(validFromTime.getTime());
-    }
-
-    tx.setData(orderInfo.toByteArray());
-
     // Add inputs and outputs similar to payMoneyToECKeyList method
     let amountNeeded = totalCoin.negate();
 
@@ -974,10 +955,7 @@ export class Wallet extends WalletBase {
         beneficiary = await this.getECKey(aesKey, utxo.getAddress());
         amountNeeded = amountNeeded.add(utxo.getValue());
 
-        tx.addInput2(
-          spendableOutput.getUTXO().getBlockHash(),
-          spendableOutput
-        );
+        tx.addInput2(spendableOutput.getUTXO().getBlockHash(), spendableOutput);
 
         if (!amountNeeded.isNegative()) {
           if (beneficiary) {
@@ -994,15 +972,39 @@ export class Wallet extends WalletBase {
       );
     }
 
+    // Create order information as transaction data
+    // For buy orders: we're buying targetToken with baseToken
+    const orderInfo = new OrderOpenInfo(
+      Number(buyAmount), // targetValue - amount of target token to buy
+      tokenId, // targetTokenid - the token we want to buy
+      beneficiary ? beneficiary.getPubKey() : null, // beneficiaryPubKey
+      validToTime ? validToTime.getTime() : Date.now(), // validToTimeMilli
+      validFromTime
+        ? validFromTime.getTime()
+        : Date.now() + NetworkParameters.ORDER_TIMEOUT_MAX, // validFromTimeMilli
+      Side.BUY, // side - BUY order
+      beneficiary ? beneficiary.toAddress(this.params).toBase58() : null, // beneficiaryAddress
+      baseToken, // orderBaseToken - the token used for payment
+      Number(buyPrice), // price - price per unit
+      Number(totalAmount), // offerValue - total amount of base token to spend
+      baseToken // offerTokenid - the token being offered (base token for buy orders)
+    );
+
+    tx.setData(orderInfo.toByteArray());
+    tx.setDataClassName("OrderOpen");
+
     // Sign the transaction
     await this.signTransaction(tx, aesKey, "THROW");
 
-    // Create a block with the transaction
-    const block = new Block(this.params);
+    // Get the current tip block to inherit the correct difficulty target and other parameters
+    const block = await this.getTip();
+
     block.addTransaction(tx);
     block.setBlockType(BlockType.BLOCKTYPE_ORDER_OPEN);
-
-    return block;
+    if (this.getFee() && !amountNeeded.isBIG()) {
+      await this.feeTransaction(aesKey, block);
+    }
+    return this.solveAndPost(block);
   }
 
   public async sellOrder(
@@ -1021,24 +1023,6 @@ export class Wallet extends WalletBase {
     // Create order transaction with proper inputs and outputs
     const tx = new Transaction(this.params);
     tx.setMemo("sell order");
-
-    // Add order information as transaction data
-    const orderInfo = new OrderOpenInfo();
-    orderInfo.setTargetTokenid(baseToken); // For sell orders, target token is the base token
-    orderInfo.setPrice(Number(sellPrice));
-    orderInfo.setOfferValue(Number(offerValue));
-    orderInfo.setOfferTokenid(tokenId); // For sell orders, offer token is the token being sold
-    orderInfo.setOrderBaseToken(baseToken);
-
-    if (validToTime) {
-      orderInfo.setValidToTime(validToTime.getTime());
-    }
-
-    if (validFromTime) {
-      orderInfo.setValidFromTime(validFromTime.getTime());
-    }
-
-    tx.setData(orderInfo.toByteArray());
 
     // Add inputs and outputs similar to payMoneyToECKeyList method
     // For sell orders, we need to lock the tokens being sold
@@ -1068,10 +1052,7 @@ export class Wallet extends WalletBase {
         beneficiary = await this.getECKey(aesKey, utxo.getAddress());
         amountNeeded = amountNeeded.add(utxo.getValue());
 
-        tx.addInput2(
-          spendableOutput.getUTXO().getBlockHash(),
-          spendableOutput
-        );
+        tx.addInput2(spendableOutput.getUTXO().getBlockHash(), spendableOutput);
 
         if (!amountNeeded.isNegative()) {
           if (beneficiary) {
@@ -1088,15 +1069,39 @@ export class Wallet extends WalletBase {
       );
     }
 
+    // Create order information as transaction data
+    // For sell orders: we're selling tokenid for baseToken
+    const orderInfo = new OrderOpenInfo(
+      Number(offerValue), // targetValue - amount of token to sell
+      baseToken, // targetTokenid - the base token we want to receive
+      beneficiary ? beneficiary.getPubKey() : null, // beneficiaryPubKey
+      validToTime ? validToTime.getTime() : Date.now(), // validToTimeMilli
+      validFromTime
+        ? validFromTime.getTime()
+        : Date.now() + NetworkParameters.ORDER_TIMEOUT_MAX, // validFromTimeMilli
+      Side.SELL, // side - SELL order
+      beneficiary ? beneficiary.toAddress(this.params).toBase58() : null, // beneficiaryAddress
+      baseToken, // orderBaseToken - the token used for payment
+      Number(sellPrice), // price - price per unit
+      Number(offerValue), // offerValue - total amount of token being sold
+      tokenId // offerTokenid - the token being offered (the token being sold)
+    );
+
+    tx.setData(orderInfo.toByteArray());
+    tx.setDataClassName("OrderOpen");
+
     // Sign the transaction
     await this.signTransaction(tx, aesKey, "THROW");
 
-    // Create a block with the transaction
-    const block = new Block(this.params);
+    // Get the current tip block to inherit the correct difficulty target and other parameters
+    const block = await this.getTip();
+
     block.addTransaction(tx);
     block.setBlockType(BlockType.BLOCKTYPE_ORDER_OPEN);
-
-    return block;
+    if (this.getFee() && !amountNeeded.isBIG()) {
+      await this.feeTransaction(aesKey, block);
+    }
+    return this.solveAndPost(block);
   }
 
   totalAmount(
@@ -1205,12 +1210,12 @@ export class Wallet extends WalletBase {
     await this.signTransaction(tx, aesKey, "THROW");
 
     // Create a block with the transaction
-    const block = new Block(this.params);
+    const block = await this.getTip();
     block.addTransaction(tx);
     // Use BLOCKTYPE_USERDATA for domain registration since BLOCKTYPE_DOMAIN doesn't exist
     block.setBlockType(BlockType.BLOCKTYPE_USERDATA);
 
-    return block;
+    return this.solveAndPost(block);
   }
 
   /**
@@ -1299,12 +1304,12 @@ export class Wallet extends WalletBase {
     await this.signTransaction(tx, aesKey, "THROW");
 
     // Create a block with the transaction
-    const block = new Block(this.params);
+    const block = await this.getTip();
     block.addTransaction(tx);
     // Use BLOCKTYPE_USERDATA for bid transactions since BLOCKTYPE_BID doesn't exist
     block.setBlockType(BlockType.BLOCKTYPE_USERDATA);
 
-    return block;
+    return this.solveAndPost(block);
   }
 
   /**
@@ -1429,7 +1434,7 @@ export class Wallet extends WalletBase {
     await this.signTransaction(tx, aesKey, "THROW");
 
     // Create a block with the transaction
-    const block = new Block(this.params);
+    const block = await this.getTip();
     block.addTransaction(tx);
     block.setBlockType(BlockType.BLOCKTYPE_TOKEN_CREATION);
 
@@ -1505,7 +1510,9 @@ export class Wallet extends WalletBase {
     requestParam.set("token", token);
     const resp = await OkHttp3Util.post(
       this.getServerURL() + ReqCmd.getDomainNameBlockHash,
-      new TextEncoder().encode(Json.jsonmapper().stringify(Object.fromEntries(requestParam)))
+      new TextEncoder().encode(
+        Json.jsonmapper().stringify(Object.fromEntries(requestParam))
+      )
     );
 
     // First parse to plain object
@@ -1605,7 +1612,9 @@ export class Wallet extends WalletBase {
             blockHashData.length === 32
           ) {
             // If it's a raw byte array of correct length
-            tokenObj.setBlockHash(Sha256Hash.wrap(new Uint8Array(blockHashData)));
+            tokenObj.setBlockHash(
+              Sha256Hash.wrap(new Uint8Array(blockHashData))
+            );
           }
           // If none of the above conditions are met, skip setting the blockHash to avoid the error
         }

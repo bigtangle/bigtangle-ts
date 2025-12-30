@@ -11,7 +11,7 @@ export abstract class DataClass {
     public toByteArray(): Uint8Array {
         const baos = new UnsafeByteArrayOutputStream();
         try {
-            baos.writeInt(this.version);
+            baos.writeLong(this.version);
             baos.close();
         } catch (e: any) {
             throw new Error(e.message || 'Error during serialization');
@@ -20,7 +20,7 @@ export abstract class DataClass {
     }
 
     protected parseDIS(dis: DataInputStream): DataClass {
-        this.version = dis.readInt();
+        this.version = dis.readLong();
         return this;
     }
 

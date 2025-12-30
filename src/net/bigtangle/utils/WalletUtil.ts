@@ -424,8 +424,11 @@ export class WalletUtil {
                 // Sign the transaction
                 await wallet.signTransaction(tx, aesKey, "THROW");
 
-                // Create a block with the transaction
-                const block = new Block(wallet.params);
+                // Get the current tip block to inherit the correct difficulty target and other parameters
+                const tipBlock = await wallet.getTip();
+
+                // Create a new block based on the tip block to ensure correct difficulty target
+                const block =  await wallet.getTip()    ; 
                 block.addTransaction(tx);
                 block.setBlockType(BlockType.BLOCKTYPE_ORDER_CANCEL);
 
