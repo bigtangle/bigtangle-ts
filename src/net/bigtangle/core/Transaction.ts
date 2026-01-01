@@ -353,7 +353,7 @@ export class Transaction extends ChildMessage {
       this.hash = Sha256Hash.wrapReversed(
         Sha256Hash.hashTwice(buf)
       );
-     console.debug("getHash was null "  );
+     //console.debug("getHash was null "  );
      }
       console.debug("getHash " +this.hash.toString());
     return this.hash;

@@ -534,7 +534,7 @@ export class Wallet extends WalletBase {
     const multiSignResponse: MultiSignResponse = Json.jsonmapper().parse(resp, {
       mainCreator: () => [MultiSignResponse, MultiSign],
     });
-    console.debug(" multiSign responseData: " + multiSignResponse.getMessage);
+   // console.debug(" multiSign responseData: " + multiSignResponse.getMessage);
 
     const multiSignList = multiSignResponse.getMultiSigns();
     if (!multiSignList || multiSignList.length === 0) {
@@ -880,9 +880,7 @@ export class Wallet extends WalletBase {
    */
   async solveAndPost(block: Block): Promise<Block> {
     try {
-      console.log(
-        " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize())
-      );
+ 
       // Solve the block
       block.solve();
 
@@ -1068,7 +1066,16 @@ export class Wallet extends WalletBase {
         totalCoin.toString() + " outputs size= " + coinListToken.length
       );
     }
-
+    console.debug(" sellOrder block before getTip");
+    // Get the current tip block to inherit the correct difficulty target and other parameters
+    let block: Block;
+    try {
+      block = await this.getTip();
+      console.debug(" sellOrder block after getTip: " + block.toString());
+    } catch (error) {
+      console.error(" sellOrder getTip() error: ", error);
+      throw error;
+    }
     // Create order information as transaction data
     // For sell orders: we're selling tokenid for baseToken
     const orderInfo = new OrderOpenInfo(
@@ -1092,9 +1099,6 @@ export class Wallet extends WalletBase {
 
     // Sign the transaction
     await this.signTransaction(tx, aesKey, "THROW");
-
-    // Get the current tip block to inherit the correct difficulty target and other parameters
-    const block = await this.getTip();
 
     block.addTransaction(tx);
     block.setBlockType(BlockType.BLOCKTYPE_ORDER_OPEN);

@@ -69,17 +69,17 @@ export abstract class RemoteTest {
   }
 
   protected async payBigTo(
-    beneficiary: ECKey,
+    beneficiary: ECKey[],
     amount: bigint,
     addedBlocks: Block[]
   ): Promise<Block> {
     const giveMoneyResult = new Map<string, bigint>();
-
+    for (const b of beneficiary) {
     giveMoneyResult.set(
-      beneficiary.toAddress(this.networkParameters).toString(),
+      b.toAddress(this.networkParameters).toString(),
       amount
     );
-
+  }
     // Convert token ID to Uint8Array
     const tokenIdBytes = Buffer.from(Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING));
     return this.payList(addedBlocks, giveMoneyResult, tokenIdBytes);
@@ -295,10 +295,10 @@ export abstract class RemoteTest {
       const pubKeyHash = ecKey.getPubKeyHash();
       const hex = Utils.toHexString(Buffer.from(pubKeyHash));
       keyStrHex000.push(hex);
-      console.debug(`Key hash: ${hex}`);
+    //  console.debug(`Key hash: ${hex}`);
     }
     const jsonString = Json.jsonmapper().stringify(keyStrHex000);
-    console.debug(`Request JSON: ${jsonString}`);
+   // console.debug(`Request JSON: ${jsonString}`);
 
       // Create Buffer from the JSON string directly
       const buffer = Buffer.from(jsonString, 'utf8');

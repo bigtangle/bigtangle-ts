@@ -34,22 +34,25 @@ class RemoteFromAddressTests extends RemoteTest {
       RemoteFromAddressTests.yuanTokenPriv
     ).getPublicKeyAsHex();
 
-    // Create the token first
-   //  await this.testTokens();
+    const k1 = //ECKey.createNewKey();
+   ECKey.fromPrivateString( '9c845f50a809cf6bb3ff7a3679195141dc97bd62e237a2ced3d6373735a38891');
+    //console.log(k1.getPrivateKeyAsHex());
+    const k2 = //ECKey.createNewKey()
+   ECKey.fromPrivateString(  '88c8383183d9db0a5fdbd8d862709f729e055d8981b8515044f28d4cf12d3f27');
+   // console.log(k2.getPrivateKeyAsHex());
+    this.userkeys.push(k1);
+    this.userkeys.push(k2);
 
-    // Call tokensumInitial after testTokens
-    let utxos = [];
-    let attempts = 0;
-    // Poll for UTXOs for up to 30 seconds
-    while (attempts < 30) {
-      utxos = await this.tokenOwner();
-      if (utxos && utxos.length > 0) break;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      attempts++;
-    }
-    if (!utxos || utxos.length === 0) {
-      console.warn("No UTXOs found for token after creation, test may fail.");
-    }
+    await this.payBigTo(
+      [
+        ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
+        ...this.userkeys,
+      ],
+      CoinConstants.FEE_DEFAULT.getValue() * BigInt(1000) * BigInt(10000),
+      []
+    );
+
+    //  await this.testTokens();
 
     // Now create yuanWallet after token creation so it can access the created tokens
     this.yuanWallet = await Wallet.fromKeysURL(
@@ -57,13 +60,16 @@ class RemoteFromAddressTests extends RemoteTest {
       [ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv)],
       this.contextRoot
     );
-    this.checkBalance(
-      NetworkParameters.BIGTANGLE_TOKENID_STRING,
-   [ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv)]
-    );
+    this.checkBalance(NetworkParameters.BIGTANGLE_TOKENID_STRING, [
+      ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
+    ]);
+    this.checkBalance(NetworkParameters.BIGTANGLE_TOKENID_STRING, [
+      this.userkeys[0],
+    ]);
 
-    this.userkeys.push(ECKey.createNewKey());
-    this.userkeys.push(ECKey.createNewKey());
+    this.checkBalance(NetworkParameters.BIGTANGLE_TOKENID_STRING, [
+      this.userkeys[1],
+    ]);
 
     await this.doUserPay();
   }
@@ -71,25 +77,10 @@ class RemoteFromAddressTests extends RemoteTest {
   private async doUserPay() {
     await this.payKeys();
     // Add a delay to ensure the payments to the new keys are confirmed before trying to spend from them
-    await new Promise((resolve) => setTimeout(resolve, 20000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    this.checkBalance(this.tokenid, this.userkeys);
-
-    this.checkBalance(
-      NetworkParameters.BIGTANGLE_TOKENID_STRING,
-      this.userkeys
-    );
-
-    // Skip the sell operation to avoid computational issues with proof-of-work
-    this.sell(this.userkeys);
-
-    // Skip the buy ticket operation to avoid computational issues with proof-of-work
-    await this.buyTicket(this.userkeys);
-
-    // Just log a message instead of performing the expensive operations
-    console.log(
-      "Skipping buy/sell operations to avoid proof-of-work computational issues"
-    );
+    await this.buy(this.userkeys);
+    await this.sell(this.userkeys);
 
     // Search orders using WalletUtil after buying ticket
     if (typeof WalletUtil !== "undefined" && WalletUtil.searchOrder) {
@@ -116,7 +107,7 @@ class RemoteFromAddressTests extends RemoteTest {
   /*
    * pay money to the key and use the key to buy yuan tokens
    */
-  public async buyTicket(keys: ECKey[]) {
+  public async buy(keys: ECKey[]) {
     const w = await Wallet.fromKeysURL(
       this.networkParameters,
       keys,
@@ -160,29 +151,9 @@ class RemoteFromAddressTests extends RemoteTest {
     } else {
       console.log("Payment block b is null");
     }
-
-    const tokenIdBytes = Buffer.from(
-      Utils.HEX.decode(NetworkParameters.BIGTANGLE_TOKENID_STRING)
-    );
-    const c = await this.wallet!.payToList(
-      null,
-      giveMoneyResultBig,
-      tokenIdBytes
-    );
-    if (c !== null) {
-      console.log(`Payment block: ${c.toString()}`);
-    } else {
-      console.log("Payment block c is null");
-    }
   }
 
   public async testTokens() {
-    // Send native tokens to yuanToken key for fees first
-    await this.payBigTo(
-      ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
-      CoinConstants.FEE_DEFAULT.getValue() * BigInt(1000) * BigInt(10000),
-      []
-    );
     const domain = "";
     const fromPrivate = ECKey.fromPrivateString(
       RemoteFromAddressTests.yuanTokenPriv
@@ -377,13 +348,10 @@ class RemoteFromAddressTests extends RemoteTest {
       this.tokenid, // tokenid to sell (yuan token)
       BigInt(2), // amount of yuan tokens to sell (reduced)
       BigInt(1), // price per yuan token (reduced)
-      null, //  
+      null, //
       null, // to address
       NetworkParameters.BIGTANGLE_TOKENID_STRING, // payment token (native)
       false // is buy order - false means it's a sell order
-    );
-    console.log(
-      "  sell block binary:" + Utils.HEX.encode(bs.unsafeBitcoinSerialize())
     );
 
     console.log(`sell order result: ${bs ? bs.toString() : "null"}`);
