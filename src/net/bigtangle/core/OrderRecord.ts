@@ -18,12 +18,13 @@ export class OrderRecord extends SpentBlock {
   @JsonProperty() beneficiaryAddress: string | null = null;
   @JsonProperty() validToTime: number | null = null;
   @JsonProperty() validFromTime: number | null = null;
-  @JsonClassType({ type: () => [String] })
+  @JsonProperty()
   private side: Side | null = null;
   @JsonProperty() orderBaseToken: string | null = null;
   @JsonProperty() tokenDecimals: number = 0;
   @JsonProperty() price: number | null = null;
   @JsonProperty() cancelPending: boolean = false;
+  @JsonProperty() blockHashHex: string | null = null;
 
   constructor(
     initialBlockHash?: Sha256Hash,
@@ -58,7 +59,10 @@ export class OrderRecord extends SpentBlock {
     if (beneficiaryPubKey) this.beneficiaryPubKey = beneficiaryPubKey;
     if (validToTime !== undefined) this.validToTime = validToTime;
     if (validFromTime !== undefined) this.validFromTime = validFromTime;
-    if (side) this.side = Side[side as keyof typeof Side];
+    if (side) {
+      if (side === 'BUY') this.side = Side.BUY;
+      else if (side === 'SELL') this.side = Side.SELL;
+    }
     if (beneficiaryAddress) this.beneficiaryAddress = beneficiaryAddress;
     if (orderBaseToken) this.orderBaseToken = orderBaseToken;
     if (price !== undefined) this.price = price;

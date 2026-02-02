@@ -307,7 +307,7 @@ export class Wallet extends WalletBase {
 
     this.checkMultiSignBy(multiSignBies, transaction);
     //   console.log(     " block binary:" + Utils.HEX.encode(block.unsafeBitcoinSerialize()));
-    //   console.log(" block:" + block.toString());
+       console.log(" block:" + block.toString());
     return await this.adjustSolveAndSign(block);
   }
 
@@ -693,12 +693,7 @@ export class Wallet extends WalletBase {
       const pubKeyBytes = Utils.HEX.decode(pubKeyHex);
       const signatureBytes = Utils.HEX.decode(signatureHex);
 
-      // Log the data for comparison with server logs
-      console.log(
-        ` transactionHash=${tx.getHash()}\n signature=${signatureHex} \n pubKey=${pubKeyHex}`
-      );
-      // console.log(` transaction=${Utils.HEX.encode(tx.unsafeBitcoinSerialize())  }\n `);
-
+     
       // Create a temporary ECKey from the public key and verify the signature
       const tempKey = ECKey.fromPublicOnly(pubKeyBytes);
       const isValid = tempKey.verify(tx.getHash().getBytes(), signatureBytes);
@@ -976,10 +971,10 @@ export class Wallet extends WalletBase {
       Number(buyAmount), // targetValue - amount of target token to buy
       tokenId, // targetTokenid - the token we want to buy
       beneficiary ? beneficiary.getPubKey() : null, // beneficiaryPubKey
-      validToTime ? validToTime.getTime() : Date.now(), // validToTimeMilli
+      validToTime ? validToTime.getTime() : Date.now()+ NetworkParameters.ORDER_TIMEOUT_MAX, // validToTimeMilli
       validFromTime
         ? validFromTime.getTime()
-        : Date.now() + NetworkParameters.ORDER_TIMEOUT_MAX, // validFromTimeMilli
+        : Date.now() , // validFromTimeMilli
       Side.BUY, // side - BUY order
       beneficiary ? beneficiary.toAddress(this.params).toBase58() : null, // beneficiaryAddress
       baseToken, // orderBaseToken - the token used for payment

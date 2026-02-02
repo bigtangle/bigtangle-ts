@@ -355,7 +355,7 @@ export class Transaction extends ChildMessage {
       );
      //console.debug("getHash was null "  );
      }
-      console.debug("getHash " +this.hash.toString());
+    //  console.debug("getHash " +this.hash.toString());
     return this.hash;
   }
 

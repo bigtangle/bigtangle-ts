@@ -17,6 +17,7 @@ import { TokenIndexResponse } from "../../src/net/bigtangle/response/TokenIndexR
 import { OkHttp3Util } from "../../src/net/bigtangle/utils/OkHttp3Util";
 import { Wallet } from "../../src/net/bigtangle/wallet/Wallet";
 import { Json } from "../../src/net/bigtangle/utils/Json";
+import { WalletUtil } from "../../src/net/bigtangle/utils/WalletUtil";
 export abstract class RemoteTest {
   public objectMapper = new ObjectMapper();
   public contextRoot = "http://localhost:8088/";
@@ -513,4 +514,18 @@ export abstract class RemoteTest {
     );
   }
  
-}
+  public async testSearchOrder() { 
+
+      const ordersWithAddress = await WalletUtil.searchOrder(
+        this.wallet,
+        null,
+      null,
+        "publish",
+        false,
+        this.contextRoot
+      );
+      expect(ordersWithAddress).toBeDefined();
+      console.log("Orders with address found:", ordersWithAddress.length);
+    }
+  }
+ 
