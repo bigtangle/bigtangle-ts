@@ -95,9 +95,57 @@ git push origin "$TAG_NAME" --force
 echo -e "${GREEN}✓ Tag pushed to GitHub${NC}"
 
 # Wait for GitHub Actions to complete
-echo -e "${YELLOW}Step 3: Waiting for GitHub Actions to complete...${NC}"
+echo -e "${YELLOW}Step 3: Monitoring GitHub Actions workflow...${NC}"
 echo "Waiting 30 seconds for workflow to start..."
 sleep 30
+
+# Get the most recent workflow run for this tag
+echo "Checking workflow status..."
+WORKFLOW_RUN_ID=$(gh run list --workflow=release.yml --branch="$TAG_NAME" --limit=1 --json databaseId --jq '.[0].databaseId')
+
+if [ -n "$WORKFLOW_RUN_ID" ]; then
+    echo "Found workflow run: $WORKFLOW_RUN_ID"
+    echo "Monitoring workflow progress..."
+    
+    # Monitor workflow status
+    MAX_WORKFLOW_CHECKS=30
+    WORKFLOW_CHECK=0
+    
+    while [ $WORKFLOW_CHECK -lt $MAX_WORKFLOW_CHECKS ]; do
+        WORKFLOW_CHECK=$((WORKFLOW_CHECK + 1))
+        
+        WORKFLOW_STATUS=$(gh run view "$WORKFLOW_RUN_ID" --json status,conclusion --jq '.status + ":" + (.conclusion // "running")')
+        echo "Workflow status ($WORKFLOW_CHECK/$MAX_WORKFLOW_CHECKS): $WORKFLOW_STATUS"
+        
+        case "$WORKFLOW_STATUS" in
+            completed:success)
+                echo -e "${GREEN}✓ Workflow completed successfully${NC}"
+                break
+                ;;
+            completed:failure)
+                echo -e "${RED}✗ Workflow failed${NC}"
+                echo ""
+                echo "Workflow details:"
+                gh run view "$WORKFLOW_RUN_ID"
+                echo ""
+                echo "Failed job logs:"
+                gh run view "$WORKFLOW_RUN_ID" --log-failed 2>&1 | tail -n 50
+                break
+                ;;
+            completed:*)
+                echo -e "${YELLOW}⚠ Workflow completed with status: $WORKFLOW_STATUS${NC}"
+                gh run view "$WORKFLOW_RUN_ID"
+                break
+                ;;
+        esac
+        
+        if [ $WORKFLOW_CHECK -lt $MAX_WORKFLOW_CHECKS ]; then
+            sleep 10
+        fi
+    done
+else
+    echo -e "${YELLOW}⚠ Could not find workflow run for tag $TAG_NAME${NC}"
+fi
 
 # Check GitHub release using gh CLI
 echo -e "${YELLOW}Step 4: Checking GitHub release...${NC}"
