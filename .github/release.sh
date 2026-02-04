@@ -67,22 +67,13 @@ else
 fi
 echo ""
 
-# Check if there are uncommitted changes
+# Auto-commit any uncommitted changes
 if ! git diff-index --quiet HEAD --; then
-    echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
-    if [ "$AUTO_MODE" = false ]; then
-        read -p "Continue anyway? (y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
-    else
-        echo "Auto-mode: Committing changes..."
-        git add package.json package-lock.json 2>/dev/null || true
-        git commit -m "chore: bump version to ${CURRENT_VERSION}"
-        git push origin main
-        echo -e "${GREEN}✓ Changes committed and pushed${NC}"
-    fi
+    echo -e "${YELLOW}Committing changes...${NC}"
+    git add package.json package-lock.json 2>/dev/null || true
+    git commit -m "chore: bump version to ${CURRENT_VERSION}" || true
+    git push origin main
+    echo -e "${GREEN}✓ Changes committed and pushed${NC}"
 fi
 
 # Create git tag
