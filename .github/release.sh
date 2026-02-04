@@ -2,6 +2,8 @@
 
 # Release script for bigtangle-ts
 # This script creates a git tag, pushes it to GitHub, and verifies the release on both GitHub and npm
+# Usage: ./release.sh [version]
+# If version is provided, it will update package.json first
 
 set -e
 
@@ -11,15 +13,29 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Parse arguments
+NEW_VERSION="$1"
+AUTO_MODE=false
+
+# If version argument provided, update package.json
+if [ -n "$NEW_VERSION" ]; then
+    echo -e "${YELLOW}Updating package.json to version ${NEW_VERSION}...${NC}"
+    npm version "$NEW_VERSION" --no-git-tag-version
+    echo -e "${GREEN}✓ Version updated${NC}"
+    AUTO_MODE=true
+fi
+
 # Get package name and version from package.json
 PACKAGE_NAME=$(node -p "require('./package.json').name")
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 TAG_NAME="v${CURRENT_VERSION}"
 
+echo ""
 echo -e "${YELLOW}=== Bigtangle Release Script ===${NC}"
 echo "Package: ${PACKAGE_NAME}"
 echo "Version: ${CURRENT_VERSION}"
 echo "Tag: ${TAG_NAME}"
+echo "Mode: $(if [ "$AUTO_MODE" = true ]; then echo "Automated"; else echo "Interactive"; fi)"
 echo ""
 
 # Check if we're in a git repository
@@ -54,10 +70,18 @@ echo ""
 # Check if there are uncommitted changes
 if ! git diff-index --quiet HEAD --; then
     echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
-    read -p "Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
+    if [ "$AUTO_MODE" = false ]; then
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        echo "Auto-mode: Committing changes..."
+        git add package.json package-lock.json 2>/dev/null || true
+        git commit -m "chore: bump version to ${CURRENT_VERSION}"
+        git push origin main
+        echo -e "${GREEN}✓ Changes committed and pushed${NC}"
     fi
 fi
 
@@ -65,9 +89,18 @@ fi
 echo -e "${YELLOW}Step 1: Creating git tag ${TAG_NAME}...${NC}"
 if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
     echo -e "${YELLOW}Tag ${TAG_NAME} already exists${NC}"
-    read -p "Delete and recreate? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [ "$AUTO_MODE" = false ]; then
+        read -p "Delete and recreate? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            gh release delete "$TAG_NAME" -y 2>/dev/null || true
+            git tag -d "$TAG_NAME"
+            git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
+            echo -e "${GREEN}✓ Tag recreated${NC}"
+        fi
+    else
+        echo "Auto-mode: Deleting and recreating tag..."
+        gh release delete "$TAG_NAME" -y 2>/dev/null || true
         git tag -d "$TAG_NAME"
         git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
         echo -e "${GREEN}✓ Tag recreated${NC}"
@@ -79,15 +112,16 @@ fi
 
 # Push tag to GitHub
 echo -e "${YELLOW}Step 2: Pushing tag to GitHub...${NC}"
-read -p "Push tag ${TAG_NAME} to origin? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    git push origin "$TAG_NAME" --force
-    echo -e "${GREEN}✓ Tag pushed to GitHub${NC}"
-else
-    echo -e "${RED}Skipping push${NC}"
-    exit 1
+if [ "$AUTO_MODE" = false ]; then
+    read -p "Push tag ${TAG_NAME} to origin? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${RED}Skipping push${NC}"
+        exit 1
+    fi
 fi
+git push origin "$TAG_NAME" --force
+echo -e "${GREEN}✓ Tag pushed to GitHub${NC}"
 
 # Wait for GitHub Actions to complete
 echo -e "${YELLOW}Step 3: Waiting for GitHub Actions to complete...${NC}"
