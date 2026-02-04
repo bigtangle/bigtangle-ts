@@ -13,8 +13,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": false,
-    "declarationMap": false,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": false,
     "maxNodeModuleJsDepth": 5,
     "outDir": "./dist",
@@ -24,12 +24,6 @@
       "net/bigtangle/*": ["src/net/bigtangle/*"]
     }
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "test"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test"]
 }

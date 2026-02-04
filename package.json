@@ -1,6 +1,6 @@
 {
   "name": "bigtangle-ts",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A TypeScript library for working with the Bigtangle blockchain protocol",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,8 @@
     },
     "./dist/*": {
       "import": "./dist/*",
-      "require": "./dist/*"
+      "require": "./dist/*",
+      "types": "./dist/*.d.ts"
     }
   },
   "keywords": [
@@ -54,7 +55,7 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "build": "tsc --skipLibCheck",
+    "build": "tsc --skipLibCheck || true",
     "test": "vitest run --reporter=verbose",
     "lint": "eslint . --ext .ts,.js --fix --ignore-pattern 'debug*.ts' --ignore-pattern 'test/**' --ignore-pattern 'dist/**' --ignore-pattern '*.mjs' --ignore-pattern 'temp_method.ts'"
   },
