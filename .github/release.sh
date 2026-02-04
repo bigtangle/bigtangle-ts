@@ -79,23 +79,11 @@ fi
 # Create git tag
 echo -e "${YELLOW}Step 1: Creating git tag ${TAG_NAME}...${NC}"
 if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-    echo -e "${YELLOW}Tag ${TAG_NAME} already exists${NC}"
-    if [ "$AUTO_MODE" = false ]; then
-        read -p "Delete and recreate? (y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            gh release delete "$TAG_NAME" -y 2>/dev/null || true
-            git tag -d "$TAG_NAME"
-            git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
-            echo -e "${GREEN}✓ Tag recreated${NC}"
-        fi
-    else
-        echo "Auto-mode: Deleting and recreating tag..."
-        gh release delete "$TAG_NAME" -y 2>/dev/null || true
-        git tag -d "$TAG_NAME"
-        git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
-        echo -e "${GREEN}✓ Tag recreated${NC}"
-    fi
+    echo -e "${YELLOW}Tag ${TAG_NAME} already exists - deleting and recreating...${NC}"
+    gh release delete "$TAG_NAME" -y 2>/dev/null || true
+    git tag -d "$TAG_NAME"
+    git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
+    echo -e "${GREEN}✓ Tag recreated${NC}"
 else
     git tag -a "$TAG_NAME" -m "Release ${CURRENT_VERSION}"
     echo -e "${GREEN}✓ Tag created${NC}"
@@ -103,14 +91,6 @@ fi
 
 # Push tag to GitHub
 echo -e "${YELLOW}Step 2: Pushing tag to GitHub...${NC}"
-if [ "$AUTO_MODE" = false ]; then
-    read -p "Push tag ${TAG_NAME} to origin? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}Skipping push${NC}"
-        exit 1
-    fi
-fi
 git push origin "$TAG_NAME" --force
 echo -e "${GREEN}✓ Tag pushed to GitHub${NC}"
 
