@@ -28,6 +28,29 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check npm registry for existing versions
+echo -e "${YELLOW}Checking npm registry...${NC}"
+PUBLISHED_VERSIONS=$(npm view "${PACKAGE_NAME}" versions --json 2>/dev/null || echo "[]")
+
+if [ "$PUBLISHED_VERSIONS" != "[]" ]; then
+    echo "Published versions on npm:"
+    echo "$PUBLISHED_VERSIONS" | jq -r '.[]' | sed 's/^/  - /'
+    
+    # Check if current version already exists
+    if echo "$PUBLISHED_VERSIONS" | jq -e --arg ver "$CURRENT_VERSION" 'index($ver) != null' > /dev/null 2>&1; then
+        echo -e "${RED}✗ Version ${CURRENT_VERSION} is already published on npm!${NC}"
+        echo "  View: https://www.npmjs.com/package/${PACKAGE_NAME}/v/${CURRENT_VERSION}"
+        echo ""
+        echo "Please update the version in package.json before releasing."
+        exit 1
+    else
+        echo -e "${GREEN}✓ Version ${CURRENT_VERSION} is not yet published${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ No versions found on npm (package may not exist yet)${NC}"
+fi
+echo ""
+
 # Check if there are uncommitted changes
 if ! git diff-index --quiet HEAD --; then
     echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
