@@ -20,7 +20,7 @@ import { Json } from "../../src/net/bigtangle/utils/Json";
 import { WalletUtil } from "../../src/net/bigtangle/utils/WalletUtil";
 export abstract class RemoteTest {
   public objectMapper = new ObjectMapper();
-  public contextRoot = "http://localhost:8088/";
+  public contextRoot = process.env.TEST_CONTEXT_ROOT || "http://localhost:18089/";
 
   /*
    * default wallet which has key testpriv and yuanTokenPriv

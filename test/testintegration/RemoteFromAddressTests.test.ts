@@ -52,7 +52,12 @@ class RemoteFromAddressTests extends RemoteTest {
       []
     );
 
-        await this.testTokens();
+    // Wait for the payment block to be confirmed by MCMC before creating tokens
+    await this.waitForBalance(NetworkParameters.BIGTANGLE_TOKENID_STRING, [
+      ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
+    ]);
+
+    await this.testTokens();
 
     // Now create yuanWallet after token creation so it can access the created tokens
     this.yuanWallet = await Wallet.fromKeysURL(
@@ -75,6 +80,11 @@ class RemoteFromAddressTests extends RemoteTest {
   }
 
   private async doUserPay() {
+    // Wait for yuan token to be confirmed after token creation before trying to spend it
+    await this.waitForBalance(this.tokenid, [
+      ECKey.fromPrivateString(RemoteFromAddressTests.yuanTokenPriv),
+    ]);
+
     await this.payKeys();
     // Add a delay to ensure the payments to the new keys are confirmed before trying to spend from them
     await new Promise((resolve) => setTimeout(resolve, 5000));
